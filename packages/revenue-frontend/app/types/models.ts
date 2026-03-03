@@ -319,12 +319,17 @@ export interface Invoice {
 
 export interface BillingJob {
   id: string;
+  type?: string;
+  data?: any;
   status: "queued" | "active" | "completed" | "failed";
   progress?: number;
   result?: any;
   error?: string;
+  attemptsMade?: number;
+  maxAttempts?: number;
   createdAt: string;
-  completedAt?: string;
+  processedAt?: string;
+  finishedAt?: string;
 }
 
 export interface QueueStats {

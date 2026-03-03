@@ -29,7 +29,7 @@ export class BillingQueueService {
       JOB_TYPES.GENERATE_CONTRACT_INVOICE,
       data,
       {
-        removeOnComplete: true,
+        removeOnComplete: { count: 100, age: 3600 },
         removeOnFail: false,
       },
     );
@@ -51,7 +51,7 @@ export class BillingQueueService {
       JOB_TYPES.BATCH_CONTRACT_BILLING,
       data,
       {
-        removeOnComplete: true,
+        removeOnComplete: { count: 100, age: 3600 },
         removeOnFail: false,
       },
     );
@@ -73,7 +73,7 @@ export class BillingQueueService {
       JOB_TYPES.GENERATE_CONSOLIDATED_INVOICE,
       data,
       {
-        removeOnComplete: true,
+        removeOnComplete: { count: 100, age: 3600 },
         removeOnFail: false,
       },
     );
@@ -102,21 +102,30 @@ export class BillingQueueService {
     }
 
     const state = await job.getState();
-    const progress = job.progress;
-    const returnValue = job.returnvalue;
-    const failedReason = job.failedReason;
+
+    // Map BullMQ state to frontend-expected status values
+    const status =
+      state === 'waiting' || state === 'delayed' ? 'queued' : state;
 
     return {
       id: job.id,
-      name: job.name,
+      type: job.name,
       data: job.data,
-      state,
-      progress,
-      result: returnValue,
-      error: failedReason,
+      status,
+      progress: job.progress,
+      result: job.returnvalue,
+      error: job.failedReason,
       attemptsMade: job.attemptsMade,
-      processedOn: job.processedOn,
-      finishedOn: job.finishedOn,
+      maxAttempts: (job.opts as any)?.attempts ?? 3,
+      createdAt: job.timestamp
+        ? new Date(job.timestamp).toISOString()
+        : new Date().toISOString(),
+      processedAt: job.processedOn
+        ? new Date(job.processedOn).toISOString()
+        : undefined,
+      finishedAt: job.finishedOn
+        ? new Date(job.finishedOn).toISOString()
+        : undefined,
     };
   }
 

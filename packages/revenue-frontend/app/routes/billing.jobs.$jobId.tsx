@@ -214,7 +214,7 @@ export default function BillingJobStatusRoute() {
                   Attempts:
                 </span>
                 <p className="text-sm mt-1">
-                  {job.attemptsMade} / {job.maxAttempts || 3}
+                  {job.attemptsMade} / {job.maxAttempts ?? 3}
                 </p>
               </div>
             )}

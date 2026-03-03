@@ -247,7 +247,7 @@ describe('BillingQueueService', () => {
 
       const result = await service.getJobStatus('job-123');
 
-      expect(result?.state).toBe('failed');
+      expect(result?.status).toBe('failed');
       expect(result?.error).toBe('Contract not found');
       expect(result?.attemptsMade).toBe(3);
     });
@@ -270,9 +270,9 @@ describe('BillingQueueService', () => {
 
       const result = await service.getJobStatus('job-123');
 
-      expect(result?.state).toBe('active');
+      expect(result?.status).toBe('active');
       expect(result?.progress).toBe(50);
-      expect(result?.finishedOn).toBeNull();
+      expect(result?.finishedAt).toBeUndefined();
     });
   });
 
