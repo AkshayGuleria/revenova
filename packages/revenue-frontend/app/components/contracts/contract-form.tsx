@@ -95,7 +95,12 @@ export function ContractForm({
   });
 
   const handleSubmit = (values: ContractFormValues) => {
-    onSubmit(values as CreateContractDto | UpdateContractDto);
+    if (mode === "create") {
+      const { status, ...createData } = values;
+      onSubmit(createData as CreateContractDto);
+    } else {
+      onSubmit(values as UpdateContractDto);
+    }
   };
 
   return (
