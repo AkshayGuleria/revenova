@@ -1,19 +1,20 @@
 ---
 id: revenue-backend
 title: B2B Enterprise Revenue Management Backend System
-status: planned
+status: in_progress
 priority: high
 assignee: billman, habibi
 created: 2026-01-11
-updated: 2026-01-12
+updated: 2026-04-15
 dependencies: [api-layer]
 blocks: []
 type: backend
 focus: B2B Enterprise (contracts, hierarchical accounts, seat-based licensing)
-phase: 1 of 5 (plus future B2C Phase 6+)
-phase1_status: planned (enterprise accounts, contracts)
-phase2_status: planned (contract billing + hybrid scalability)
-phase3_status: planned (hierarchical accounts, consolidated billing)
+phase: 4 of 5 (plus future B2C Phase 6+)
+phase1_status: completed (enterprise accounts, contracts, products, invoices)
+phase2_status: completed (contract billing + hybrid scalability)
+phase3_status: completed (hierarchical accounts, consolidated billing)
+phase3_5_status: completed (product pricing enhancement — chargeType, category, setupFee)
 phase4_status: planned (purchase orders, credit management)
 phase5_status: planned (analytics, renewal tracking, SLA adjustments)
 scalability: hybrid (cluster + worker threads + queues)
@@ -353,98 +354,98 @@ Build a **B2B Enterprise Revenue Management Backend System** in phases, starting
 | ID | Task | Status | Assignee | Notes |
 |----|------|--------|----------|-------|
 | **Database Setup** | | | | |
-| 1 | Design database schema (ERD) | planned | billman | Customers, products, invoices |
-| 2 | Set up PostgreSQL with Docker | planned | habibi | docker-compose service |
-| 3 | Create migration system (node-pg-migrate) | planned | billman | Version control for schema |
-| 4 | Write initial migrations | planned | billman | Create tables |
-| 5 | Seed database with sample data | planned | billman | Test data |
+| 1 | Design database schema (ERD) | completed | billman | Customers, products, invoices |
+| 2 | Set up PostgreSQL with Docker | completed | habibi | docker-compose service |
+| 3 | Create migration system (node-pg-migrate) | completed | billman | Version control for schema |
+| 4 | Write initial migrations | completed | billman | Create tables |
+| 5 | Seed database with sample data | completed | billman | Test data |
 | **API Server** | | | | |
-| 6 | Create revenue-backend package structure | planned | billman | Express.js setup |
-| 7 | Set up Express server with CORS | planned | billman | Port 5177 |
-| 8 | Integrate auth-server session validation | planned | billman | Middleware for auth |
-| 9 | Set up PostgreSQL connection pool (pg) | planned | billman | Database client |
+| 6 | Create revenue-backend package structure | completed | billman | Express.js setup |
+| 7 | Set up Express server with CORS | completed | billman | Port 5177 |
+| 8 | Integrate auth-server session validation | completed | billman | Middleware for auth |
+| 9 | Set up PostgreSQL connection pool (pg) | completed | billman | Database client |
 | **Customer API** | | | | |
-| 10 | POST /api/customers - Create customer | planned | billman | Validation, error handling |
-| 11 | GET /api/customers - List customers | planned | billman | Pagination, filtering |
-| 12 | GET /api/customers/:id - Get customer | planned | billman | With related data |
-| 13 | PUT /api/customers/:id - Update customer | planned | billman | Partial updates |
-| 14 | DELETE /api/customers/:id - Delete customer | planned | billman | Soft delete |
+| 10 | POST /api/customers - Create customer | completed | billman | Validation, error handling |
+| 11 | GET /api/customers - List customers | completed | billman | Pagination, filtering |
+| 12 | GET /api/customers/:id - Get customer | completed | billman | With related data |
+| 13 | PUT /api/customers/:id - Update customer | completed | billman | Partial updates |
+| 14 | DELETE /api/customers/:id - Delete customer | completed | billman | Soft delete |
 | **Product API** | | | | |
-| 15 | POST /api/products - Create product | planned | billman | Name, price, type |
-| 16 | GET /api/products - List products | planned | billman | Filter by type |
-| 17 | GET /api/products/:id - Get product | planned | billman | With pricing details |
-| 18 | PUT /api/products/:id - Update product | planned | billman | Price history |
+| 15 | POST /api/products - Create product | completed | billman | Name, price, type |
+| 16 | GET /api/products - List products | completed | billman | Filter by type |
+| 17 | GET /api/products/:id - Get product | completed | billman | With pricing details |
+| 18 | PUT /api/products/:id - Update product | completed | billman | Price history |
 | **Invoice API** | | | | |
-| 19 | POST /api/invoices - Create invoice | planned | billman | Manual creation |
-| 20 | GET /api/invoices - List invoices | planned | billman | Filter by status, customer |
-| 21 | GET /api/invoices/:id - Get invoice | planned | billman | With line items |
-| 22 | PUT /api/invoices/:id - Update invoice | planned | billman | Status transitions |
-| 23 | POST /api/invoices/:id/items - Add line item | planned | billman | Product, quantity, price |
-| 24 | DELETE /api/invoices/:id/items/:itemId | planned | billman | Remove line item |
+| 19 | POST /api/invoices - Create invoice | completed | billman | Manual creation |
+| 20 | GET /api/invoices - List invoices | completed | billman | Filter by status, customer |
+| 21 | GET /api/invoices/:id - Get invoice | completed | billman | With line items |
+| 22 | PUT /api/invoices/:id - Update invoice | completed | billman | Status transitions |
+| 23 | POST /api/invoices/:id/items - Add line item | completed | billman | Product, quantity, price |
+| 24 | DELETE /api/invoices/:id/items/:itemId | completed | billman | Remove line item |
 | **Frontend Integration** | | | | |
-| 25 | Update Revenue app API client | planned | billman | Point to localhost:5177 |
-| 26 | Update useInvoices hook | planned | billman | Real API calls |
-| 27 | Update useCustomers hook (Revenue context) | planned | billman | Different from CRM |
-| 28 | Test full CRUD flow in UI | planned | billman | End-to-end |
+| 25 | Update Revenue app API client | completed | billman | Point to localhost:5177 |
+| 26 | Update useInvoices hook | completed | billman | Real API calls |
+| 27 | Update useCustomers hook (Revenue context) | completed | billman | Different from CRM |
+| 28 | Test full CRUD flow in UI | completed | billman | End-to-end |
 | **Documentation** | | | | |
-| 29 | Write API documentation (Swagger) | planned | billman | OpenAPI spec |
-| 30 | Write README for revenue-backend | planned | billman | Setup, usage |
+| 29 | Write API documentation (Swagger) | completed | billman | OpenAPI spec |
+| 30 | Write README for revenue-backend | completed | billman | Setup, usage |
 
 ### Phase 2: Automation (Weeks 3-4)
 
 | ID | Task | Status | Assignee | Notes |
 |----|------|--------|----------|-------|
 | **Billing Engine** | | | | |
-| 31 | Design billing cycle configuration | planned | billman | Monthly, quarterly, annual |
-| 32 | Create billing_cycles table | planned | billman | Migration |
-| 33 | POST /api/billing-cycles - Create cycle | planned | billman | Schedule, rules |
-| 34 | Build invoice generation engine | planned | billman | From billing cycle + customer |
-| 35 | POST /api/billing/generate - Trigger generation | planned | billman | On-demand |
+| 31 | Design billing cycle configuration | completed | billman | Monthly, quarterly, annual |
+| 32 | Create billing_cycles table | completed | billman | Migration |
+| 33 | POST /api/billing-cycles - Create cycle | completed | billman | Schedule, rules |
+| 34 | Build invoice generation engine | completed | billman | From billing cycle + customer |
+| 35 | POST /api/billing/generate - Trigger generation | completed | billman | On-demand |
 | **Scheduled Jobs** | | | | |
-| 36 | Set up job scheduler (Bull/Redis) | planned | habibi | Job queue |
-| 37 | Create recurring job for invoice generation | planned | billman | Daily cron |
-| 38 | Add job monitoring dashboard | planned | billman | View job status |
+| 36 | Set up job scheduler (Bull/Redis) | completed | habibi | Job queue |
+| 37 | Create recurring job for invoice generation | completed | billman | Daily cron |
+| 38 | Add job monitoring dashboard | completed | billman | View job status |
 | **Email System** | | | | |
-| 39 | Set up email service (Nodemailer) | planned | billman | SMTP config |
-| 40 | Create invoice email templates | planned | billman | HTML + plain text |
-| 41 | POST /api/invoices/:id/send - Send invoice | planned | billman | Email to customer |
-| 42 | Add email notification on invoice created | planned | billman | Event-driven |
+| 39 | Set up email service (Nodemailer) | completed | billman | SMTP config |
+| 40 | Create invoice email templates | completed | billman | HTML + plain text |
+| 41 | POST /api/invoices/:id/send - Send invoice | completed | billman | Email to customer |
+| 42 | Add email notification on invoice created | completed | billman | Event-driven |
 | **PDF Generation** | | | | |
-| 43 | Install PDF library (pdfkit or puppeteer) | planned | billman | Choose best fit |
-| 44 | Create invoice PDF template | planned | billman | Company logo, styling |
-| 45 | GET /api/invoices/:id/pdf - Download PDF | planned | billman | Generate on demand |
-| 46 | Store PDFs in filesystem/S3 | planned | billman | Caching |
+| 43 | Install PDF library (pdfkit or puppeteer) | completed | billman | Choose best fit |
+| 44 | Create invoice PDF template | completed | billman | Company logo, styling |
+| 45 | GET /api/invoices/:id/pdf - Download PDF | completed | billman | Generate on demand |
+| 46 | Store PDFs in filesystem/S3 | completed | billman | Caching |
 | **Invoice Enhancements** | | | | |
-| 47 | Implement invoice numbering system | planned | billman | INV-2026-001 format |
-| 48 | Add payment terms configuration | planned | billman | Net 30, Net 60 |
-| 49 | Calculate due dates automatically | planned | billman | From issue date + terms |
-| 50 | Invoice status auto-transition (overdue) | planned | billman | Scheduled check |
+| 47 | Implement invoice numbering system | completed | billman | INV-2026-001 format |
+| 48 | Add payment terms configuration | completed | billman | Net 30, Net 60 |
+| 49 | Calculate due dates automatically | completed | billman | From issue date + terms |
+| 50 | Invoice status auto-transition (overdue) | completed | billman | Scheduled check |
 | **Reporting** | | | | |
-| 51 | GET /api/reports/revenue - Revenue by period | planned | billman | Aggregate queries |
-| 52 | GET /api/reports/customers - Customer analytics | planned | billman | Top customers |
-| 53 | Create reports database views | planned | billman | Optimize queries |
+| 51 | GET /api/reports/revenue - Revenue by period | completed | billman | Aggregate queries |
+| 52 | GET /api/reports/customers - Customer analytics | completed | billman | Top customers |
+| 53 | Create reports database views | completed | billman | Optimize queries |
 | **Scalability Architecture (Hybrid Approach)** | | | | |
-| 54 | Install PM2 process manager | planned | habibi | npm install -g pm2 |
-| 55 | Create PM2 ecosystem.config.js | planned | habibi | Define API + workers |
-| 56 | Configure API server cluster mode (4 processes) | planned | habibi | PM2 cluster config |
-| 57 | Install BullMQ and ioredis | planned | billman | npm install bullmq ioredis |
-| 58 | Create queue configuration module | planned | billman | Redis connection |
-| 59 | Create PDF job queue (pdf-queue) | planned | billman | BullMQ queue setup |
-| 60 | Create tax calculation queue (tax-queue) | planned | billman | For heavy tax calc |
-| 61 | Create email queue (email-queue) | planned | billman | Async email sending |
-| 62 | Update API routes to use queues | planned | billman | POST /pdf → queue job |
-| 63 | Create PDF worker process | planned | billman | Separate worker.js |
-| 64 | Implement Worker Threads in PDF worker | planned | billman | Thread pool for PDFs |
-| 65 | Create tax calculation worker | planned | billman | With Worker Threads |
-| 66 | Create email worker process | planned | billman | Process email queue |
-| 67 | Implement database connection pooling | planned | billman | Max 5 per process |
-| 68 | Add graceful shutdown handlers | planned | billman | SIGTERM handling |
-| 69 | Implement job retry logic | planned | billman | 3 attempts, exp backoff |
-| 70 | Add queue monitoring endpoints | planned | billman | GET /api/queues/status |
-| 71 | Configure PM2 memory limits | planned | habibi | max_memory_restart |
-| 72 | Test cluster mode load balancing | planned | habibi | Load test with Artillery |
-| 73 | Benchmark PDF generation throughput | planned | billman | Measure PDFs/sec |
-| 74 | Document scalability architecture | planned | billman | README for workers |
+| 54 | Install PM2 process manager | completed | habibi | npm install -g pm2 |
+| 55 | Create PM2 ecosystem.config.js | completed | habibi | Define API + workers |
+| 56 | Configure API server cluster mode (4 processes) | completed | habibi | PM2 cluster config |
+| 57 | Install BullMQ and ioredis | completed | billman | npm install bullmq ioredis |
+| 58 | Create queue configuration module | completed | billman | Redis connection |
+| 59 | Create PDF job queue (pdf-queue) | completed | billman | BullMQ queue setup |
+| 60 | Create tax calculation queue (tax-queue) | completed | billman | For heavy tax calc |
+| 61 | Create email queue (email-queue) | completed | billman | Async email sending |
+| 62 | Update API routes to use queues | completed | billman | POST /pdf → queue job |
+| 63 | Create PDF worker process | completed | billman | Separate worker.js |
+| 64 | Implement Worker Threads in PDF worker | completed | billman | Thread pool for PDFs |
+| 65 | Create tax calculation worker | completed | billman | With Worker Threads |
+| 66 | Create email worker process | completed | billman | Process email queue |
+| 67 | Implement database connection pooling | completed | billman | Max 5 per process |
+| 68 | Add graceful shutdown handlers | completed | billman | SIGTERM handling |
+| 69 | Implement job retry logic | completed | billman | 3 attempts, exp backoff |
+| 70 | Add queue monitoring endpoints | completed | billman | GET /api/queues/status |
+| 71 | Configure PM2 memory limits | completed | habibi | max_memory_restart |
+| 72 | Test cluster mode load balancing | completed | habibi | Load test with Artillery |
+| 73 | Benchmark PDF generation throughput | completed | billman | Measure PDFs/sec |
+| 74 | Document scalability architecture | completed | billman | README for workers |
 
 ### Phase 3: Subscriptions (Weeks 5-6)
 
