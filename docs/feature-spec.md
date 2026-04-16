@@ -15,7 +15,7 @@ phase1_status: completed (enterprise accounts, contracts, products, invoices)
 phase2_status: completed (contract billing + hybrid scalability)
 phase3_status: completed (hierarchical accounts, consolidated billing)
 phase3_5_status: completed (product pricing enhancement — chargeType, category, setupFee)
-phase4_status: planned (purchase orders, credit management)
+phase4_status: planned (purchase orders, credit management, sub-invoices)
 phase5_status: planned (analytics, renewal tracking, SLA adjustments)
 scalability: hybrid (cluster + worker threads + queues)
 ---
@@ -318,6 +318,17 @@ Build a **B2B Enterprise Revenue Management Backend System** in phases, starting
 
 ### Phase 4: Enterprise Operations (NICE TO HAVE)
 
+- [ ] **Sub-Invoices & Organizational Billing (47 tasks, ~12-18 days):**
+  - [ ] `InvoiceGroup` entity (department, cost center, location, custom groupings)
+  - [ ] Prisma self-referencing parent-child relationship on Invoice
+  - [ ] Sub-invoice number generation (`INV-001-A`, `INV-001-B`)
+  - [ ] Rollup calculation (parent totals = sum of children)
+  - [ ] Cascade status updates (paying parent marks children paid)
+  - [ ] Invoice split endpoint (`POST /api/invoices/:id/split`)
+  - [ ] Invoice merge endpoint (`POST /api/invoices/:id/merge`)
+  - [ ] Consolidation strategy parameter (FLAT, BY_ACCOUNT, BY_GROUP)
+  - [ ] Invoice group CRUD API (`/api/invoice-groups`)
+  - [ ] Sub-invoice filtering and nested response support
 - [ ] Purchase order (PO) management system
 - [ ] PO number tracking on invoices
 - [ ] PO approval workflows (configurable approval chains)
@@ -545,6 +556,68 @@ Build a **B2B Enterprise Revenue Management Backend System** in phases, starting
 | 139 | GET /api/export/invoices - Export CSV | planned | billman | Data portability |
 | 140 | GET /api/export/customers - Export JSON | planned | billman | Backup |
 | 141 | API rate limiting | planned | billman | Prevent abuse |
+
+### Phase 4.5: Sub-Invoices & Organizational Billing (~12-18 days)
+
+Full detail: [`docs/features/sub-invoices.md`](./features/sub-invoices.md)
+
+| ID | Task | Complexity | Status | Notes |
+|----|------|------------|--------|-------|
+| **Phase A: Database Schema** | | | | |
+| A1 | Create `InvoiceGroup` entity | Medium | planned | DEPARTMENT, COST_CENTER, LOCATION, CUSTOM |
+| A2 | Add Prisma self-referencing relationship for `parentInvoiceId` | Low | planned | Defines Invoice hierarchy |
+| A3 | Add `invoiceGroupId` FK to Invoice model | Low | planned | Links invoice to org group |
+| A4 | Add `groupType` enum | Low | planned | See InvoiceGroup entity |
+| A5 | Add `groupReference` field to InvoiceItem | Low | planned | Line-item org attribution |
+| A6 | Create database migration | Medium | planned | All schema changes |
+| A7 | Add index on `parentInvoiceId` | Low | planned | Efficient hierarchy queries |
+| **Phase B: Invoice Group Management** | | | | |
+| B1 | `InvoiceGroup` service (CRUD) | Medium | planned | |
+| B2 | DTOs for invoice group create/update/query | Medium | planned | |
+| B3 | Invoice group controller + REST endpoints | Medium | planned | `/api/invoice-groups` |
+| B4 | Validate group uniqueness per account | Low | planned | |
+| B5 | Cascade behavior on group soft delete | Low | planned | |
+| **Phase C: Sub-Invoice Core Logic** | | | | |
+| C1 | Update Invoice service for parent-child support | Medium | planned | |
+| C2 | `createSubInvoice()` method | Medium | planned | Links to parent |
+| C3 | `getSubInvoices()` method | Low | planned | Children of a parent |
+| C4 | `getParentInvoice()` method | Low | planned | Parent of a child |
+| C5 | Sub-invoice number generation (`INV-001-A/B/C`) | Medium | planned | |
+| C6 | Rollup calculation (parent totals = sum of children) | Medium | planned | |
+| C7 | Validation: sub-invoice totals must match parent | Medium | planned | |
+| C8 | Cascade status updates (parent → children) | Medium | planned | Paying parent marks children paid |
+| **Phase D: Invoice Item Grouping** | | | | |
+| D1 | Add `groupReference` to InvoiceItem | Low | planned | |
+| D2 | Grouping logic in invoice creation | Medium | planned | |
+| D3 | Move items between groups/sub-invoices endpoint | Medium | planned | |
+| D4 | Validation for item reassignment | Medium | planned | Amount consistency |
+| **Phase E: API Endpoints** | | | | |
+| E1 | `GET /api/invoices/:id/sub-invoices` | Low | planned | |
+| E2 | `POST /api/invoices/:id/sub-invoices` | Medium | planned | |
+| E3 | `GET /api/invoices/:id/parent` | Low | planned | |
+| E4 | `POST /api/invoices/:id/split` | High | planned | Split by group |
+| E5 | `POST /api/invoices/:id/merge` | High | planned | Merge sub-invoices |
+| E6 | `parentInvoiceId[eq]` filter on list endpoint | Low | planned | |
+| E7 | `includeSubInvoices` query param | Medium | planned | Nested response |
+| E8 | Invoice detail includes sub-invoice summary | Low | planned | |
+| **Phase F: Consolidated Billing Integration** | | | | |
+| F1 | Update consolidated billing for parent + sub-invoices | High | planned | |
+| F2 | Strategy: sub-invoice per subsidiary account | Medium | planned | |
+| F3 | Strategy: sub-invoice per cost center/department | Medium | planned | |
+| F4 | `consolidationStrategy` param (FLAT, BY_ACCOUNT, BY_GROUP) | Medium | planned | |
+| F5 | Update billing processor for sub-invoice generation | Medium | planned | |
+| **Phase G: Testing** | | | | |
+| G1 | Unit tests for invoice group service | Medium | planned | |
+| G2 | Unit tests for sub-invoice creation/retrieval | Medium | planned | |
+| G3 | Unit tests for rollup calculations | Medium | planned | |
+| G4 | Integration tests for split/merge operations | High | planned | |
+| G5 | Integration tests for consolidated billing with sub-invoices | High | planned | |
+| G6 | E2E tests for complete sub-invoice workflows | High | planned | |
+| **Phase H: Documentation** | | | | |
+| H1 | Update `sub-invoices.md` post-implementation | Medium | planned | |
+| H2 | Update `invoices.md` with sub-invoice info | Low | planned | |
+| H3 | Update `billing.md` with consolidation strategies | Low | planned | |
+| H4 | Add API examples and cURL commands | Low | planned | |
 
 ## Technical Notes
 
