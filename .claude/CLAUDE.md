@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **B2B Enterprise Revenue Management Backend System** designed for SaaS companies selling to large organizations with complex contracts, hierarchical account structures, and custom payment terms.
 
-**Current Status:** Phase 3 (Hierarchical Accounts) - COMPLETED ✅
-Phases 1-3 implemented with full test coverage. Phase 4-5 planned.
+**Current Status:** Phase 3.5 (Product Pricing Enhancement) - COMPLETED ✅
+Phases 1-3.5 implemented with full test coverage. Phase 4-5 planned.
 
 ## Architecture
 
@@ -400,6 +400,23 @@ This system is designed **B2B-first** for these reasons:
 - Matches typical SaaS growth trajectory (B2B → B2B+B2C)
 
 B2C features (usage-based billing, pay-as-you-go, self-service) are deferred to Phase 6+.
+
+## Project Status Reports
+
+When asked for project status, read docs in this order: `README.md`, then all files in `docs/features/`, then `docs/feature-spec.md`. Report status organized by Phase (Phase 1, Phase 2, etc.) with completion state and what's next.
+
+Do NOT mark tasks complete without explicit user confirmation — especially avoid bulk sed/regex updates across phase boundaries.
+
+## Agent Configuration
+
+Agent definitions live in `.claude/agents/` as individual files (one agent per file), NOT in a single `agents.md`. When adding or modifying agents, create/edit files in that directory.
+
+## Documentation Conventions
+
+When updating task checkboxes or status fields in documentation:
+- Use the **Edit tool** for each change individually — never `sed` or bulk regex replacements
+- If more than 3 changes are needed, list them all and confirm before proceeding
+- Never modify tasks outside the phase or scope explicitly requested
 
 ## Testing Strategy
 
