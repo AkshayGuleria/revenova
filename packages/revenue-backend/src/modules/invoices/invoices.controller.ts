@@ -366,7 +366,10 @@ export class InvoicesController {
     status: 400,
     description: 'Validation error or invoice group mismatch',
   })
-  @ApiResponse({ status: 404, description: 'Parent invoice or group not found' })
+  @ApiResponse({
+    status: 404,
+    description: 'Parent invoice or group not found',
+  })
   createSubInvoice(
     @Param('id') id: string,
     @Body() createSubInvoiceDto: CreateSubInvoiceDto,

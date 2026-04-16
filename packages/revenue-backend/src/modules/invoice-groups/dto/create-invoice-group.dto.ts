@@ -32,7 +32,8 @@ export class CreateInvoiceGroupDto {
   groupType: InvoiceGroupType;
 
   @ApiPropertyOptional({
-    description: 'Short code identifying this group (unique per account + groupType)',
+    description:
+      'Short code identifying this group (unique per account + groupType)',
     example: 'DEPT-ENG',
   })
   @IsOptional()

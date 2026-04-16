@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BillingEngineService, BillableProduct } from './billing-engine.service';
+import {
+  BillingEngineService,
+  BillableProduct,
+} from './billing-engine.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
@@ -388,7 +391,9 @@ describe('BillingEngineService', () => {
         seatPrice: null,
       };
 
-      mockPrismaService.contract.findUnique.mockResolvedValue(quarterlyContract);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        quarterlyContract,
+      );
       mockPrismaService.invoice.count.mockResolvedValue(0);
 
       let capturedLineItems: any[];
@@ -426,7 +431,9 @@ describe('BillingEngineService', () => {
         seatPrice: null,
       };
 
-      mockPrismaService.contract.findUnique.mockResolvedValue(unknownFreqContract);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        unknownFreqContract,
+      );
       mockPrismaService.invoice.count.mockResolvedValue(0);
 
       let capturedLineItems: any[];
@@ -454,7 +461,6 @@ describe('BillingEngineService', () => {
         expectedAmount.toString(),
       );
     });
-
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -465,19 +471,25 @@ describe('BillingEngineService', () => {
     it('should return true when period start is same month as contract start', () => {
       const contractStart = new Date('2026-01-15');
       const periodStart = new Date('2026-01-01');
-      expect(service.isFirstBillingPeriod(contractStart, periodStart)).toBe(true);
+      expect(service.isFirstBillingPeriod(contractStart, periodStart)).toBe(
+        true,
+      );
     });
 
     it('should return false when period start is a later month', () => {
       const contractStart = new Date('2026-01-15');
       const periodStart = new Date('2026-02-01');
-      expect(service.isFirstBillingPeriod(contractStart, periodStart)).toBe(false);
+      expect(service.isFirstBillingPeriod(contractStart, periodStart)).toBe(
+        false,
+      );
     });
 
     it('should return false when period start is a different year', () => {
       const contractStart = new Date('2025-01-01');
       const periodStart = new Date('2026-01-01');
-      expect(service.isFirstBillingPeriod(contractStart, periodStart)).toBe(false);
+      expect(service.isFirstBillingPeriod(contractStart, periodStart)).toBe(
+        false,
+      );
     });
   });
 
@@ -486,53 +498,113 @@ describe('BillingEngineService', () => {
 
     it('should return true when product is null (backward compat — default recurring)', () => {
       const periodStart = new Date('2026-01-01');
-      expect(service.shouldBillProduct(null, contractStart, periodStart)).toBe(true);
+      expect(service.shouldBillProduct(null, contractStart, periodStart)).toBe(
+        true,
+      );
     });
 
     it('should return false for usage_based products (Phase 6)', () => {
-      const product: BillableProduct = { chargeType: 'usage_based', setupFee: null, trialPeriodDays: null };
+      const product: BillableProduct = {
+        chargeType: 'usage_based',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
       const periodStart = new Date('2026-01-01');
-      expect(service.shouldBillProduct(product, contractStart, periodStart)).toBe(false);
+      expect(
+        service.shouldBillProduct(product, contractStart, periodStart),
+      ).toBe(false);
     });
 
     it('should return true for recurring products on every period', () => {
-      const product: BillableProduct = { chargeType: 'recurring', setupFee: null, trialPeriodDays: null };
-      expect(service.shouldBillProduct(product, contractStart, new Date('2026-01-01'))).toBe(true);
-      expect(service.shouldBillProduct(product, contractStart, new Date('2026-02-01'))).toBe(true);
-      expect(service.shouldBillProduct(product, contractStart, new Date('2026-06-01'))).toBe(true);
+      const product: BillableProduct = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
+      expect(
+        service.shouldBillProduct(
+          product,
+          contractStart,
+          new Date('2026-01-01'),
+        ),
+      ).toBe(true);
+      expect(
+        service.shouldBillProduct(
+          product,
+          contractStart,
+          new Date('2026-02-01'),
+        ),
+      ).toBe(true);
+      expect(
+        service.shouldBillProduct(
+          product,
+          contractStart,
+          new Date('2026-06-01'),
+        ),
+      ).toBe(true);
     });
 
     it('should return true for one_time product on first period', () => {
-      const product: BillableProduct = { chargeType: 'one_time', setupFee: null, trialPeriodDays: null };
+      const product: BillableProduct = {
+        chargeType: 'one_time',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
       const periodStart = new Date('2026-01-15');
-      expect(service.shouldBillProduct(product, contractStart, periodStart)).toBe(true);
+      expect(
+        service.shouldBillProduct(product, contractStart, periodStart),
+      ).toBe(true);
     });
 
     it('should return false for one_time product on second period', () => {
-      const product: BillableProduct = { chargeType: 'one_time', setupFee: null, trialPeriodDays: null };
+      const product: BillableProduct = {
+        chargeType: 'one_time',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
       const periodStart = new Date('2026-02-01');
-      expect(service.shouldBillProduct(product, contractStart, periodStart)).toBe(false);
+      expect(
+        service.shouldBillProduct(product, contractStart, periodStart),
+      ).toBe(false);
     });
 
     it('should return false during trial period', () => {
-      const product: BillableProduct = { chargeType: 'recurring', setupFee: null, trialPeriodDays: 14 };
+      const product: BillableProduct = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: 14,
+      };
       // contractStart = Jan 1, trial ends Jan 15
       const periodDuringTrial = new Date('2026-01-10');
-      expect(service.shouldBillProduct(product, contractStart, periodDuringTrial)).toBe(false);
+      expect(
+        service.shouldBillProduct(product, contractStart, periodDuringTrial),
+      ).toBe(false);
     });
 
     it('should return true after trial period ends', () => {
-      const product: BillableProduct = { chargeType: 'recurring', setupFee: null, trialPeriodDays: 14 };
+      const product: BillableProduct = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: 14,
+      };
       // contractStart = Jan 1, trial ends Jan 15
       const periodAfterTrial = new Date('2026-01-16');
-      expect(service.shouldBillProduct(product, contractStart, periodAfterTrial)).toBe(true);
+      expect(
+        service.shouldBillProduct(product, contractStart, periodAfterTrial),
+      ).toBe(true);
     });
 
     it('should skip even one_time products during trial period', () => {
-      const product: BillableProduct = { chargeType: 'one_time', setupFee: null, trialPeriodDays: 30 };
+      const product: BillableProduct = {
+        chargeType: 'one_time',
+        setupFee: null,
+        trialPeriodDays: 30,
+      };
       // contractStart = Jan 1, trial ends Jan 31
       const periodDuringTrial = new Date('2026-01-15');
-      expect(service.shouldBillProduct(product, contractStart, periodDuringTrial)).toBe(false);
+      expect(
+        service.shouldBillProduct(product, contractStart, periodDuringTrial),
+      ).toBe(false);
     });
   });
 
@@ -540,13 +612,25 @@ describe('BillingEngineService', () => {
     const contractStart = new Date('2026-01-01');
 
     it('should return 0 when product is null', () => {
-      const fee = service.getSetupFee(null, contractStart, new Date('2026-01-01'));
+      const fee = service.getSetupFee(
+        null,
+        contractStart,
+        new Date('2026-01-01'),
+      );
       expect(fee.toString()).toBe('0');
     });
 
     it('should return 0 when product has no setup fee', () => {
-      const product: BillableProduct = { chargeType: 'recurring', setupFee: null, trialPeriodDays: null };
-      const fee = service.getSetupFee(product, contractStart, new Date('2026-01-01'));
+      const product: BillableProduct = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
+      const fee = service.getSetupFee(
+        product,
+        contractStart,
+        new Date('2026-01-01'),
+      );
       expect(fee.toString()).toBe('0');
     });
 
@@ -556,7 +640,11 @@ describe('BillingEngineService', () => {
         setupFee: new Decimal(500),
         trialPeriodDays: null,
       };
-      const fee = service.getSetupFee(product, contractStart, new Date('2026-01-15'));
+      const fee = service.getSetupFee(
+        product,
+        contractStart,
+        new Date('2026-01-15'),
+      );
       expect(fee.toString()).toBe('500');
     });
 
@@ -566,7 +654,11 @@ describe('BillingEngineService', () => {
         setupFee: new Decimal(500),
         trialPeriodDays: null,
       };
-      const fee = service.getSetupFee(product, contractStart, new Date('2026-02-01'));
+      const fee = service.getSetupFee(
+        product,
+        contractStart,
+        new Date('2026-02-01'),
+      );
       expect(fee.toString()).toBe('0');
     });
   });
@@ -592,7 +684,9 @@ describe('BillingEngineService', () => {
     };
 
     it('should include setup fee line item when getSetupFee returns positive value', async () => {
-      mockPrismaService.contract.findUnique.mockResolvedValue(mockContractWithSetupFee);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        mockContractWithSetupFee,
+      );
       mockPrismaService.invoice.count.mockResolvedValue(0);
 
       // Spy on getSetupFee to return a non-zero setup fee
@@ -626,7 +720,9 @@ describe('BillingEngineService', () => {
     });
 
     it('should throw error when shouldBillProduct returns false', async () => {
-      mockPrismaService.contract.findUnique.mockResolvedValue(mockContractWithSetupFee);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        mockContractWithSetupFee,
+      );
       mockPrismaService.invoice.count.mockResolvedValue(0);
 
       // Spy on shouldBillProduct to return false

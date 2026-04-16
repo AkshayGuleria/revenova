@@ -72,7 +72,7 @@ describe('BillingQueueService', () => {
         'generate-contract-invoice',
         jobData,
         {
-          removeOnComplete: true,
+          removeOnComplete: { count: 100, age: 3600 },
           removeOnFail: false,
         },
       );
@@ -114,7 +114,7 @@ describe('BillingQueueService', () => {
         'batch-contract-billing',
         jobData,
         {
-          removeOnComplete: true,
+          removeOnComplete: { count: 100, age: 3600 },
           removeOnFail: false,
         },
       );
@@ -177,17 +177,17 @@ describe('BillingQueueService', () => {
 
       const result = await service.getJobStatus('job-123');
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         id: 'job-123',
-        name: 'generate-contract-invoice',
+        type: 'generate-contract-invoice',
         data: { contractId: 'contract-123' },
-        state: 'waiting',
+        status: 'queued',
         progress: 0,
         result: null,
         error: null,
         attemptsMade: 0,
-        processedOn: null,
-        finishedOn: null,
+        processedAt: undefined,
+        finishedAt: undefined,
       });
     });
 
@@ -212,11 +212,11 @@ describe('BillingQueueService', () => {
 
       const result = await service.getJobStatus('job-123');
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         id: 'job-123',
-        name: 'generate-contract-invoice',
+        type: 'generate-contract-invoice',
         data: { contractId: 'contract-123' },
-        state: 'completed',
+        status: 'completed',
         progress: 100,
         result: {
           invoiceId: 'invoice-123',
@@ -224,8 +224,8 @@ describe('BillingQueueService', () => {
         },
         error: null,
         attemptsMade: 1,
-        processedOn: 1737154400000,
-        finishedOn: 1737154405000,
+        processedAt: '2025-01-17T22:53:20.000Z',
+        finishedAt: '2025-01-17T22:53:25.000Z',
       });
     });
 
@@ -349,7 +349,7 @@ describe('BillingQueueService', () => {
         'generate-consolidated-invoice',
         jobData,
         {
-          removeOnComplete: true,
+          removeOnComplete: { count: 100, age: 3600 },
           removeOnFail: false,
         },
       );

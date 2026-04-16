@@ -68,7 +68,9 @@ describe('InvoiceGroupsService', () => {
     };
 
     it('creates a group successfully', async () => {
-      mockPrismaService.account.findUnique.mockResolvedValue({ id: 'account-id-1' });
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-1',
+      });
       mockPrismaService.invoiceGroup.create.mockResolvedValue(mockGroup);
 
       const result = await service.create(createDto);
@@ -77,7 +79,10 @@ describe('InvoiceGroupsService', () => {
       expect(result.paging).toMatchObject({ offset: null, total: null });
       expect(mockPrismaService.invoiceGroup.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ accountId: 'account-id-1', name: 'Engineering Department' }),
+          data: expect.objectContaining({
+            accountId: 'account-id-1',
+            name: 'Engineering Department',
+          }),
         }),
       );
     });
@@ -85,11 +90,15 @@ describe('InvoiceGroupsService', () => {
     it('throws NotFoundException when account does not exist', async () => {
       mockPrismaService.account.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws ConflictException on duplicate type+code', async () => {
-      mockPrismaService.account.findUnique.mockResolvedValue({ id: 'account-id-1' });
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-1',
+      });
       mockPrismaService.invoiceGroup.create.mockRejectedValue(
         new PrismaClientKnownRequestError('Unique constraint', {
           code: 'P2002',
@@ -97,7 +106,9 @@ describe('InvoiceGroupsService', () => {
         }),
       );
 
-      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -126,7 +137,12 @@ describe('InvoiceGroupsService', () => {
 
   describe('findOne', () => {
     it('returns a group when found', async () => {
-      const mockGroup = { id: 'group-1', name: 'Eng', account: {}, _count: { invoices: 1 } };
+      const mockGroup = {
+        id: 'group-1',
+        name: 'Eng',
+        account: {},
+        _count: { invoices: 1 },
+      };
       mockPrismaService.invoiceGroup.findUnique.mockResolvedValue(mockGroup);
 
       const result = await service.findOne('group-1');
@@ -137,7 +153,9 @@ describe('InvoiceGroupsService', () => {
     it('throws NotFoundException when group does not exist', async () => {
       mockPrismaService.invoiceGroup.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -147,7 +165,12 @@ describe('InvoiceGroupsService', () => {
 
   describe('update', () => {
     it('updates a group successfully', async () => {
-      const existing = { id: 'group-1', name: 'Eng', account: {}, _count: { invoices: 0 } };
+      const existing = {
+        id: 'group-1',
+        name: 'Eng',
+        account: {},
+        _count: { invoices: 0 },
+      };
       const updated = { ...existing, name: 'Engineering Dept' };
       mockPrismaService.invoiceGroup.findUnique.mockResolvedValue(existing);
       mockPrismaService.invoiceGroup.update.mockResolvedValue(updated);
@@ -196,7 +219,9 @@ describe('InvoiceGroupsService', () => {
         _count: { invoices: 3 },
       });
 
-      await expect(service.remove('group-1')).rejects.toThrow(BadRequestException);
+      await expect(service.remove('group-1')).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockPrismaService.invoiceGroup.delete).not.toHaveBeenCalled();
     });
 

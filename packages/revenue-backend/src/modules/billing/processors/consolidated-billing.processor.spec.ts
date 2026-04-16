@@ -176,7 +176,9 @@ describe('ConsolidatedBillingProcessor', () => {
         error,
       );
 
-      await expect(processor.process(mockJob)).rejects.toThrow('Production error');
+      await expect(processor.process(mockJob)).rejects.toThrow(
+        'Production error',
+      );
 
       // In non-test environment, error should be logged
       expect(Logger.prototype.error).toHaveBeenCalledWith(

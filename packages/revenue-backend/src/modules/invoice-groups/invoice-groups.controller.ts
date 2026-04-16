@@ -64,7 +64,8 @@ export class InvoiceGroupsController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update invoice group',
-    description: 'Update group name, code, or metadata. Account ownership cannot be changed.',
+    description:
+      'Update group name, code, or metadata. Account ownership cannot be changed.',
   })
   @ApiParam({ name: 'id', description: 'Invoice group UUID' })
   @ApiResponse({ status: 200, description: 'Invoice group updated' })

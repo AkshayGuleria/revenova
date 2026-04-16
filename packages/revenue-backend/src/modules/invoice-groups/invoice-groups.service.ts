@@ -74,7 +74,12 @@ export class InvoiceGroupsService {
       this.prisma.invoiceGroup.count({ where }),
     ]);
 
-    return buildPaginatedListResponse(groups, pagination.offset, pagination.limit, total);
+    return buildPaginatedListResponse(
+      groups,
+      pagination.offset,
+      pagination.limit,
+      total,
+    );
   }
 
   async findOne(id: string): Promise<ApiResponse<any>> {

@@ -64,7 +64,9 @@ export class BillingEngineService {
     const product: BillableProduct | null = null;
 
     // Skip if product rules say we should not bill this period
-    if (!this.shouldBillProduct(product, contract.startDate, billingPeriod.start)) {
+    if (
+      !this.shouldBillProduct(product, contract.startDate, billingPeriod.start)
+    ) {
       throw new Error(
         `Product billing skipped for period ${billingPeriod.start.toISOString()} ` +
           `(usage_based, trial, or one_time after first period)`,

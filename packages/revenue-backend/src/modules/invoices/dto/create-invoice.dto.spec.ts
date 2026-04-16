@@ -1,6 +1,10 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { CreateInvoiceDto, InvoiceStatus, BillingType } from './create-invoice.dto';
+import {
+  CreateInvoiceDto,
+  InvoiceStatus,
+  BillingType,
+} from './create-invoice.dto';
 import { CreateInvoiceItemDto } from './create-invoice-item.dto';
 
 describe('CreateInvoiceDto', () => {

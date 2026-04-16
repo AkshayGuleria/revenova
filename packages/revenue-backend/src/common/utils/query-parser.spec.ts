@@ -478,7 +478,11 @@ describe('QueryParser', () => {
 
     it('should return empty object for unknown operator (default case)', () => {
       // Force an unknown operator via type cast to cover the default branch
-      const filter = { field: 'status', operator: 'unknown', value: 'test' } as unknown as QueryFilter;
+      const filter = {
+        field: 'status',
+        operator: 'unknown',
+        value: 'test',
+      } as unknown as QueryFilter;
       const result = filterToPrismaWhere(filter);
       expect(result).toEqual({});
     });

@@ -759,7 +759,10 @@ describe('InvoicesService', () => {
 
       // First findUnique call (for findOne) returns the invoice
       mockPrismaService.invoice.findUnique
-        .mockResolvedValueOnce({ id: 'invoice-id-123', accountId: 'account-123' })
+        .mockResolvedValueOnce({
+          id: 'invoice-id-123',
+          accountId: 'account-123',
+        })
         // Second findUnique call (in getInvoiceAccountId) returns null — simulates race condition
         .mockResolvedValueOnce(null);
 
@@ -897,7 +900,10 @@ describe('InvoicesService', () => {
 
       // First findUnique: for findOne (invoice exists)
       mockPrismaService.invoice.findUnique
-        .mockResolvedValueOnce({ id: 'invoice-id-123', accountId: 'account-123' })
+        .mockResolvedValueOnce({
+          id: 'invoice-id-123',
+          accountId: 'account-123',
+        })
         // Second findUnique: for getInvoiceAccountId
         .mockResolvedValueOnce({ accountId: 'account-123' });
 
@@ -948,7 +954,9 @@ describe('InvoicesService', () => {
       };
 
       // findOne call + no extra calls needed
-      mockPrismaService.invoice.findUnique.mockResolvedValue(mockExistingInvoice);
+      mockPrismaService.invoice.findUnique.mockResolvedValue(
+        mockExistingInvoice,
+      );
       mockPrismaService.invoice.update.mockResolvedValue(mockUpdatedInvoice);
 
       const result = await service.update('invoice-id-123', updateDto);
@@ -985,7 +993,9 @@ describe('InvoicesService', () => {
         status: 'paid',
       };
 
-      mockPrismaService.invoice.findUnique.mockResolvedValue(mockExistingInvoice);
+      mockPrismaService.invoice.findUnique.mockResolvedValue(
+        mockExistingInvoice,
+      );
       mockPrismaService.invoice.update.mockResolvedValue(mockUpdatedInvoice);
 
       const result = await service.update('invoice-id-123', updateDto);
@@ -1084,7 +1094,10 @@ describe('InvoicesService', () => {
         invoiceGroup: null,
       });
 
-      const result2 = await service.createSubInvoice('parent-id', subDto as any);
+      const result2 = await service.createSubInvoice(
+        'parent-id',
+        subDto as any,
+      );
       expect((result2.data as any).invoiceNumber).toBe('INV-2026-000001-AA');
     });
 
@@ -1143,10 +1156,21 @@ describe('InvoicesService', () => {
 
   describe('getSubInvoices', () => {
     it('returns paginated sub-invoices of a parent', async () => {
-      const parentInvoice = { id: 'parent-id', invoiceNumber: 'INV-2026-000001' };
+      const parentInvoice = {
+        id: 'parent-id',
+        invoiceNumber: 'INV-2026-000001',
+      };
       const subInvoices = [
-        { id: 'sub-1', invoiceNumber: 'INV-2026-000001-A', parentInvoiceId: 'parent-id' },
-        { id: 'sub-2', invoiceNumber: 'INV-2026-000001-B', parentInvoiceId: 'parent-id' },
+        {
+          id: 'sub-1',
+          invoiceNumber: 'INV-2026-000001-A',
+          parentInvoiceId: 'parent-id',
+        },
+        {
+          id: 'sub-2',
+          invoiceNumber: 'INV-2026-000001-B',
+          parentInvoiceId: 'parent-id',
+        },
       ];
 
       mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);

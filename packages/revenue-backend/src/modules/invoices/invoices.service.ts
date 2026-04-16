@@ -320,8 +320,7 @@ export class InvoicesService {
     }
 
     // Validate amounts
-    const calculatedTotal =
-      dto.subtotal + (dto.tax ?? 0) - (dto.discount ?? 0);
+    const calculatedTotal = dto.subtotal + (dto.tax ?? 0) - (dto.discount ?? 0);
     const tolerance = 0.01;
     if (Math.abs(calculatedTotal - dto.total) > tolerance) {
       throw new BadRequestException(
@@ -336,8 +335,7 @@ export class InvoicesService {
     );
 
     const currency =
-      dto.currency ??
-      this.configService.get<string>('DEFAULT_CURRENCY', 'EUR');
+      dto.currency ?? this.configService.get<string>('DEFAULT_CURRENCY', 'EUR');
 
     try {
       const subInvoice = await this.prisma.invoice.create({
@@ -351,10 +349,10 @@ export class InvoicesService {
           dueDate: new Date(dto.dueDate ?? parent.dueDate),
           periodStart: dto.periodStart
             ? new Date(dto.periodStart)
-            : parent.periodStart ?? undefined,
+            : (parent.periodStart ?? undefined),
           periodEnd: dto.periodEnd
             ? new Date(dto.periodEnd)
-            : parent.periodEnd ?? undefined,
+            : (parent.periodEnd ?? undefined),
           subtotal: dto.subtotal,
           tax: dto.tax ?? 0,
           discount: dto.discount ?? 0,
@@ -393,10 +391,7 @@ export class InvoicesService {
    * Cascade parent payment to all CHILD_PAYS-mode sub-invoices.
    * Called when a parent invoice is marked as paid.
    */
-  async cascadeParentPayment(
-    parentId: string,
-    paidDate: Date,
-  ): Promise<void> {
+  async cascadeParentPayment(parentId: string, paidDate: Date): Promise<void> {
     const parent = await this.getInvoiceById(parentId);
 
     if (parent.paymentMode !== PaymentMode.PARENT_PAYS) {
