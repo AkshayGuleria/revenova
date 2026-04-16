@@ -17,6 +17,7 @@ import {
   UpdateInvoiceDto,
   QueryInvoicesDto,
   CreateInvoiceItemDto,
+  CreateSubInvoiceDto,
 } from './dto';
 
 @ApiTags('Invoices')
@@ -330,5 +331,46 @@ export class InvoicesController {
     @Param('itemId') itemId: string,
   ) {
     await this.invoicesService.removeLineItem(id, itemId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sub-Invoice Endpoints (Phase 4)
+  // ---------------------------------------------------------------------------
+
+  @Get(':id/sub-invoices')
+  @ApiOperation({
+    summary: 'List sub-invoices of a parent invoice',
+    description:
+      'Retrieve all sub-invoices belonging to a parent invoice. ' +
+      'Returns a paginated list with account and invoice group details.',
+  })
+  @ApiParam({ name: 'id', description: 'Parent invoice UUID' })
+  @ApiResponse({ status: 200, description: 'Paginated list of sub-invoices' })
+  @ApiResponse({ status: 404, description: 'Parent invoice not found' })
+  getSubInvoices(@Param('id') id: string, @Query() query: QueryInvoicesDto) {
+    return this.invoicesService.getSubInvoices(id, query);
+  }
+
+  @Post(':id/sub-invoices')
+  @ApiOperation({
+    summary: 'Create a sub-invoice under a parent invoice',
+    description:
+      'Create a sub-invoice linked to a parent invoice. ' +
+      'The sub-invoice inherits accountId and billingType from the parent. ' +
+      'Invoice number is auto-generated as <parentNumber>-A, -B, -C, etc. ' +
+      'Optionally link to an invoice group for departmental/cost-center allocation.',
+  })
+  @ApiParam({ name: 'id', description: 'Parent invoice UUID' })
+  @ApiResponse({ status: 201, description: 'Sub-invoice created' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or invoice group mismatch',
+  })
+  @ApiResponse({ status: 404, description: 'Parent invoice or group not found' })
+  createSubInvoice(
+    @Param('id') id: string,
+    @Body() createSubInvoiceDto: CreateSubInvoiceDto,
+  ) {
+    return this.invoicesService.createSubInvoice(id, createSubInvoiceDto);
   }
 }

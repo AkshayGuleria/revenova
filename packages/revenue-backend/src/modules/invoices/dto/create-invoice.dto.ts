@@ -13,6 +13,11 @@ import {
 import { Type } from 'class-transformer';
 import { CreateInvoiceItemDto } from './create-invoice-item.dto';
 
+export enum PaymentMode {
+  PARENT_PAYS = 'PARENT_PAYS',
+  CHILD_PAYS = 'CHILD_PAYS',
+}
+
 export enum InvoiceStatus {
   DRAFT = 'draft',
   SENT = 'sent',
@@ -184,6 +189,23 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   parentInvoiceId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Invoice group ID for departmental/cost center allocation',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsString()
+  invoiceGroupId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Payment mode for parent invoices: PARENT_PAYS cascades payment to children, CHILD_PAYS requires each sub-invoice to be paid independently',
+    enum: PaymentMode,
+  })
+  @IsOptional()
+  @IsEnum(PaymentMode)
+  paymentMode?: PaymentMode;
 
   @ApiPropertyOptional({
     description: 'Public invoice notes',
