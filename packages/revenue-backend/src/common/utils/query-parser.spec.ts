@@ -49,6 +49,26 @@ describe('QueryParser', () => {
       const result = parseQueryKey('status[eq');
       expect(result).toBeNull();
     });
+
+    it('should reject prototype-polluting field names', () => {
+      // __proto__ is the primary prototype-pollution vector — must be blocked
+      expect(parseQueryKey('__proto__[eq]')).toBeNull();
+      // All underscore-prefixed names are rejected by the safe-identifier regex
+      expect(parseQueryKey('__defineGetter__[eq]')).toBeNull();
+      expect(parseQueryKey('__defineSetter__[eq]')).toBeNull();
+      expect(parseQueryKey('__lookupGetter__[eq]')).toBeNull();
+    });
+
+    it('should reject field names starting with underscore', () => {
+      expect(parseQueryKey('_hidden[eq]')).toBeNull();
+      expect(parseQueryKey('_[eq]')).toBeNull();
+    });
+
+    it('should accept valid camelCase and snake_case field names', () => {
+      expect(parseQueryKey('status[eq]')).not.toBeNull();
+      expect(parseQueryKey('parentInvoiceId[eq]')).not.toBeNull();
+      expect(parseQueryKey('created_at[gte]')).not.toBeNull();
+    });
   });
 
   describe('parsePaginationParams', () => {

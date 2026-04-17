@@ -8,6 +8,13 @@ import { QueryOperator, QueryFilter, PaginationParams } from '../interfaces';
  */
 
 /**
+ * Regex that matches safe Prisma field names: starts with a letter,
+ * followed by letters, digits, or underscores. Rejects prototype-polluting
+ * names such as __proto__, constructor, toString, etc.
+ */
+const SAFE_FIELD_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+
+/**
  * Parse query parameter key to extract field and operator
  * Example: "status[eq]" -> { field: "status", operator: "eq" }
  */
@@ -19,6 +26,13 @@ export function parseQueryKey(key: string): {
   if (!match) return null;
 
   const [, field, operator] = match;
+
+  // Reject field names that are not safe identifiers to prevent prototype pollution.
+  // This blocks inputs like __proto__[eq], constructor[eq], toString[eq], etc.
+  if (!SAFE_FIELD_RE.test(field)) {
+    return null;
+  }
+
   const validOperators: QueryOperator[] = [
     'eq',
     'ne',
