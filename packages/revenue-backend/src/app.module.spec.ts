@@ -1,7 +1,7 @@
 // @nestjs/bullmq internal providers (BullExplorer, BullMetadataAccessor, BullRegistrar) rely on
 // ModuleRef and Reflector which are not auto-provided in global dynamic modules under NestJS v11.
 // Mock the full package so module compilation succeeds and queue tokens resolve to mock instances.
-const _mockQueueToken = (name: string) => `BullQueue_${name}`;
+/* eslint-disable @typescript-eslint/no-var-requires */
 jest.mock('@nestjs/bullmq', () => {
   const getQueueToken = (name: string) => `BullQueue_${name}`;
   const mockQueue = { close: jest.fn().mockResolvedValue(undefined) };
@@ -23,11 +23,11 @@ jest.mock('@nestjs/bullmq', () => {
     },
     getQueueToken,
     // Use the real @nestjs/common Inject decorator so parameter metadata is registered correctly
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    InjectQueue: (name: string) => require('@nestjs/common').Inject(getQueueToken(name)),
+    InjectQueue: (name: string) =>
+      require('@nestjs/common').Inject(getQueueToken(name)),
     getFlowProducerToken: (name: string) => `BullFlowProducer_${name}`,
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    InjectFlowProducer: (name: string) => require('@nestjs/common').Inject(`BullFlowProducer_${name}`),
+    InjectFlowProducer: (name: string) =>
+      require('@nestjs/common').Inject(`BullFlowProducer_${name}`),
     Processor: () => () => {},
     WorkerHost: class {},
     OnWorkerEvent: () => () => {},
@@ -36,6 +36,7 @@ jest.mock('@nestjs/bullmq', () => {
     QueueEventsHost: class {},
   };
 });
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './app.module';
