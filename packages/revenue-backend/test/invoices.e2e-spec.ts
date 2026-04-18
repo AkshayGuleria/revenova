@@ -13,6 +13,7 @@ describe('InvoicesController (e2e)', () => {
   let prisma: PrismaService;
   let createdAccountId: string;
   let createdContractId: string;
+  let createdProductId: string;
   let createdInvoiceId: string;
 
   beforeAll(async () => {
@@ -36,52 +37,81 @@ describe('InvoicesController (e2e)', () => {
 
     prisma = app.get<PrismaService>(PrismaService);
 
-    // Clean up any existing test data
+    // Clean up existing test data in FK-safe order
     await prisma.invoiceItem.deleteMany({});
     await prisma.invoice.deleteMany({});
+    await prisma.contractProduct.deleteMany({});
     await prisma.contract.deleteMany({});
     await prisma.account.deleteMany({
       where: { primaryContactEmail: { contains: 'invoice-test' } },
     });
+
+    // Create account
+    const accountResponse = await request(app.getHttpServer())
+      .post('/api/accounts')
+      .send({
+        accountName: 'Acme Corporation Invoice Test',
+        primaryContactEmail: 'invoice-test@acme.com',
+        accountType: 'enterprise',
+      });
+    createdAccountId = accountResponse.body.data.id;
+
+    // Create product (via prisma for speed)
+    const product = await prisma.product.create({
+      data: {
+        name: 'E2E Invoice Test Product',
+        pricingModel: 'flat_fee',
+        basePrice: 500,
+        currency: 'USD',
+        chargeType: 'recurring',
+        category: 'platform',
+        active: true,
+      },
+    });
+    createdProductId = product.id;
+
+    // Create contract with product (via API — goes through service validation)
+    const contractResponse = await request(app.getHttpServer())
+      .post('/api/contracts')
+      .send({
+        contractNumber: 'CNT-E2E-INV-BASE',
+        accountId: createdAccountId,
+        startDate: '2024-01-01',
+        endDate: '2025-12-31',
+        contractValue: 6000,
+        products: [{ productId: createdProductId, quantity: 1 }],
+      });
+    createdContractId = contractResponse.body.data.id;
   });
 
   afterAll(async () => {
-    // Clean up test data
+    // Clean up test data in FK-safe order
     await prisma.invoiceItem.deleteMany({});
     await prisma.invoice.deleteMany({});
+    await prisma.contractProduct.deleteMany({});
     await prisma.contract.deleteMany({});
     await prisma.account.deleteMany({
       where: { primaryContactEmail: { contains: 'invoice-test' } },
+    });
+    await prisma.product.deleteMany({
+      where: { name: 'E2E Invoice Test Product' },
     });
 
     await app.close();
   });
 
   describe('POST /api/invoices', () => {
-    it('should create a new invoice', async () => {
-      // First create an account
-      const accountResponse = await request(app.getHttpServer())
-        .post('/api/accounts')
-        .send({
-          accountName: 'Acme Corporation Invoice Test',
-          primaryContactEmail: 'invoice-test@acme.com',
-          accountType: 'enterprise',
-        });
-
-      createdAccountId = accountResponse.body.data.id;
-
-      // Create invoice
+    it('should create a new invoice with auto-generated items from contract', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/invoices')
         .send({
           invoiceNumber: 'INV-E2E-0001',
           accountId: createdAccountId,
+          contractId: createdContractId,
           issueDate: '2024-01-01',
           dueDate: '2024-01-31',
-          subtotal: 10000,
-          tax: 800,
-          discount: 500,
-          total: 10300,
+          tax: 0,
+          discount: 0,
           currency: 'USD',
           status: 'draft',
         })
@@ -91,16 +121,15 @@ describe('InvoicesController (e2e)', () => {
       expect(response.body.data).toMatchObject({
         invoiceNumber: 'INV-E2E-0001',
         accountId: createdAccountId,
+        contractId: createdContractId,
         status: 'draft',
       });
 
-      // Verify numeric values (Decimal fields may serialize with or without trailing zeros)
-      expect(parseFloat(response.body.data.subtotal)).toBeCloseTo(10000);
-      expect(parseFloat(response.body.data.tax)).toBeCloseTo(800);
-      expect(parseFloat(response.body.data.discount)).toBeCloseTo(500);
-      expect(parseFloat(response.body.data.total)).toBeCloseTo(10300);
+      // Items are auto-generated from the contract product (basePrice=500, qty=1)
+      expect(response.body.data.items).toHaveLength(1);
+      expect(parseFloat(response.body.data.subtotal)).toBeCloseTo(500);
+      expect(parseFloat(response.body.data.total)).toBeCloseTo(500);
 
-      // Check paging object structure
       expect(response.body.paging).toEqual({
         offset: null,
         limit: null,
@@ -113,56 +142,26 @@ describe('InvoicesController (e2e)', () => {
       createdInvoiceId = response.body.data.id;
     });
 
-    it('should create invoice with line items', async () => {
+    it('should auto-generate items from contract products', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/invoices')
         .send({
           invoiceNumber: 'INV-E2E-0002',
           accountId: createdAccountId,
+          contractId: createdContractId,
           issueDate: '2024-02-01',
           dueDate: '2024-02-28',
-          subtotal: 9999,
-          tax: 0,
-          discount: 0,
-          total: 9999,
-          items: [
-            {
-              description: 'Enterprise Plan - 100 seats',
-              quantity: 100,
-              unitPrice: 99.99,
-              amount: 9999,
-            },
-          ],
         })
         .expect(HttpStatus.CREATED);
 
       expect(response.body.data.items).toHaveLength(1);
-      expect(response.body.data.items[0].description).toBe(
-        'Enterprise Plan - 100 seats',
-      );
-
-      // Verify numeric values (Decimal fields may serialize with or without trailing zeros)
-      expect(parseFloat(response.body.data.items[0].quantity)).toBeCloseTo(100);
-      expect(parseFloat(response.body.data.items[0].unitPrice)).toBeCloseTo(
-        99.99,
-      );
-      expect(parseFloat(response.body.data.items[0].amount)).toBeCloseTo(9999);
+      expect(response.body.data.items[0].description).toBe('E2E Invoice Test Product');
+      expect(parseFloat(response.body.data.items[0].quantity)).toBeCloseTo(1);
+      expect(parseFloat(response.body.data.items[0].unitPrice)).toBeCloseTo(500);
+      expect(parseFloat(response.body.data.items[0].amount)).toBeCloseTo(500);
     });
 
-    it('should create invoice with contract reference', async () => {
-      // First create a contract
-      const contractResponse = await request(app.getHttpServer())
-        .post('/api/contracts')
-        .send({
-          contractNumber: 'CNT-E2E-INV-001',
-          accountId: createdAccountId,
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          contractValue: 120000,
-        });
-
-      createdContractId = contractResponse.body.data.id;
-
+    it('should create invoice linked to contract', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/invoices')
         .send({
@@ -171,24 +170,33 @@ describe('InvoicesController (e2e)', () => {
           contractId: createdContractId,
           issueDate: '2024-03-01',
           dueDate: '2024-03-31',
-          subtotal: 10000,
-          total: 10000,
         })
         .expect(HttpStatus.CREATED);
 
       expect(response.body.data.contractId).toBe(createdContractId);
     });
 
-    it('should fail if account does not exist', async () => {
+    it('should fail when contractId is missing', async () => {
+      await request(app.getHttpServer())
+        .post('/api/invoices')
+        .send({
+          invoiceNumber: 'INV-E2E-FAIL-000',
+          accountId: createdAccountId,
+          issueDate: '2024-01-01',
+          dueDate: '2024-01-31',
+        })
+        .expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should fail if contract does not exist', async () => {
       await request(app.getHttpServer())
         .post('/api/invoices')
         .send({
           invoiceNumber: 'INV-E2E-FAIL-001',
-          accountId: 'non-existent-account-id',
+          accountId: createdAccountId,
+          contractId: '00000000-0000-0000-0000-000000000001',
           issueDate: '2024-01-01',
           dueDate: '2024-01-31',
-          subtotal: 10000,
-          total: 10000,
         })
         .expect(HttpStatus.NOT_FOUND);
     });
@@ -199,26 +207,9 @@ describe('InvoicesController (e2e)', () => {
         .send({
           invoiceNumber: 'INV-E2E-FAIL-002',
           accountId: createdAccountId,
+          contractId: createdContractId,
           issueDate: '2024-01-31',
           dueDate: '2024-01-01', // Before issue date
-          subtotal: 10000,
-          total: 10000,
-        })
-        .expect(HttpStatus.BAD_REQUEST);
-    });
-
-    it('should fail if total does not match calculation', async () => {
-      await request(app.getHttpServer())
-        .post('/api/invoices')
-        .send({
-          invoiceNumber: 'INV-E2E-FAIL-003',
-          accountId: createdAccountId,
-          issueDate: '2024-01-01',
-          dueDate: '2024-01-31',
-          subtotal: 10000,
-          tax: 800,
-          discount: 500,
-          total: 99999, // Wrong total
         })
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -229,10 +220,9 @@ describe('InvoicesController (e2e)', () => {
         .send({
           invoiceNumber: 'INV-E2E-0001', // Duplicate
           accountId: createdAccountId,
+          contractId: createdContractId,
           issueDate: '2024-01-01',
           dueDate: '2024-01-31',
-          subtotal: 10000,
-          total: 10000,
         })
         .expect(HttpStatus.CONFLICT);
     });
@@ -255,7 +245,6 @@ describe('InvoicesController (e2e)', () => {
         hasPrev: expect.any(Boolean),
       });
 
-      // Check includes
       if (response.body.data.length > 0) {
         expect(response.body.data[0]).toHaveProperty('account');
         expect(response.body.data[0]).toHaveProperty('_count');
@@ -268,9 +257,7 @@ describe('InvoicesController (e2e)', () => {
         .query({ 'status[eq]': 'draft' })
         .expect(HttpStatus.OK);
 
-      expect(response.body.data.every((inv) => inv.status === 'draft')).toBe(
-        true,
-      );
+      expect(response.body.data.every((inv) => inv.status === 'draft')).toBe(true);
     });
 
     it('should filter by account', async () => {
@@ -287,13 +274,13 @@ describe('InvoicesController (e2e)', () => {
     it('should filter by total amount range', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/invoices')
-        .query({ 'total[gte]': 5000, 'total[lte]': 15000 })
+        .query({ 'total[gte]': 100, 'total[lte]': 5000 })
         .expect(HttpStatus.OK);
 
       expect(
         response.body.data.every(
           (inv) =>
-            parseFloat(inv.total) >= 5000 && parseFloat(inv.total) <= 15000,
+            parseFloat(inv.total) >= 100 && parseFloat(inv.total) <= 5000,
         ),
       ).toBe(true);
     });
@@ -305,9 +292,7 @@ describe('InvoicesController (e2e)', () => {
         .expect(HttpStatus.OK);
 
       expect(
-        response.body.data.every((inv) =>
-          inv.invoiceNumber.includes('INV-E2E'),
-        ),
+        response.body.data.every((inv) => inv.invoiceNumber.includes('INV-E2E')),
       ).toBe(true);
     });
   });
@@ -323,13 +308,11 @@ describe('InvoicesController (e2e)', () => {
         invoiceNumber: 'INV-E2E-0001',
       });
 
-      // Check relations
       expect(response.body.data).toHaveProperty('account');
       expect(response.body.data.account).toHaveProperty('accountName');
       expect(response.body.data).toHaveProperty('items');
       expect(response.body.data).toHaveProperty('_count');
 
-      // Check paging object
       expect(response.body.paging).toEqual({
         offset: null,
         limit: null,
@@ -363,13 +346,13 @@ describe('InvoicesController (e2e)', () => {
       const response = await request(app.getHttpServer())
         .patch(`/api/invoices/${createdInvoiceId}`)
         .send({
-          paidAmount: 10300,
+          paidAmount: 500,
           paidDate: '2024-01-15',
           status: 'paid',
         })
         .expect(HttpStatus.OK);
 
-      expect(parseFloat(response.body.data.paidAmount)).toBeCloseTo(10300);
+      expect(parseFloat(response.body.data.paidAmount)).toBeCloseTo(500);
       expect(response.body.data.status).toBe('paid');
     });
 
@@ -381,14 +364,13 @@ describe('InvoicesController (e2e)', () => {
     });
 
     it('should fail if invoice number already exists', async () => {
-      // Create second invoice with unique number
+      // Create second invoice
       await request(app.getHttpServer()).post('/api/invoices').send({
         invoiceNumber: 'INV-E2E-UNIQUE',
         accountId: createdAccountId,
+        contractId: createdContractId,
         issueDate: '2024-04-01',
         dueDate: '2024-04-30',
-        subtotal: 5000,
-        total: 5000,
       });
 
       // Try to update first invoice with second invoice's number
@@ -437,7 +419,6 @@ describe('InvoicesController (e2e)', () => {
     let itemIdToDelete: string;
 
     beforeAll(async () => {
-      // Add an item to delete
       const response = await request(app.getHttpServer())
         .post(`/api/invoices/${createdInvoiceId}/items`)
         .send({
@@ -455,7 +436,6 @@ describe('InvoicesController (e2e)', () => {
         .delete(`/api/invoices/${createdInvoiceId}/items/${itemIdToDelete}`)
         .expect(HttpStatus.NO_CONTENT);
 
-      // Verify item is deleted
       const invoice = await request(app.getHttpServer()).get(
         `/api/invoices/${createdInvoiceId}`,
       );
@@ -480,16 +460,14 @@ describe('InvoicesController (e2e)', () => {
 
   describe('DELETE /api/invoices/:id', () => {
     it('should delete invoice', async () => {
-      // Create a new invoice to delete
       const invoiceToDelete = await request(app.getHttpServer())
         .post('/api/invoices')
         .send({
           invoiceNumber: 'INV-E2E-TO-DELETE',
           accountId: createdAccountId,
+          contractId: createdContractId,
           issueDate: '2024-05-01',
           dueDate: '2024-05-31',
-          subtotal: 1000,
-          total: 1000,
         });
 
       const invoiceId = invoiceToDelete.body.data.id;
@@ -498,7 +476,6 @@ describe('InvoicesController (e2e)', () => {
         .delete(`/api/invoices/${invoiceId}`)
         .expect(HttpStatus.NO_CONTENT);
 
-      // Verify invoice is deleted
       await request(app.getHttpServer())
         .get(`/api/invoices/${invoiceId}`)
         .expect(HttpStatus.NOT_FOUND);
@@ -551,36 +528,29 @@ describe('InvoicesController (e2e)', () => {
     });
 
     it('should support operator-based query parameters', async () => {
-      // Test [eq] operator
       const eqResponse = await request(app.getHttpServer())
         .get('/api/invoices')
         .query({ 'status[eq]': 'paid' })
         .expect(HttpStatus.OK);
 
-      expect(eqResponse.body.data.every((inv) => inv.status === 'paid')).toBe(
-        true,
-      );
+      expect(eqResponse.body.data.every((inv) => inv.status === 'paid')).toBe(true);
 
-      // Test [gte] operator
       const gteResponse = await request(app.getHttpServer())
         .get('/api/invoices')
-        .query({ 'total[gte]': 5000 })
+        .query({ 'total[gte]': 100 })
         .expect(HttpStatus.OK);
 
       expect(
-        gteResponse.body.data.every((inv) => parseFloat(inv.total) >= 5000),
+        gteResponse.body.data.every((inv) => parseFloat(inv.total) >= 100),
       ).toBe(true);
 
-      // Test [like] operator
       const likeResponse = await request(app.getHttpServer())
         .get('/api/invoices')
         .query({ 'invoiceNumber[like]': 'E2E' })
         .expect(HttpStatus.OK);
 
       expect(
-        likeResponse.body.data.every((inv) =>
-          inv.invoiceNumber.includes('E2E'),
-        ),
+        likeResponse.body.data.every((inv) => inv.invoiceNumber.includes('E2E')),
       ).toBe(true);
     });
   });

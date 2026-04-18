@@ -16,6 +16,7 @@ describe('Contracts API (e2e)', () => {
   let app: NestFastifyApplication;
   let prisma: PrismaService;
   let testAccountId: string;
+  let testProductId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -47,6 +48,20 @@ describe('Contracts API (e2e)', () => {
     });
     testAccountId = testAccount.id;
 
+    // Create test product (required for contract creation)
+    const testProduct = await prisma.product.create({
+      data: {
+        name: 'E2E Contract Test Product',
+        pricingModel: 'flat_fee',
+        basePrice: 1000,
+        currency: 'USD',
+        chargeType: 'recurring',
+        category: 'platform',
+        active: true,
+      },
+    });
+    testProductId = testProduct.id;
+
     // Clean up existing test contracts
     await prisma.contract.deleteMany({
       where: {
@@ -69,6 +84,10 @@ describe('Contracts API (e2e)', () => {
       },
     });
 
+    await prisma.product.deleteMany({
+      where: { name: 'E2E Contract Test Product' },
+    });
+
     await app.close();
   });
 
@@ -86,6 +105,7 @@ describe('Contracts API (e2e)', () => {
           seatCount: 100,
           committedSeats: 100,
           seatPrice: 99.99,
+          products: [{ productId: testProductId, quantity: 1 }],
         })
         .expect(201)
         .expect((res) => {
@@ -116,6 +136,7 @@ describe('Contracts API (e2e)', () => {
           startDate: '2024-01-01',
           endDate: '2024-12-31',
           contractValue: 50000,
+          products: [{ productId: testProductId, quantity: 1 }],
         })
         .expect(201)
         .expect((res) => {
@@ -142,6 +163,7 @@ describe('Contracts API (e2e)', () => {
           startDate: '2024-12-31',
           endDate: '2024-01-01',
           contractValue: 10000,
+          products: [{ productId: testProductId, quantity: 1 }],
         })
         .expect(400)
         .expect((res) => {
@@ -160,6 +182,7 @@ describe('Contracts API (e2e)', () => {
           startDate: '2024-01-01',
           endDate: '2024-12-31',
           contractValue: 10000,
+          products: [{ productId: testProductId, quantity: 1 }],
         })
         .expect(404)
         .expect((res) => {
@@ -180,6 +203,7 @@ describe('Contracts API (e2e)', () => {
           startDate: '2024-01-01',
           endDate: '2024-12-31',
           contractValue: 10000,
+          products: [{ productId: testProductId, quantity: 1 }],
         })
         .expect(201);
 
@@ -192,6 +216,7 @@ describe('Contracts API (e2e)', () => {
           startDate: '2024-01-01',
           endDate: '2024-12-31',
           contractValue: 10000,
+          products: [{ productId: testProductId, quantity: 1 }],
         })
         .expect(409)
         .expect((res) => {
