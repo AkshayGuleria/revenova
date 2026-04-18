@@ -19,6 +19,9 @@ describe('ContractsController', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    findProducts: jest.fn(),
+    addProduct: jest.fn(),
+    removeProduct: jest.fn(),
     shareContract: jest.fn(),
     unshareContract: jest.fn(),
     getContractShares: jest.fn(),
@@ -54,6 +57,7 @@ describe('ContractsController', () => {
         startDate: '2024-01-01',
         endDate: '2024-12-31',
         contractValue: 120000,
+        products: [{ productId: 'product-uuid-123', quantity: 10 }],
       };
 
       const result = { data: { id: '123' }, paging: {} };

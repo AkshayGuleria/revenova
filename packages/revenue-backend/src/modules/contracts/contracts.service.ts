@@ -5,7 +5,12 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateContractDto, UpdateContractDto, QueryContractsDto } from './dto';
+import {
+  CreateContractDto,
+  UpdateContractDto,
+  QueryContractsDto,
+} from './dto';
+import { CreateContractProductDto } from './dto/contract-product.dto';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { parseQuery } from '../../common/utils/query-parser';
@@ -22,7 +27,8 @@ export class ContractsService {
   async create(
     createContractDto: CreateContractDto,
   ): Promise<ApiResponse<any>> {
-    const { accountId, startDate, endDate, ...data } = createContractDto;
+    const { accountId, startDate, endDate, products, ...data } =
+      createContractDto;
 
     // Validate account exists
     const account = await this.prisma.account.findUnique({
@@ -41,14 +47,52 @@ export class ContractsService {
       throw new BadRequestException('End date must be after start date');
     }
 
+    // Validate all product IDs exist
+    const productIds = products.map((p) => p.productId);
+    const existingProducts = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true },
+    });
+
+    const foundIds = new Set(existingProducts.map((p) => p.id));
+    const missingIds = productIds.filter((id) => !foundIds.has(id));
+
+    if (missingIds.length > 0) {
+      throw new BadRequestException(
+        `Products not found: ${missingIds.join(', ')}`,
+      );
+    }
+
     try {
-      const contract = await this.prisma.contract.create({
-        data: {
-          ...data,
-          accountId,
-          startDate: start,
-          endDate: end,
-        },
+      const contract = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.contract.create({
+          data: {
+            ...data,
+            accountId,
+            startDate: start,
+            endDate: end,
+          },
+        });
+
+        await tx.contractProduct.createMany({
+          data: products.map((p) => ({
+            contractId: created.id,
+            productId: p.productId,
+            quantity: p.quantity ?? 1,
+            unitPrice: p.unitPrice ?? undefined,
+            discount: p.discount ?? undefined,
+            billingInterval: p.billingInterval ?? undefined,
+          })),
+        });
+
+        return tx.contract.findUnique({
+          where: { id: created.id },
+          include: {
+            products: {
+              include: { product: true },
+            },
+          },
+        });
       });
 
       return buildSingleResponse(contract);
@@ -208,6 +252,106 @@ export class ContractsService {
       where: { id },
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Contract-Product sub-endpoints (CP5/CP6)
+  // ---------------------------------------------------------------------------
+
+  async findProducts(contractId: string): Promise<ApiResponse<any>> {
+    // Validate contract exists
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
+    });
+
+    if (!contract) {
+      throw new NotFoundException(`Contract with ID ${contractId} not found`);
+    }
+
+    const contractProducts = await this.prisma.contractProduct.findMany({
+      where: { contractId },
+      include: { product: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return buildPaginatedListResponse(
+      contractProducts,
+      0,
+      contractProducts.length,
+      contractProducts.length,
+    );
+  }
+
+  async addProduct(
+    contractId: string,
+    dto: CreateContractProductDto,
+  ): Promise<ApiResponse<any>> {
+    // Validate contract exists
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
+    });
+
+    if (!contract) {
+      throw new NotFoundException(`Contract with ID ${contractId} not found`);
+    }
+
+    // Validate product exists
+    const product = await this.prisma.product.findUnique({
+      where: { id: dto.productId },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${dto.productId} not found`);
+    }
+
+    try {
+      const contractProduct = await this.prisma.contractProduct.create({
+        data: {
+          contractId,
+          productId: dto.productId,
+          quantity: dto.quantity ?? 1,
+          unitPrice: dto.unitPrice ?? undefined,
+          discount: dto.discount ?? undefined,
+          billingInterval: dto.billingInterval ?? undefined,
+        },
+        include: { product: true },
+      });
+
+      return buildSingleResponse(contractProduct);
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException(
+            `Product ${dto.productId} is already attached to contract ${contractId}`,
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  async removeProduct(contractId: string, productId: string): Promise<void> {
+    const contractProduct = await this.prisma.contractProduct.findUnique({
+      where: {
+        contractId_productId: { contractId, productId },
+      },
+    });
+
+    if (!contractProduct) {
+      throw new NotFoundException(
+        `Product ${productId} is not attached to contract ${contractId}`,
+      );
+    }
+
+    await this.prisma.contractProduct.delete({
+      where: {
+        contractId_productId: { contractId, productId },
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared Contracts (Phase 3)
+  // ---------------------------------------------------------------------------
 
   /**
    * Share a contract with another account (subsidiary)

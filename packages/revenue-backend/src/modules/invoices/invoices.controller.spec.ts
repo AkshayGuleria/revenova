@@ -48,10 +48,9 @@ describe('InvoicesController', () => {
       const dto: CreateInvoiceDto = {
         invoiceNumber: 'INV-001',
         accountId: 'account-123',
+        contractId: 'contract-123',
         issueDate: '2024-01-01',
         dueDate: '2024-01-31',
-        subtotal: 10000,
-        total: 10000,
       };
 
       const result = { data: { id: '123' }, paging: {} };

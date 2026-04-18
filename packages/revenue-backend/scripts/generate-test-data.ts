@@ -138,6 +138,15 @@ function pick<T>(arr: T[], index: number): T {
   return arr[index % arr.length];
 }
 
+function pickSlice<T>(arr: T[], startIndex: number, count: number): T[] {
+  if (arr.length === 0) return [];
+  const results: T[] = [];
+  for (let j = 0; j < count && j < arr.length; j++) {
+    results.push(arr[(startIndex + j) % arr.length]);
+  }
+  return results;
+}
+
 function pickPaymentTerms(index: number) {
   return PAYMENT_TERMS_LIST[index % PAYMENT_TERMS_LIST.length];
 }
@@ -754,6 +763,9 @@ class DataGenerator {
       return;
     }
 
+    // Only use active products (first ~100) for contract binding to avoid legacy/inactive ones
+    const activeProductIds = this.generatedIds.products.slice(0, 100);
+
     const contractTemplates = [
       {
         billingFrequency: BillingFrequency.ANNUAL,
@@ -847,6 +859,14 @@ class DataGenerator {
         const endDate = new Date(startDate);
         endDate.setFullYear(endDate.getFullYear() + 1);
 
+        // Pick 1-3 products for each contract (deterministic, no random)
+        const productCount = 1 + ((i + c) % 3); // cycles 1, 2, 3
+        const contractProductIds = pickSlice(activeProductIds, i + c, productCount);
+        const products = contractProductIds.map((productId, j) => ({
+          productId,
+          quantity: 1 + j * 5, // 1, 6, 11, ...
+        }));
+
         const contract = {
           contractNumber: `CNT-2024-${String(contractCounter).padStart(4, '0')}`,
           accountId,
@@ -854,6 +874,7 @@ class DataGenerator {
           endDate: endDate.toISOString().split('T')[0],
           ...template,
           metadata: { generatedBy: 'data-generator', version: '2.0' },
+          products,
         };
 
         try {

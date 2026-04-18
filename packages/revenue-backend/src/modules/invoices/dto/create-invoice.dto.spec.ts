@@ -5,52 +5,17 @@ import {
   InvoiceStatus,
   BillingType,
 } from './create-invoice.dto';
-import { CreateInvoiceItemDto } from './create-invoice-item.dto';
 
 describe('CreateInvoiceDto', () => {
   it('should validate a minimal valid invoice', async () => {
     const plain = {
       invoiceNumber: 'INV-2024-0001',
       accountId: 'account-uuid-123',
+      contractId: 'contract-uuid-456',
       issueDate: '2024-01-01',
       dueDate: '2024-01-31',
-      subtotal: 10000,
-      total: 10000,
     };
     const dto = plainToInstance(CreateInvoiceDto, plain);
-    const errors = await validate(dto);
-    expect(errors.length).toBe(0);
-  });
-
-  it('should transform nested items using @Type(() => CreateInvoiceItemDto)', async () => {
-    // This test invokes the @Type(() => CreateInvoiceItemDto) factory (line 211)
-    // by passing plain object items through plainToInstance
-    const plain = {
-      invoiceNumber: 'INV-ITEMS-001',
-      accountId: 'account-uuid-456',
-      issueDate: '2024-01-01',
-      dueDate: '2024-01-31',
-      subtotal: 9999,
-      total: 9999,
-      items: [
-        {
-          description: 'Enterprise Plan - 100 seats',
-          quantity: 100,
-          unitPrice: 99.99,
-          amount: 9999,
-        },
-      ],
-    };
-
-    const dto = plainToInstance(CreateInvoiceDto, plain);
-
-    // The @Type decorator should transform items into CreateInvoiceItemDto instances
-    expect(dto.items).toBeDefined();
-    expect(dto.items).toHaveLength(1);
-    expect(dto.items![0]).toBeInstanceOf(CreateInvoiceItemDto);
-    expect(dto.items![0].description).toBe('Enterprise Plan - 100 seats');
-    expect(dto.items![0].quantity).toBe(100);
-
     const errors = await validate(dto);
     expect(errors.length).toBe(0);
   });
@@ -65,10 +30,8 @@ describe('CreateInvoiceDto', () => {
       dueDate: '2024-01-31',
       periodStart: '2024-01-01',
       periodEnd: '2024-01-31',
-      subtotal: 10000,
       tax: 800,
       discount: 500,
-      total: 10300,
       currency: 'USD',
       status: InvoiceStatus.DRAFT,
       paidAmount: 0,
@@ -89,10 +52,9 @@ describe('CreateInvoiceDto', () => {
   it('should fail validation if invoiceNumber is missing', async () => {
     const plain = {
       accountId: 'account-uuid-123',
+      contractId: 'contract-uuid-456',
       issueDate: '2024-01-01',
       dueDate: '2024-01-31',
-      subtotal: 10000,
-      total: 10000,
     };
     const dto = plainToInstance(CreateInvoiceDto, plain);
     const errors = await validate(dto);
@@ -101,19 +63,33 @@ describe('CreateInvoiceDto', () => {
     expect(errorFields).toContain('invoiceNumber');
   });
 
-  it('should fail validation if subtotal is negative', async () => {
+  it('should fail validation if contractId is missing', async () => {
     const plain = {
-      invoiceNumber: 'INV-NEG-001',
+      invoiceNumber: 'INV-2024-0001',
       accountId: 'account-uuid-123',
       issueDate: '2024-01-01',
       dueDate: '2024-01-31',
-      subtotal: -100,
-      total: -100,
     };
     const dto = plainToInstance(CreateInvoiceDto, plain);
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
     const errorFields = errors.map((e) => e.property);
-    expect(errorFields).toContain('subtotal');
+    expect(errorFields).toContain('contractId');
+  });
+
+  it('should fail validation if tax is negative', async () => {
+    const plain = {
+      invoiceNumber: 'INV-NEG-001',
+      accountId: 'account-uuid-123',
+      contractId: 'contract-uuid-456',
+      issueDate: '2024-01-01',
+      dueDate: '2024-01-31',
+      tax: -100,
+    };
+    const dto = plainToInstance(CreateInvoiceDto, plain);
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    const errorFields = errors.map((e) => e.property);
+    expect(errorFields).toContain('tax');
   });
 });

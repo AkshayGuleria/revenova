@@ -17,6 +17,7 @@ import {
   UpdateContractDto,
   QueryContractsDto,
   ShareContractDto,
+  CreateContractProductDto,
 } from './dto';
 
 @ApiTags('Contracts')
@@ -248,6 +249,51 @@ export class ContractsController {
   async remove(@Param('id') id: string) {
     await this.contractsService.remove(id);
   }
+
+  // ---------------------------------------------------------------------------
+  // Contract-Product sub-endpoints (CP6)
+  // ---------------------------------------------------------------------------
+
+  @Get(':id/products')
+  @ApiOperation({ summary: 'List products attached to a contract' })
+  @ApiParam({ name: 'id', description: 'Contract UUID' })
+  @ApiResponse({ status: 200, description: 'List of contract products' })
+  @ApiResponse({ status: 404, description: 'Contract not found' })
+  findProducts(@Param('id') id: string) {
+    return this.contractsService.findProducts(id);
+  }
+
+  @Post(':id/products')
+  @ApiOperation({ summary: 'Add a product to a contract' })
+  @ApiParam({ name: 'id', description: 'Contract UUID' })
+  @ApiResponse({ status: 201, description: 'Product added to contract' })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  @ApiResponse({ status: 404, description: 'Contract or product not found' })
+  @ApiResponse({ status: 409, description: 'Product already on this contract' })
+  addProduct(
+    @Param('id') id: string,
+    @Body() dto: CreateContractProductDto,
+  ) {
+    return this.contractsService.addProduct(id, dto);
+  }
+
+  @Delete(':id/products/:productId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a product from a contract' })
+  @ApiParam({ name: 'id', description: 'Contract UUID' })
+  @ApiParam({ name: 'productId', description: 'Product UUID' })
+  @ApiResponse({ status: 204, description: 'Product removed from contract' })
+  @ApiResponse({ status: 404, description: 'Contract or product binding not found' })
+  async removeProduct(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+  ) {
+    await this.contractsService.removeProduct(id, productId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared Contracts (Phase 3)
+  // ---------------------------------------------------------------------------
 
   @Post(':id/shares')
   @ApiOperation({

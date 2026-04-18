@@ -30,12 +30,27 @@ describe('ContractsService', () => {
     account: {
       findUnique: jest.fn(),
     },
+    product: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    contractProduct: {
+      create: jest.fn(),
+      createMany: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
     contractShare: {
       create: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       delete: jest.fn(),
     },
+    // Transaction mock: executes the callback with this same mock object
+    $transaction: jest.fn((fn: (tx: any) => Promise<any>) =>
+      fn(mockPrismaService),
+    ),
   };
 
   beforeEach(async () => {
@@ -56,6 +71,10 @@ describe('ContractsService', () => {
     void prisma;
 
     jest.clearAllMocks();
+    // Re-bind $transaction to the default pass-through after each clear
+    mockPrismaService.$transaction.mockImplementation(
+      (fn: (tx: any) => Promise<any>) => fn(mockPrismaService),
+    );
   });
 
   describe('create', () => {
@@ -63,6 +82,8 @@ describe('ContractsService', () => {
       id: 'account-123',
       accountName: 'Test Account',
     };
+
+    const mockProduct = { id: 'product-123', name: 'Enterprise Plan', basePrice: 99.99 };
 
     const createContractDto: CreateContractDto = {
       contractNumber: 'CNT-2024-0001',
@@ -72,21 +93,36 @@ describe('ContractsService', () => {
       contractValue: 120000,
       billingFrequency: BillingFrequency.ANNUAL,
       paymentTerms: PaymentTerms.NET_30,
+      products: [{ productId: 'product-123', quantity: 50 }],
     };
 
     const mockCreatedContract = {
       id: 'contract-123',
-      ...createContractDto,
+      contractNumber: 'CNT-2024-0001',
+      accountId: 'account-123',
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-12-31'),
+      contractValue: 120000,
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),
+      products: [
+        {
+          id: 'cp-123',
+          contractId: 'contract-123',
+          productId: 'product-123',
+          quantity: 50,
+          product: mockProduct,
+        },
+      ],
     };
 
     it('should create a contract successfully', async () => {
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
-      mockPrismaService.contract.create.mockResolvedValue(mockCreatedContract);
+      mockPrismaService.product.findMany.mockResolvedValue([mockProduct]);
+      mockPrismaService.contract.create.mockResolvedValue({ id: 'contract-123' });
+      mockPrismaService.contractProduct.createMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.contract.findUnique.mockResolvedValue(mockCreatedContract);
 
       const result = await service.create(createContractDto);
 
@@ -104,7 +140,11 @@ describe('ContractsService', () => {
       expect(mockPrismaService.account.findUnique).toHaveBeenCalledWith({
         where: { id: 'account-123' },
       });
-      expect(mockPrismaService.contract.create).toHaveBeenCalled();
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['product-123'] } },
+        select: { id: true },
+      });
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when account does not exist', async () => {
@@ -116,7 +156,7 @@ describe('ContractsService', () => {
       await expect(service.create(createContractDto)).rejects.toThrow(
         'Account with ID account-123 not found',
       );
-      expect(mockPrismaService.contract.create).not.toHaveBeenCalled();
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when end date is before start date', async () => {
@@ -136,6 +176,20 @@ describe('ContractsService', () => {
       );
     });
 
+    it('should throw BadRequestException when a productId does not exist', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      // Return empty — no products found
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      await expect(service.create(createContractDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.create(createContractDto)).rejects.toThrow(
+        'Products not found: product-123',
+      );
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
+    });
+
     it('should throw ConflictException when contract number already exists', async () => {
       const prismaError = new PrismaClientKnownRequestError(
         'Unique constraint failed',
@@ -146,7 +200,9 @@ describe('ContractsService', () => {
       );
 
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
-      mockPrismaService.contract.create.mockRejectedValue(prismaError);
+      mockPrismaService.product.findMany.mockResolvedValue([mockProduct]);
+      // Make the transaction always throw the prisma error for this test
+      mockPrismaService.$transaction.mockRejectedValue(prismaError);
 
       await expect(service.create(createContractDto)).rejects.toThrow(
         ConflictException,
@@ -159,11 +215,161 @@ describe('ContractsService', () => {
     it('should rethrow non-P2002 prisma errors on create', async () => {
       const genericError = new Error('Generic DB error');
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
-      mockPrismaService.contract.create.mockRejectedValue(genericError);
+      mockPrismaService.product.findMany.mockResolvedValue([mockProduct]);
+      mockPrismaService.$transaction.mockRejectedValueOnce(genericError);
 
       await expect(service.create(createContractDto)).rejects.toThrow(
         'Generic DB error',
       );
+    });
+
+    it('should create contractProduct records in transaction', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.product.findMany.mockResolvedValue([mockProduct]);
+      mockPrismaService.contract.create.mockResolvedValue({ id: 'contract-123' });
+      mockPrismaService.contractProduct.createMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.contract.findUnique.mockResolvedValue(mockCreatedContract);
+
+      await service.create(createContractDto);
+
+      expect(mockPrismaService.contractProduct.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            contractId: 'contract-123',
+            productId: 'product-123',
+            quantity: 50,
+          }),
+        ],
+      });
+    });
+  });
+
+  describe('findProducts', () => {
+    it('should return products for a contract', async () => {
+      const contract = { id: 'contract-1' };
+      const contractProducts = [
+        {
+          id: 'cp-1',
+          contractId: 'contract-1',
+          productId: 'product-1',
+          quantity: 10,
+          product: { id: 'product-1', name: 'Enterprise Plan' },
+        },
+      ];
+
+      mockPrismaService.contract.findUnique.mockResolvedValue(contract);
+      mockPrismaService.contractProduct.findMany.mockResolvedValue(contractProducts);
+
+      const result = await service.findProducts('contract-1');
+
+      expect(result.data).toEqual(contractProducts);
+      expect((result.paging as any).total).toBe(1);
+    });
+
+    it('should throw NotFoundException when contract not found', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(null);
+
+      await expect(service.findProducts('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('addProduct', () => {
+    it('should add a product to a contract', async () => {
+      const contract = { id: 'contract-1' };
+      const product = { id: 'product-1', name: 'Enterprise Plan' };
+      const contractProduct = {
+        id: 'cp-1',
+        contractId: 'contract-1',
+        productId: 'product-1',
+        quantity: 10,
+        product,
+      };
+
+      mockPrismaService.contract.findUnique.mockResolvedValue(contract);
+      mockPrismaService.product.findUnique.mockResolvedValue(product);
+      mockPrismaService.contractProduct.create.mockResolvedValue(contractProduct);
+
+      const result = await service.addProduct('contract-1', {
+        productId: 'product-1',
+        quantity: 10,
+      });
+
+      expect(result.data).toEqual(contractProduct);
+      expect(mockPrismaService.contractProduct.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            contractId: 'contract-1',
+            productId: 'product-1',
+            quantity: 10,
+          }),
+        }),
+      );
+    });
+
+    it('should throw NotFoundException when contract not found', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.addProduct('invalid-id', { productId: 'product-1' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when product not found', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
+      mockPrismaService.product.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.addProduct('contract-1', { productId: 'invalid-product' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException on P2002 (duplicate product)', async () => {
+      const prismaError = new PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.0.0' },
+      );
+
+      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
+      mockPrismaService.product.findUnique.mockResolvedValue({ id: 'product-1' });
+      mockPrismaService.contractProduct.create.mockRejectedValue(prismaError);
+
+      await expect(
+        service.addProduct('contract-1', { productId: 'product-1' }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('removeProduct', () => {
+    it('should delete a contract-product binding', async () => {
+      const cp = {
+        id: 'cp-1',
+        contractId: 'contract-1',
+        productId: 'product-1',
+      };
+
+      mockPrismaService.contractProduct.findUnique.mockResolvedValue(cp);
+      mockPrismaService.contractProduct.delete.mockResolvedValue(cp);
+
+      await service.removeProduct('contract-1', 'product-1');
+
+      expect(mockPrismaService.contractProduct.delete).toHaveBeenCalledWith({
+        where: {
+          contractId_productId: {
+            contractId: 'contract-1',
+            productId: 'product-1',
+          },
+        },
+      });
+    });
+
+    it('should throw NotFoundException when binding not found', async () => {
+      mockPrismaService.contractProduct.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.removeProduct('contract-1', 'product-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

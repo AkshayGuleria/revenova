@@ -100,11 +100,36 @@ model Contract {
   account             Account          @relation(fields: [accountId], references: [id])
   invoices            Invoice[]
   shares              ContractShare[]
+  products            ContractProduct[]
 
   @@index([accountId])
   @@index([status])
   @@index([endDate])
   @@map("contracts")
+}
+
+// Phase 4: Contract-Product Binding — joins contracts to products with pricing overrides
+model ContractProduct {
+  id              String   @id @default(uuid())
+  contractId      String   @map("contract_id")
+  productId       String   @map("product_id")
+
+  quantity        Int      @default(1)
+  unitPrice       Decimal? @map("unit_price") @db.Decimal(10, 2)
+  discount        Decimal? @db.Decimal(5, 4)
+  billingInterval String?  @map("billing_interval")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  contract        Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  product         Product     @relation(fields: [productId], references: [id])
+  invoiceItems    InvoiceItem[]
+
+  @@unique([contractId, productId])
+  @@index([contractId])
+  @@index([productId])
+  @@map("contract_products")
 }
 
 // Phase 3: Shared Contracts - Allows contracts to be shared with subsidiary accounts
@@ -166,6 +191,9 @@ model Product {
   metadata            Json?
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  contracts           ContractProduct[]
 
   @@index([pricingModel])
   @@index([chargeType])
@@ -264,17 +292,19 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id             String   @id @default(uuid())
-  invoiceId      String   @map("invoice_id")
-  description    String
-  quantity       Decimal  @db.Decimal(10, 2)
-  unitPrice      Decimal  @map("unit_price") @db.Decimal(10, 2)
-  amount         Decimal  @db.Decimal(10, 2)
-  groupReference String?  @map("group_reference") // Links item to org unit (cost center code, dept code, etc.)
+  id                  String   @id @default(uuid())
+  invoiceId           String   @map("invoice_id")
+  description         String
+  quantity            Decimal  @db.Decimal(10, 2)
+  unitPrice           Decimal  @map("unit_price") @db.Decimal(10, 2)
+  amount              Decimal  @db.Decimal(10, 2)
+  groupReference      String?  @map("group_reference") // Links item to org unit (cost center code, dept code, etc.)
+  contractProductId   String?  @map("contract_product_id")
 
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt           DateTime @default(now()) @map("created_at")
 
-  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice             Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  contractProduct     ContractProduct? @relation(fields: [contractProductId], references: [id])
 
   @@index([invoiceId])
   @@map("invoice_items")
