@@ -109,6 +109,8 @@ export const queryKeys = {
       [...queryKeys.contracts.detail(id), "shares"] as const,
     sharedWith: (accountId: string) =>
       [...queryKeys.contracts.all, "shared", accountId] as const,
+    products: (id: string) =>
+      [...queryKeys.contracts.detail(id), "products"] as const,
   },
 
   // Products
