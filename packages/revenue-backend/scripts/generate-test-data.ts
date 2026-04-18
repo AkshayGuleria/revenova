@@ -3,9 +3,9 @@
  * Test Data Generator for Revenue Management System
  *
  * Generates:
- * - Product catalog (seat-based, flat fee, volume-tiered)
- * - Hierarchical accounts (parent-child relationships, 2-3 levels deep)
- * - Contracts for accounts with varying terms
+ * - Product catalog (seat-based, flat fee, volume-tiered) — ~130 products
+ * - Hierarchical accounts (parent → subsidiary → department) — ~300 accounts
+ * - Contracts for accounts with varying terms — ~150+ contracts
  *
  * Usage:
  *   npm run generate-data
@@ -14,11 +14,9 @@
 
 import axios, { AxiosInstance } from 'axios';
 
-// Configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5177';
 const CLEAN_FIRST = process.argv.includes('--clean');
 
-// Types from DTOs
 enum AccountType {
   ENTERPRISE = 'enterprise',
   SMB = 'smb',
@@ -69,15 +67,81 @@ enum BillingFrequency {
   ANNUAL = 'annual',
 }
 
-enum ContractStatus {
-  DRAFT = 'draft',
-  ACTIVE = 'active',
-  EXPIRED = 'expired',
-  CANCELLED = 'cancelled',
-  RENEWED = 'renewed',
+// ---------------------------------------------------------------------------
+// Seed data pools for programmatic generation
+// ---------------------------------------------------------------------------
+
+const INDUSTRIES = [
+  'Technology', 'Manufacturing', 'Healthcare', 'Finance', 'Retail',
+  'Education', 'Energy', 'Logistics', 'Media', 'Telecommunications',
+  'Aerospace', 'Automotive', 'Construction', 'Food & Beverage', 'Insurance',
+  'Legal', 'Pharmaceuticals', 'Real Estate', 'Travel & Hospitality', 'Government',
+  'Nonprofit', 'Agriculture', 'Mining', 'Utilities', 'Professional Services',
+  'E-Commerce', 'Gaming', 'Cybersecurity', 'Biotech', 'Clean Energy',
+];
+
+const REGIONS = ['West', 'Central', 'East', 'Southwest', 'Southeast', 'Northwest', 'Northeast', 'Midwest'];
+
+const SALES_REPS = [
+  'Alice Johnson', 'Bob Martinez', 'Carol White', 'David Lee', 'Emily Brown',
+  'Frank Davis', 'Grace Wilson', 'Henry Moore', 'Iris Taylor', 'James Anderson',
+  'Karen Thomas', 'Leo Jackson', 'Monica Harris', 'Nathan Clark', 'Olivia Lewis',
+];
+
+const US_CITIES: { city: string; state: string; zip: string }[] = [
+  { city: 'San Francisco', state: 'CA', zip: '94105' },
+  { city: 'Austin', state: 'TX', zip: '78701' },
+  { city: 'Seattle', state: 'WA', zip: '98101' },
+  { city: 'New York', state: 'NY', zip: '10001' },
+  { city: 'Chicago', state: 'IL', zip: '60601' },
+  { city: 'Boston', state: 'MA', zip: '02101' },
+  { city: 'Miami', state: 'FL', zip: '33101' },
+  { city: 'Denver', state: 'CO', zip: '80201' },
+  { city: 'Atlanta', state: 'GA', zip: '30301' },
+  { city: 'Phoenix', state: 'AZ', zip: '85001' },
+  { city: 'Portland', state: 'OR', zip: '97201' },
+  { city: 'Detroit', state: 'MI', zip: '48201' },
+  { city: 'Palo Alto', state: 'CA', zip: '94301' },
+  { city: 'Dallas', state: 'TX', zip: '75201' },
+  { city: 'Minneapolis', state: 'MN', zip: '55401' },
+  { city: 'Nashville', state: 'TN', zip: '37201' },
+  { city: 'Raleigh', state: 'NC', zip: '27601' },
+  { city: 'Salt Lake City', state: 'UT', zip: '84101' },
+  { city: 'Las Vegas', state: 'NV', zip: '89101' },
+  { city: 'Pittsburgh', state: 'PA', zip: '15201' },
+  { city: 'Columbus', state: 'OH', zip: '43201' },
+  { city: 'Kansas City', state: 'MO', zip: '64101' },
+  { city: 'San Diego', state: 'CA', zip: '92101' },
+  { city: 'Baltimore', state: 'MD', zip: '21201' },
+  { city: 'Tampa', state: 'FL', zip: '33601' },
+  { city: 'Charlotte', state: 'NC', zip: '28201' },
+  { city: 'Indianapolis', state: 'IN', zip: '46201' },
+  { city: 'San Antonio', state: 'TX', zip: '78201' },
+  { city: 'San Jose', state: 'CA', zip: '95101' },
+  { city: 'Jacksonville', state: 'FL', zip: '32201' },
+];
+
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'CAD', 'AUD'];
+
+const PAYMENT_TERMS_LIST = [
+  { terms: PaymentTerms.NET_30, days: 30 },
+  { terms: PaymentTerms.NET_60, days: 60 },
+  { terms: PaymentTerms.NET_90, days: 90 },
+  { terms: PaymentTerms.DUE_ON_RECEIPT, days: 0 },
+];
+
+// ---------------------------------------------------------------------------
+// Deterministic helpers (no Math.random — reproducible runs)
+// ---------------------------------------------------------------------------
+
+function pick<T>(arr: T[], index: number): T {
+  return arr[index % arr.length];
 }
 
-// API Client
+function pickPaymentTerms(index: number) {
+  return PAYMENT_TERMS_LIST[index % PAYMENT_TERMS_LIST.length];
+}
+
 class DataGenerator {
   private client: AxiosInstance;
   private generatedIds: {
@@ -89,16 +153,10 @@ class DataGenerator {
   constructor(baseURL: string) {
     this.client = axios.create({
       baseURL,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      timeout: 15000,
+      headers: { 'Content-Type': 'application/json' },
     });
-    this.generatedIds = {
-      products: [],
-      accounts: [],
-      contracts: [],
-    };
+    this.generatedIds = { products: [], accounts: [], contracts: [] };
   }
 
   private log(message: string, ...args: any[]) {
@@ -106,201 +164,244 @@ class DataGenerator {
   }
 
   private error(message: string, error: any) {
-    console.error(`[${new Date().toISOString()}] ❌ ${message}`, error.response?.data || error.message);
+    console.error(
+      `[${new Date().toISOString()}] ❌ ${message}`,
+      error.response?.data || error.message,
+    );
   }
 
   private success(message: string) {
     console.log(`[${new Date().toISOString()}] ✅ ${message}`);
   }
 
-  // Product Catalog Generation
+  // ---------------------------------------------------------------------------
+  // Products — ~130 total
+  // ---------------------------------------------------------------------------
+
   async generateProducts() {
     this.log('📦 Generating product catalog...');
 
-    const products = [
-      // ── Core Plans (recurring · platform · seat_based) ─────────────────────
-      {
-        name: 'Starter Plan',
-        description: 'Ideal for small teams getting started with the platform.',
-        sku: 'PLAN-STARTER',
-        pricingModel: PricingModel.SEAT_BASED,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.PLATFORM,
-        basePrice: 29.99,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        trialPeriodDays: 14,
-        minSeats: 1,
-        active: true,
-        isAddon: false,
-      },
-      {
-        name: 'Professional Plan',
-        description: 'Advanced features for growing teams.',
-        sku: 'PLAN-PRO',
-        pricingModel: PricingModel.SEAT_BASED,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.PLATFORM,
-        basePrice: 79.99,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        setupFee: 500.0,
-        minSeats: 5,
-        active: true,
-        isAddon: false,
-      },
-      {
-        name: 'Enterprise Plan',
-        description: 'Full-featured enterprise plan with dedicated support and SLA.',
-        sku: 'PLAN-ENT',
+    const products: any[] = [];
+
+    // ── Core Plans × 3 tiers × 4 billing intervals = 12 ─────────────────────
+    const plans = [
+      { name: 'Starter', sku: 'PLAN-STARTER', basePrice: 29.99, minSeats: 1 },
+      { name: 'Professional', sku: 'PLAN-PRO', basePrice: 79.99, minSeats: 5, setupFee: 500 },
+      { name: 'Business', sku: 'PLAN-BIZ', basePrice: 119.99, minSeats: 10, setupFee: 1000 },
+      { name: 'Enterprise', sku: 'PLAN-ENT', basePrice: 149.99, minSeats: 25, setupFee: 2000, minCommitmentMonths: 12 },
+      { name: 'Enterprise Plus', sku: 'PLAN-ENT-PLUS', basePrice: 199.99, minSeats: 50, setupFee: 5000, minCommitmentMonths: 12 },
+    ];
+    const intervals = [
+      BillingInterval.MONTHLY,
+      BillingInterval.QUARTERLY,
+      BillingInterval.SEMI_ANNUAL,
+      BillingInterval.ANNUAL,
+    ];
+    for (const plan of plans) {
+      for (const interval of intervals) {
+        const discount = interval === BillingInterval.ANNUAL ? 0.8
+          : interval === BillingInterval.SEMI_ANNUAL ? 0.88
+          : interval === BillingInterval.QUARTERLY ? 0.94
+          : 1.0;
+        products.push({
+          name: `${plan.name} Plan (${interval})`,
+          description: `${plan.name} plan billed ${interval}.`,
+          sku: `${plan.sku}-${interval.toUpperCase()}`,
+          pricingModel: PricingModel.SEAT_BASED,
+          chargeType: ChargeType.RECURRING,
+          category: ProductCategory.PLATFORM,
+          basePrice: Math.round(plan.basePrice * discount * 100) / 100,
+          currency: 'EUR',
+          billingInterval: interval,
+          setupFee: (plan as any).setupFee,
+          minSeats: plan.minSeats,
+          minCommitmentMonths: (plan as any).minCommitmentMonths,
+          active: true,
+          isAddon: false,
+        });
+      }
+    }
+
+    // ── Volume-tiered Enterprise plans × 3 seat bands = 3 ────────────────────
+    const enterpriseTierSets = [
+      { name: 'Enterprise Volume S', sku: 'ENT-VOL-S', base: 129.99, min: 10, max: 200 },
+      { name: 'Enterprise Volume M', sku: 'ENT-VOL-M', base: 109.99, min: 201, max: 1000 },
+      { name: 'Enterprise Volume L', sku: 'ENT-VOL-L', base: 89.99, min: 1001, max: null },
+    ];
+    for (const tier of enterpriseTierSets) {
+      products.push({
+        name: tier.name,
+        description: `Volume-tiered enterprise plan (${tier.min}+ seats).`,
+        sku: tier.sku,
         pricingModel: PricingModel.VOLUME_TIERED,
         chargeType: ChargeType.RECURRING,
         category: ProductCategory.PLATFORM,
-        basePrice: 149.99,
+        basePrice: tier.base,
         currency: 'EUR',
         billingInterval: BillingInterval.ANNUAL,
-        setupFee: 2000.0,
+        setupFee: 2000,
         minCommitmentMonths: 12,
-        minSeats: 10,
+        minSeats: tier.min,
         volumeTiers: [
-          { minQuantity: 10, maxQuantity: 50, pricePerUnit: 149.99 },
-          { minQuantity: 51, maxQuantity: 100, pricePerUnit: 129.99 },
-          { minQuantity: 101, maxQuantity: 500, pricePerUnit: 109.99 },
-          { minQuantity: 501, maxQuantity: null, pricePerUnit: 89.99 },
+          { minQuantity: tier.min, maxQuantity: Math.min(tier.min + 49, tier.max ?? tier.min + 49), pricePerUnit: tier.base },
+          { minQuantity: tier.min + 50, maxQuantity: Math.min(tier.min + 199, tier.max ?? tier.min + 199), pricePerUnit: tier.base * 0.9 },
+          { minQuantity: tier.min + 200, maxQuantity: tier.max, pricePerUnit: tier.base * 0.75 },
         ],
         active: true,
         isAddon: false,
-      },
-      // ── Platform Add-ons (recurring · addon · flat_fee) ─────────────────────
-      {
-        name: 'Advanced Analytics Module',
-        description: 'In-depth analytics dashboards, custom reports, and data exports.',
-        sku: 'ADDON-ANALYTICS',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.ADDON,
-        basePrice: 499.0,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        active: true,
-        isAddon: true,
-      },
-      {
-        name: 'AI Assistant Module',
-        description: 'AI-powered automation, recommendations, and workflow assistance.',
-        sku: 'ADDON-AI',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.ADDON,
-        basePrice: 999.0,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        active: true,
-        isAddon: true,
-      },
-      {
-        name: 'Premium API Access',
-        description: 'Higher rate limits, dedicated API keys, and webhook support.',
-        sku: 'ADDON-API',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.ADDON,
-        basePrice: 299.0,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        active: true,
-        isAddon: true,
-      },
-      {
-        name: 'Custom SSO / SAML',
-        description: 'Enterprise single sign-on with SAML 2.0 and SCIM provisioning.',
-        sku: 'ADDON-SSO',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.ADDON,
-        basePrice: 199.0,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        active: true,
-        isAddon: true,
-      },
-      // ── Support Tiers (recurring · support · flat_fee) ──────────────────────
-      {
-        name: 'Premium Support',
-        description: '24/7 priority support with 4-hour SLA response time.',
-        sku: 'SUPPORT-PREMIUM',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.SUPPORT,
-        basePrice: 999.0,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        active: true,
-        isAddon: false,
-      },
-      {
-        name: 'Dedicated Customer Success Manager',
-        description: 'Dedicated CSM for onboarding, QBRs, and strategic guidance.',
-        sku: 'SUPPORT-CSM',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.RECURRING,
-        category: ProductCategory.SUPPORT,
-        basePrice: 2500.0,
-        currency: 'EUR',
-        billingInterval: BillingInterval.MONTHLY,
-        active: true,
-        isAddon: false,
-      },
-      // ── One-Time Services (one_time · professional_services · flat_fee) ──────
-      {
-        name: 'Onboarding Package',
-        description: 'Guided setup, configuration, and team training (up to 3 sessions).',
-        sku: 'SVC-ONBOARDING',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.ONE_TIME,
-        category: ProductCategory.PROFESSIONAL_SERVICES,
-        basePrice: 5000.0,
-        currency: 'EUR',
-        active: true,
-        isAddon: false,
-      },
-      {
-        name: 'Data Migration',
-        description: 'Full historical data migration from legacy systems.',
-        sku: 'SVC-MIGRATION',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.ONE_TIME,
-        category: ProductCategory.PROFESSIONAL_SERVICES,
-        basePrice: 3000.0,
-        currency: 'EUR',
-        active: true,
-        isAddon: false,
-      },
-      {
-        name: 'Custom Integration',
-        description: 'Bespoke integration with your existing ERP, CRM, or data warehouse.',
-        sku: 'SVC-INTEGRATION',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.ONE_TIME,
-        category: ProductCategory.PROFESSIONAL_SERVICES,
-        basePrice: 15000.0,
-        currency: 'EUR',
-        active: true,
-        isAddon: false,
-      },
-      {
-        name: 'Training Workshop',
-        description: 'Full-day on-site or virtual training workshop for your team.',
-        sku: 'SVC-TRAINING',
-        pricingModel: PricingModel.FLAT_FEE,
-        chargeType: ChargeType.ONE_TIME,
-        category: ProductCategory.PROFESSIONAL_SERVICES,
-        basePrice: 2500.0,
-        currency: 'EUR',
-        active: true,
-        isAddon: false,
-      },
+      });
+    }
+
+    // ── Add-ons × 10 modules = 10 ────────────────────────────────────────────
+    const addons = [
+      { name: 'Advanced Analytics', sku: 'ADDON-ANALYTICS', price: 499, desc: 'In-depth analytics dashboards, custom reports, and data exports.' },
+      { name: 'AI Assistant', sku: 'ADDON-AI', price: 999, desc: 'AI-powered automation, recommendations, and workflow assistance.' },
+      { name: 'Premium API Access', sku: 'ADDON-API', price: 299, desc: 'Higher rate limits, dedicated API keys, and webhook support.' },
+      { name: 'Custom SSO / SAML', sku: 'ADDON-SSO', price: 199, desc: 'Enterprise SSO with SAML 2.0 and SCIM provisioning.' },
+      { name: 'Audit & Compliance Pack', sku: 'ADDON-AUDIT', price: 399, desc: 'SOC2-ready audit logs, access reports, and compliance exports.' },
+      { name: 'White-Label Branding', sku: 'ADDON-BRAND', price: 599, desc: 'Custom domain, logo, and color scheme for your workspace.' },
+      { name: 'Advanced Security', sku: 'ADDON-SEC', price: 449, desc: 'IP allowlisting, session policies, and anomaly detection.' },
+      { name: 'Workflow Automation', sku: 'ADDON-AUTO', price: 349, desc: 'No-code workflow builder with triggers and conditional logic.' },
+      { name: 'Data Warehouse Sync', sku: 'ADDON-DWH', price: 799, desc: 'Real-time sync to Snowflake, BigQuery, or Redshift.' },
+      { name: 'Mobile Management', sku: 'ADDON-MOBILE', price: 249, desc: 'MDM integration and mobile app management tools.' },
     ];
+    for (const addon of addons) {
+      products.push({
+        name: addon.name,
+        description: addon.desc,
+        sku: addon.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.ADDON,
+        basePrice: addon.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.MONTHLY,
+        active: true,
+        isAddon: true,
+      });
+    }
+
+    // ── Support tiers × 4 = 4 ────────────────────────────────────────────────
+    const supportTiers = [
+      { name: 'Basic Support', sku: 'SUPPORT-BASIC', price: 199 },
+      { name: 'Standard Support', sku: 'SUPPORT-STD', price: 499 },
+      { name: 'Premium Support', sku: 'SUPPORT-PREM', price: 999 },
+      { name: 'Dedicated CSM', sku: 'SUPPORT-CSM', price: 2500 },
+    ];
+    for (const s of supportTiers) {
+      products.push({
+        name: s.name,
+        description: `${s.name} package with SLA guarantees and dedicated channels.`,
+        sku: s.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.SUPPORT,
+        basePrice: s.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.MONTHLY,
+        active: true,
+        isAddon: false,
+      });
+    }
+
+    // ── Storage add-ons × 4 tiers = 4 ────────────────────────────────────────
+    const storageTiers = [
+      { name: 'Storage 100 GB', sku: 'STOR-100', price: 49 },
+      { name: 'Storage 500 GB', sku: 'STOR-500', price: 199 },
+      { name: 'Storage 2 TB', sku: 'STOR-2T', price: 599 },
+      { name: 'Storage 10 TB', sku: 'STOR-10T', price: 1999 },
+    ];
+    for (const s of storageTiers) {
+      products.push({
+        name: s.name,
+        description: `${s.name} of managed cloud storage with redundancy and encryption.`,
+        sku: s.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.STORAGE,
+        basePrice: s.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.MONTHLY,
+        active: true,
+        isAddon: true,
+      });
+    }
+
+    // ── API rate-limit bundles × 5 = 5 ───────────────────────────────────────
+    const apiBundles = [
+      { name: 'API 10k calls/mo', sku: 'API-10K', price: 29 },
+      { name: 'API 100k calls/mo', sku: 'API-100K', price: 99 },
+      { name: 'API 1M calls/mo', sku: 'API-1M', price: 299 },
+      { name: 'API 10M calls/mo', sku: 'API-10M', price: 799 },
+      { name: 'API Unlimited', sku: 'API-UNL', price: 1999 },
+    ];
+    for (const b of apiBundles) {
+      products.push({
+        name: b.name,
+        description: `${b.name} with dedicated rate limits and SLA.`,
+        sku: b.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.API,
+        basePrice: b.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.MONTHLY,
+        active: true,
+        isAddon: true,
+      });
+    }
+
+    // ── Professional services × 10 = 10 ──────────────────────────────────────
+    const professionalServices = [
+      { name: 'Onboarding Package - Basic', sku: 'SVC-ONBOARD-BASIC', price: 2500 },
+      { name: 'Onboarding Package - Standard', sku: 'SVC-ONBOARD-STD', price: 5000 },
+      { name: 'Onboarding Package - Enterprise', sku: 'SVC-ONBOARD-ENT', price: 12000 },
+      { name: 'Data Migration - Small', sku: 'SVC-MIG-S', price: 1500 },
+      { name: 'Data Migration - Large', sku: 'SVC-MIG-L', price: 8000 },
+      { name: 'Custom Integration', sku: 'SVC-INT', price: 15000 },
+      { name: 'Training Workshop - Half Day', sku: 'SVC-TRAIN-HD', price: 1500 },
+      { name: 'Training Workshop - Full Day', sku: 'SVC-TRAIN-FD', price: 2500 },
+      { name: 'Architecture Review', sku: 'SVC-ARCH', price: 5000 },
+      { name: 'Security Assessment', sku: 'SVC-SEC-ASSESS', price: 7500 },
+    ];
+    for (const svc of professionalServices) {
+      products.push({
+        name: svc.name,
+        description: `Professional service: ${svc.name}.`,
+        sku: svc.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.ONE_TIME,
+        category: ProductCategory.PROFESSIONAL_SERVICES,
+        basePrice: svc.price,
+        currency: 'EUR',
+        active: true,
+        isAddon: false,
+      });
+    }
+
+    // ── Inactive / legacy products × 5 (for realistic catalog) ───────────────
+    const legacyProducts = [
+      { name: 'Legacy Basic Plan', sku: 'LEGACY-BASIC', price: 19.99 },
+      { name: 'Legacy Pro Plan', sku: 'LEGACY-PRO', price: 59.99 },
+      { name: 'Legacy API Bundle', sku: 'LEGACY-API', price: 149 },
+      { name: 'Old Support Tier', sku: 'LEGACY-SUPPORT', price: 299 },
+      { name: 'Deprecated Add-on', sku: 'LEGACY-ADDON', price: 99 },
+    ];
+    for (const p of legacyProducts) {
+      products.push({
+        name: p.name,
+        description: `Legacy product — no longer sold to new customers.`,
+        sku: p.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.PLATFORM,
+        basePrice: p.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.MONTHLY,
+        active: false,
+        isAddon: false,
+      });
+    }
 
     for (const product of products) {
       try {
@@ -316,327 +417,221 @@ class DataGenerator {
     this.log(`✅ Created ${this.generatedIds.products.length} products`);
   }
 
-  // Account Generation with Hierarchies
+  // ---------------------------------------------------------------------------
+  // Accounts — 30 parents × 3 subsidiaries × 3 departments + 30 standalone
+  // ---------------------------------------------------------------------------
+
   async generateAccounts() {
     this.log('🏢 Generating hierarchical accounts...');
 
-    // Parent Companies (Level 1)
-    const parentCompanies = [
-      {
-        accountName: 'Acme Corporation',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@acme.corp',
-        billingContactName: 'Jane Smith',
-        billingContactEmail: 'billing@acme.corp',
-        billingContactPhone: '+1-555-100-0001',
-        billingAddressLine1: '123 Enterprise Blvd',
-        billingAddressLine2: 'Suite 1000',
-        billingCity: 'San Francisco',
-        billingState: 'CA',
-        billingPostalCode: '94105',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_30,
-        paymentTermsDays: 30,
-        currency: 'EUR',
-        taxId: 'US-TAX-ACME-001',
-        creditLimit: 500000,
-        creditHold: false,
-        metadata: {
-          industry: 'Technology',
-          employeeCount: 5000,
-          salesRep: 'John Doe',
-          region: 'West',
-        },
-      },
-      {
-        accountName: 'GlobalTech Industries',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@globaltech.com',
-        billingContactName: 'Robert Johnson',
-        billingContactEmail: 'billing@globaltech.com',
-        billingContactPhone: '+1-555-200-0001',
-        billingAddressLine1: '456 Tech Park Drive',
-        billingCity: 'Austin',
-        billingState: 'TX',
-        billingPostalCode: '78701',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_60,
-        paymentTermsDays: 60,
-        currency: 'EUR',
-        taxId: 'US-TAX-GLOBAL-001',
-        creditLimit: 750000,
-        creditHold: false,
-        metadata: {
-          industry: 'Manufacturing',
-          employeeCount: 10000,
-          salesRep: 'Sarah Williams',
-          region: 'Central',
-        },
-      },
-      {
-        accountName: 'CloudScale Solutions',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@cloudscale.io',
-        billingContactName: 'Emily Chen',
-        billingContactEmail: 'billing@cloudscale.io',
-        billingContactPhone: '+1-555-300-0001',
-        billingAddressLine1: '789 Cloud Avenue',
-        billingCity: 'Seattle',
-        billingState: 'WA',
-        billingPostalCode: '98101',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_30,
-        paymentTermsDays: 30,
-        currency: 'EUR',
-        taxId: 'US-TAX-CLOUD-001',
-        creditLimit: 1000000,
-        creditHold: false,
-        metadata: {
-          industry: 'Software',
-          employeeCount: 2500,
-          salesRep: 'Michael Brown',
-          region: 'West',
-        },
-      },
+    // ── 30 Parent companies ───────────────────────────────────────────────────
+    const parentCompanyNames = [
+      'Acme Corporation', 'GlobalTech Industries', 'CloudScale Solutions',
+      'Nexus Dynamics', 'Pinnacle Systems', 'Apex Innovations',
+      'Meridian Enterprises', 'Vanguard Technologies', 'Horizon Group',
+      'Summit Corp', 'Titan Solutions', 'Atlas Industries',
+      'Quantum Ventures', 'Orion Technologies', 'Phoenix Holdings',
+      'Cascade Networks', 'Redwood Dynamics', 'Sterling Global',
+      'Vector Systems', 'Prism Technologies', 'Eclipse Corp',
+      'Polaris Industries', 'Delta Innovations', 'Stellar Enterprises',
+      'Olympus Group', 'Helios Technologies', 'Zodiac Solutions',
+      'Mosaic Industries', 'Compass Technologies', 'Lighthouse Corp',
     ];
 
     const parentIds: string[] = [];
+    let accountIdx = 0;
 
-    // Create parent accounts
-    for (const parent of parentCompanies) {
+    for (let i = 0; i < parentCompanyNames.length; i++) {
+      const name = parentCompanyNames[i];
+      const loc = pick(US_CITIES, i);
+      const pt = pickPaymentTerms(i);
+      const industry = pick(INDUSTRIES, i);
+      const salesRep = pick(SALES_REPS, i);
+      const region = pick(REGIONS, i);
+      const creditLimit = 100000 + (i % 10) * 100000;
+      const currency = pick(CURRENCIES, i);
+      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const payload = {
+        accountName: name,
+        accountType: AccountType.ENTERPRISE,
+        primaryContactEmail: `contact@${slug}.com`,
+        billingContactName: salesRep,
+        billingContactEmail: `billing@${slug}.com`,
+        billingContactPhone: `+1-555-${String(i + 1).padStart(3, '0')}-0001`,
+        billingAddressLine1: `${100 + i} Corporate Blvd`,
+        billingCity: loc.city,
+        billingState: loc.state,
+        billingPostalCode: loc.zip,
+        billingCountry: 'USA',
+        paymentTerms: pt.terms,
+        paymentTermsDays: pt.days,
+        currency,
+        taxId: `US-TAX-${slug.toUpperCase().slice(0, 8)}-${String(i + 1).padStart(3, '0')}`,
+        creditLimit,
+        creditHold: false,
+        metadata: { industry, employeeCount: 1000 + i * 500, salesRep, region },
+      };
+
       try {
-        const response = await this.client.post('/api/accounts', parent);
-        const accountId = response.data.data.id;
-        this.generatedIds.accounts.push(accountId);
-        parentIds.push(accountId);
-        this.success(`Created parent account: ${parent.accountName} (ID: ${accountId})`);
+        const response = await this.client.post('/api/accounts', payload);
+        const id = response.data.data.id;
+        this.generatedIds.accounts.push(id);
+        parentIds.push(id);
+        this.success(`Created parent account: ${name} (ID: ${id})`);
+        accountIdx++;
       } catch (error) {
-        this.error(`Failed to create parent account: ${parent.accountName}`, error);
+        this.error(`Failed to create parent account: ${name}`, error);
+        parentIds.push(''); // keep index alignment
       }
     }
 
-    // Level 2: Subsidiaries
-    const subsidiaries = [
-      // Acme subsidiaries
-      {
-        parentAccountId: parentIds[0],
-        accountName: 'Acme North America',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@acme-na.corp',
-        billingContactEmail: 'billing@acme-na.corp',
-        billingAddressLine1: '100 North Street',
-        billingCity: 'New York',
-        billingState: 'NY',
-        billingPostalCode: '10001',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_30,
-        currency: 'EUR',
-        creditLimit: 200000,
-        metadata: { division: 'North America', parentCompany: 'Acme Corporation' },
-      },
-      {
-        parentAccountId: parentIds[0],
-        accountName: 'Acme Europe',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@acme-eu.corp',
-        billingContactEmail: 'billing@acme-eu.corp',
-        billingAddressLine1: '50 Europa Plaza',
-        billingCity: 'London',
-        billingCountry: 'UK',
-        paymentTerms: PaymentTerms.NET_30,
-        currency: 'GBP',
-        creditLimit: 150000,
-        metadata: { division: 'Europe', parentCompany: 'Acme Corporation' },
-      },
-      // GlobalTech subsidiaries
-      {
-        parentAccountId: parentIds[1],
-        accountName: 'GlobalTech Manufacturing',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@globaltech-mfg.com',
-        billingContactEmail: 'billing@globaltech-mfg.com',
-        billingAddressLine1: '200 Factory Road',
-        billingCity: 'Detroit',
-        billingState: 'MI',
-        billingPostalCode: '48201',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_60,
-        currency: 'EUR',
-        creditLimit: 300000,
-        metadata: { division: 'Manufacturing', parentCompany: 'GlobalTech Industries' },
-      },
-      {
-        parentAccountId: parentIds[1],
-        accountName: 'GlobalTech R&D',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@globaltech-rd.com',
-        billingContactEmail: 'billing@globaltech-rd.com',
-        billingAddressLine1: '300 Innovation Drive',
-        billingCity: 'Boston',
-        billingState: 'MA',
-        billingPostalCode: '02101',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_60,
-        currency: 'EUR',
-        creditLimit: 250000,
-        metadata: { division: 'R&D', parentCompany: 'GlobalTech Industries' },
-      },
-      // CloudScale subsidiaries
-      {
-        parentAccountId: parentIds[2],
-        accountName: 'CloudScale Enterprise',
-        accountType: AccountType.ENTERPRISE,
-        primaryContactEmail: 'contact@cloudscale-ent.io',
-        billingContactEmail: 'billing@cloudscale-ent.io',
-        billingAddressLine1: '400 Enterprise Way',
-        billingCity: 'Portland',
-        billingState: 'OR',
-        billingPostalCode: '97201',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_30,
-        currency: 'EUR',
-        creditLimit: 400000,
-        metadata: { division: 'Enterprise', parentCompany: 'CloudScale Solutions' },
-      },
-    ];
-
+    // ── 3 Subsidiaries per parent ─────────────────────────────────────────────
+    const divisionNames = ['North America', 'Europe', 'Asia Pacific'];
     const level2Ids: string[] = [];
 
-    for (const subsidiary of subsidiaries) {
-      try {
-        const response = await this.client.post('/api/accounts', subsidiary);
-        const accountId = response.data.data.id;
-        this.generatedIds.accounts.push(accountId);
-        level2Ids.push(accountId);
-        this.success(`Created subsidiary: ${subsidiary.accountName} (ID: ${accountId})`);
-      } catch (error) {
-        this.error(`Failed to create subsidiary: ${subsidiary.accountName}`, error);
+    for (let p = 0; p < parentIds.length; p++) {
+      const parentId = parentIds[p];
+      if (!parentId) continue;
+      const parentName = parentCompanyNames[p];
+
+      for (let d = 0; d < divisionNames.length; d++) {
+        const division = divisionNames[d];
+        const loc = pick(US_CITIES, p * 3 + d + 10);
+        const pt = pickPaymentTerms(p + d + 1);
+        const currency = pick(CURRENCIES, d);
+        const slug = `${parentName}${division}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        const payload = {
+          parentAccountId: parentId,
+          accountName: `${parentName} — ${division}`,
+          accountType: AccountType.ENTERPRISE,
+          primaryContactEmail: `contact@${slug.slice(0, 20)}.com`,
+          billingContactEmail: `billing@${slug.slice(0, 20)}.com`,
+          billingAddressLine1: `${200 + p * 3 + d} Division Parkway`,
+          billingCity: loc.city,
+          billingState: loc.state,
+          billingPostalCode: loc.zip,
+          billingCountry: d === 1 ? 'UK' : d === 2 ? 'SGP' : 'USA',
+          paymentTerms: pt.terms,
+          paymentTermsDays: pt.days,
+          currency,
+          creditLimit: 50000 + (p % 5) * 50000,
+          creditHold: false,
+          metadata: { division, parentCompany: parentName, level: 2 },
+        };
+
+        try {
+          const response = await this.client.post('/api/accounts', payload);
+          const id = response.data.data.id;
+          this.generatedIds.accounts.push(id);
+          level2Ids.push(id);
+          this.success(`Created subsidiary: ${payload.accountName} (ID: ${id})`);
+        } catch (error) {
+          this.error(`Failed to create subsidiary: ${payload.accountName}`, error);
+          level2Ids.push('');
+        }
       }
     }
 
-    // Level 3: Regional offices / departments
-    const departments = [
-      // Acme North America departments
-      {
-        parentAccountId: level2Ids[0],
-        accountName: 'Acme NA - West Coast',
-        accountType: AccountType.SMB,
-        primaryContactEmail: 'contact@acme-na-west.corp',
-        billingAddressLine1: '500 West Office',
-        billingCity: 'Los Angeles',
-        billingState: 'CA',
-        billingPostalCode: '90001',
-        billingCountry: 'USA',
-        currency: 'EUR',
-        creditLimit: 50000,
-        metadata: { region: 'West Coast', level: 3 },
-      },
-      {
-        parentAccountId: level2Ids[0],
-        accountName: 'Acme NA - East Coast',
-        accountType: AccountType.SMB,
-        primaryContactEmail: 'contact@acme-na-east.corp',
-        billingAddressLine1: '600 East Office',
-        billingCity: 'Miami',
-        billingState: 'FL',
-        billingPostalCode: '33101',
-        billingCountry: 'USA',
-        currency: 'EUR',
-        creditLimit: 50000,
-        metadata: { region: 'East Coast', level: 3 },
-      },
-      // GlobalTech Manufacturing departments
-      {
-        parentAccountId: level2Ids[2],
-        accountName: 'GlobalTech MFG - Plant 1',
-        accountType: AccountType.SMB,
-        primaryContactEmail: 'contact@globaltech-plant1.com',
-        billingAddressLine1: '700 Plant Road',
-        billingCity: 'Detroit',
-        billingState: 'MI',
-        billingPostalCode: '48202',
-        billingCountry: 'USA',
-        currency: 'EUR',
-        creditLimit: 75000,
-        metadata: { facility: 'Plant 1', level: 3 },
-      },
-      // CloudScale Enterprise departments
-      {
-        parentAccountId: level2Ids[4],
-        accountName: 'CloudScale Ent - Sales',
-        accountType: AccountType.SMB,
-        primaryContactEmail: 'contact@cloudscale-sales.io',
-        billingAddressLine1: '800 Sales Tower',
-        billingCity: 'Portland',
-        billingState: 'OR',
-        billingPostalCode: '97202',
-        billingCountry: 'USA',
-        currency: 'EUR',
-        creditLimit: 100000,
-        metadata: { department: 'Sales', level: 3 },
-      },
-    ];
+    // ── 3 Departments per subsidiary ──────────────────────────────────────────
+    const departmentNames = ['Sales', 'Engineering', 'Operations'];
 
-    for (const dept of departments) {
-      try {
-        const response = await this.client.post('/api/accounts', dept);
-        const accountId = response.data.data.id;
-        this.generatedIds.accounts.push(accountId);
-        this.success(`Created department: ${dept.accountName} (ID: ${accountId})`);
-      } catch (error) {
-        this.error(`Failed to create department: ${dept.accountName}`, error);
+    for (let s = 0; s < level2Ids.length; s++) {
+      const subId = level2Ids[s];
+      if (!subId) continue;
+
+      for (let d = 0; d < departmentNames.length; d++) {
+        const dept = departmentNames[d];
+        const loc = pick(US_CITIES, s + d + 5);
+        const slug = `sub${s}dept${d}`.replace(/[^a-z0-9]/g, '');
+
+        const payload = {
+          parentAccountId: subId,
+          accountName: `Dept ${s + 1} — ${dept}`,
+          accountType: AccountType.SMB,
+          primaryContactEmail: `contact-${dept.toLowerCase()}@${slug}.internal`,
+          billingAddressLine1: `${300 + s * 3 + d} Department Street`,
+          billingCity: loc.city,
+          billingState: loc.state,
+          billingPostalCode: loc.zip,
+          billingCountry: 'USA',
+          paymentTerms: PaymentTerms.NET_30,
+          currency: 'EUR',
+          creditLimit: 25000 + d * 10000,
+          creditHold: d === 2 && s % 7 === 0, // occasional credit hold for realism
+          metadata: { department: dept, level: 3 },
+        };
+
+        try {
+          const response = await this.client.post('/api/accounts', payload);
+          const id = response.data.data.id;
+          this.generatedIds.accounts.push(id);
+          this.success(`Created department: ${payload.accountName} (ID: ${id})`);
+        } catch (error) {
+          this.error(`Failed to create department: ${payload.accountName}`, error);
+        }
       }
     }
 
-    // Create some standalone SMB and Startup accounts
-    const standaloneAccounts = [
-      {
-        accountName: 'TechStart Inc',
-        accountType: AccountType.STARTUP,
-        primaryContactEmail: 'founder@techstart.io',
-        billingContactEmail: 'billing@techstart.io',
-        billingAddressLine1: '900 Startup Lane',
-        billingCity: 'Palo Alto',
-        billingState: 'CA',
-        billingPostalCode: '94301',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_30,
-        currency: 'EUR',
-        creditLimit: 25000,
-        metadata: { stage: 'Series A', employees: 15 },
-      },
-      {
-        accountName: 'MidMarket Solutions',
-        accountType: AccountType.SMB,
-        primaryContactEmail: 'contact@midmarket.com',
-        billingContactEmail: 'billing@midmarket.com',
-        billingAddressLine1: '1000 Business Park',
-        billingCity: 'Chicago',
-        billingState: 'IL',
-        billingPostalCode: '60601',
-        billingCountry: 'USA',
-        paymentTerms: PaymentTerms.NET_30,
-        currency: 'EUR',
-        creditLimit: 75000,
-        metadata: { employees: 150, industry: 'Consulting' },
-      },
+    // ── 30 standalone SMB / Startup accounts ──────────────────────────────────
+    const startupNames = [
+      'TechStart Inc', 'MidMarket Solutions', 'LaunchPad Corp', 'ScaleUp Ventures',
+      'DataFlow Technologies', 'NextGen Software', 'InnovateTech', 'BrightSpark Labs',
+      'Agile Systems', 'Catalyst Technologies', 'Ember Innovations', 'Forge Digital',
+      'Surge Analytics', 'Helix Data', 'Mosaic Labs', 'Cobalt Systems',
+      'Flint Technologies', 'Drift Analytics', 'Harbor Software', 'Lumen Tech',
+      'Crest Innovations', 'Zenith Platforms', 'Pillar Technologies', 'Beam Analytics',
+      'Core Systems', 'Spark Solutions', 'Nova Technologies', 'Arc Innovations',
+      'Base Systems', 'Pixel Platforms',
     ];
 
-    for (const account of standaloneAccounts) {
+    for (let i = 0; i < startupNames.length; i++) {
+      const name = startupNames[i];
+      const isStartup = i % 3 === 0;
+      const loc = pick(US_CITIES, i + 5);
+      const pt = pickPaymentTerms(i + 2);
+      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const payload = {
+        accountName: name,
+        accountType: isStartup ? AccountType.STARTUP : AccountType.SMB,
+        primaryContactEmail: `founder@${slug}.io`,
+        billingContactEmail: `billing@${slug}.io`,
+        billingAddressLine1: `${400 + i} Startup Ave`,
+        billingCity: loc.city,
+        billingState: loc.state,
+        billingPostalCode: loc.zip,
+        billingCountry: 'USA',
+        paymentTerms: pt.terms,
+        paymentTermsDays: pt.days,
+        currency: pick(CURRENCIES, i),
+        creditLimit: isStartup ? 25000 : 75000,
+        creditHold: false,
+        metadata: {
+          stage: isStartup ? pick(['Pre-Seed', 'Seed', 'Series A', 'Series B'], i) : undefined,
+          employees: 10 + i * 5,
+          industry: pick(INDUSTRIES, i + 5),
+        },
+      };
+
       try {
-        const response = await this.client.post('/api/accounts', account);
-        const accountId = response.data.data.id;
-        this.generatedIds.accounts.push(accountId);
-        this.success(`Created standalone account: ${account.accountName} (ID: ${accountId})`);
+        const response = await this.client.post('/api/accounts', payload);
+        const id = response.data.data.id;
+        this.generatedIds.accounts.push(id);
+        this.success(`Created standalone account: ${name} (ID: ${id})`);
       } catch (error) {
-        this.error(`Failed to create standalone account: ${account.accountName}`, error);
+        this.error(`Failed to create standalone account: ${name}`, error);
       }
     }
 
     this.log(`✅ Created ${this.generatedIds.accounts.length} accounts`);
   }
 
-  // Contract Generation
+  // ---------------------------------------------------------------------------
+  // Contracts — up to 2 per account across all accounts
+  // ---------------------------------------------------------------------------
+
   async generateContracts() {
     this.log('📝 Generating contracts...');
 
@@ -655,6 +650,7 @@ class DataGenerator {
         billingInAdvance: true,
         autoRenew: true,
         renewalNoticeDays: 90,
+        paymentTerms: PaymentTerms.NET_30,
         notes: 'Enterprise annual contract with volume discount',
       },
       {
@@ -666,6 +662,7 @@ class DataGenerator {
         billingInAdvance: true,
         autoRenew: true,
         renewalNoticeDays: 60,
+        paymentTerms: PaymentTerms.NET_30,
         notes: 'Quarterly billing with standard terms',
       },
       {
@@ -677,23 +674,64 @@ class DataGenerator {
         billingInAdvance: false,
         autoRenew: false,
         renewalNoticeDays: 30,
+        paymentTerms: PaymentTerms.NET_60,
         notes: 'Monthly billing in arrears',
+      },
+      {
+        billingFrequency: BillingFrequency.SEMI_ANNUAL,
+        contractValue: 60000,
+        seatCount: 75,
+        committedSeats: 75,
+        seatPrice: 80,
+        billingInAdvance: true,
+        autoRenew: true,
+        renewalNoticeDays: 60,
+        paymentTerms: PaymentTerms.NET_30,
+        notes: 'Semi-annual billing mid-market deal',
+      },
+      {
+        billingFrequency: BillingFrequency.ANNUAL,
+        contractValue: 250000,
+        seatCount: 250,
+        committedSeats: 250,
+        seatPrice: 85,
+        billingInAdvance: true,
+        autoRenew: true,
+        renewalNoticeDays: 90,
+        paymentTerms: PaymentTerms.NET_90,
+        notes: 'Large enterprise deal with extended payment terms',
+      },
+      {
+        billingFrequency: BillingFrequency.MONTHLY,
+        contractValue: 5000,
+        seatCount: 10,
+        committedSeats: 10,
+        seatPrice: 40,
+        billingInAdvance: false,
+        autoRenew: false,
+        renewalNoticeDays: 30,
+        paymentTerms: PaymentTerms.DUE_ON_RECEIPT,
+        notes: 'Small team pilot contract',
       },
     ];
 
     let contractCounter = 1;
 
-    // Create 1-2 contracts per account
-    for (const accountId of this.generatedIds.accounts.slice(0, 10)) {
-      const numContracts = Math.random() > 0.5 ? 2 : 1;
+    for (let i = 0; i < this.generatedIds.accounts.length; i++) {
+      const accountId = this.generatedIds.accounts[i];
 
-      for (let i = 0; i < numContracts; i++) {
-        const template = contractTemplates[i % contractTemplates.length];
+      // Give each account 1 or 2 contracts, cycling through templates
+      const numContracts = i % 3 === 0 ? 2 : 1;
+
+      for (let c = 0; c < numContracts; c++) {
+        const template = contractTemplates[(i + c) % contractTemplates.length];
+
+        // Stagger start dates across the last 180 days for variety
         const startDate = new Date();
-        startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 90)); // Random start in last 90 days
+        startDate.setDate(startDate.getDate() - ((i * 7 + c * 30) % 180));
 
         const endDate = new Date(startDate);
-        endDate.setFullYear(endDate.getFullYear() + 1); // 1 year contract
+        endDate.setFullYear(endDate.getFullYear() + 1);
 
         const contract = {
           contractNumber: `CNT-2024-${String(contractCounter).padStart(4, '0')}`,
@@ -701,11 +739,7 @@ class DataGenerator {
           startDate: startDate.toISOString().split('T')[0],
           endDate: endDate.toISOString().split('T')[0],
           ...template,
-          paymentTerms: PaymentTerms.NET_30,
-          metadata: {
-            generatedBy: 'data-generator',
-            version: '1.0',
-          },
+          metadata: { generatedBy: 'data-generator', version: '2.0' },
         };
 
         try {
@@ -723,7 +757,10 @@ class DataGenerator {
     this.log(`✅ Created ${this.generatedIds.contracts.length} contracts`);
   }
 
-  // Clean existing data
+  // ---------------------------------------------------------------------------
+  // Clean
+  // ---------------------------------------------------------------------------
+
   async clean() {
     this.log('🧹 Cleaning existing data...');
 
@@ -736,7 +773,7 @@ class DataGenerator {
     for (const endpoint of endpoints) {
       try {
         this.log(`Fetching all ${endpoint.name}...`);
-        const response = await this.client.get(endpoint.url);
+        const response = await this.client.get(`${endpoint.url}?limit[eq]=100`);
         const items = response.data.data || [];
 
         if (!Array.isArray(items)) {
@@ -747,7 +784,7 @@ class DataGenerator {
         for (const item of items) {
           try {
             await this.client.delete(`${endpoint.url}/${item.id}`);
-            this.success(`Deleted ${endpoint.name} with ID: ${item.id}`);
+            this.success(`Deleted ${endpoint.name}: ${item.id}`);
           } catch (error) {
             this.error(`Failed to delete ${endpoint.name} ${item.id}`, error);
           }
@@ -762,7 +799,10 @@ class DataGenerator {
     this.success('Data cleanup completed');
   }
 
-  // Summary Report
+  // ---------------------------------------------------------------------------
+  // Summary
+  // ---------------------------------------------------------------------------
+
   printSummary() {
     console.log('\n' + '='.repeat(60));
     console.log('📊 DATA GENERATION SUMMARY');
@@ -777,29 +817,24 @@ class DataGenerator {
     console.log('\n');
   }
 
-  // Main execution
   async run() {
     console.log('🚀 Starting data generation...\n');
     console.log(`API Base URL: ${API_BASE_URL}`);
     console.log(`Clean first:  ${CLEAN_FIRST ? 'Yes' : 'No'}\n`);
 
     try {
-      // Health check
       this.log('🏥 Checking API health...');
       await this.client.get('/health/liveness');
       this.success('API is healthy');
 
-      // Clean existing data if requested
       if (CLEAN_FIRST) {
         await this.clean();
       }
 
-      // Generate data
       await this.generateProducts();
       await this.generateAccounts();
       await this.generateContracts();
 
-      // Summary
       this.printSummary();
     } catch (error: any) {
       this.error('Data generation failed', error);
@@ -808,7 +843,6 @@ class DataGenerator {
   }
 }
 
-// Execute
 const generator = new DataGenerator(API_BASE_URL);
 generator.run().catch((error) => {
   console.error('Fatal error:', error);
