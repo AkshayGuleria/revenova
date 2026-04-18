@@ -151,11 +151,17 @@ class DataGenerator {
   };
 
   constructor(baseURL: string) {
-    this.client = axios.create({
-      baseURL,
-      timeout: 15000,
-      headers: { 'Content-Type': 'application/json' },
+    this.client = axios.create({ baseURL, timeout: 15000 });
+
+    // Add Content-Type only for write methods — DELETE has no body and
+    // Fastify 400s if Content-Type is present without a matching body.
+    this.client.interceptors.request.use((config) => {
+      if (['post', 'put', 'patch'].includes(config.method ?? '')) {
+        config.headers['Content-Type'] = 'application/json';
+      }
+      return config;
     });
+
     this.generatedIds = { products: [], accounts: [], contracts: [] };
   }
 
@@ -376,6 +382,114 @@ class DataGenerator {
         currency: 'EUR',
         active: true,
         isAddon: false,
+      });
+    }
+
+    // ── USD-priced plan variants × 20 (mirrors EUR plans, different currency) ──
+    for (const plan of plans) {
+      for (const interval of intervals) {
+        const discount = interval === BillingInterval.ANNUAL ? 0.8
+          : interval === BillingInterval.SEMI_ANNUAL ? 0.88
+          : interval === BillingInterval.QUARTERLY ? 0.94
+          : 1.0;
+        products.push({
+          name: `${plan.name} Plan (${interval}) — USD`,
+          description: `${plan.name} plan billed ${interval} in USD.`,
+          sku: `${plan.sku}-${interval.toUpperCase()}-USD`,
+          pricingModel: PricingModel.SEAT_BASED,
+          chargeType: ChargeType.RECURRING,
+          category: ProductCategory.PLATFORM,
+          basePrice: Math.round(plan.basePrice * discount * 1.08 * 100) / 100,
+          currency: 'USD',
+          billingInterval: interval,
+          setupFee: (plan as any).setupFee,
+          minSeats: plan.minSeats,
+          minCommitmentMonths: (plan as any).minCommitmentMonths,
+          active: true,
+          isAddon: false,
+        });
+      }
+    }
+
+    // ── Industry-specific bundles × 10 ───────────────────────────────────────
+    const industryBundles = [
+      { name: 'Healthcare Compliance Bundle', sku: 'BUNDLE-HC', price: 1499, desc: 'HIPAA-ready workspace with audit trails and access controls.' },
+      { name: 'Financial Services Pack', sku: 'BUNDLE-FS', price: 1299, desc: 'SOX/GDPR compliance, encrypted data storage, and audit reporting.' },
+      { name: 'Education Institution Plan', sku: 'BUNDLE-EDU', price: 299, desc: 'Volume licensing for academic institutions with LMS integration.' },
+      { name: 'Government & Public Sector', sku: 'BUNDLE-GOV', price: 1999, desc: 'FedRAMP-aligned deployment with on-prem option.' },
+      { name: 'Legal & Law Firm Pack', sku: 'BUNDLE-LEGAL', price: 899, desc: 'Matter management, conflict checks, and DMS integration.' },
+      { name: 'Retail & E-Commerce Pack', sku: 'BUNDLE-RETAIL', price: 699, desc: 'Inventory, POS integration, and seasonal scaling.' },
+      { name: 'Manufacturing Operations Pack', sku: 'BUNDLE-MFG', price: 1099, desc: 'ERP integration, shop floor visibility, and IoT connectors.' },
+      { name: 'Media & Publishing Pack', sku: 'BUNDLE-MEDIA', price: 799, desc: 'DAM integration, workflow approvals, and CDN connectors.' },
+      { name: 'Logistics & Supply Chain Pack', sku: 'BUNDLE-LOGI', price: 999, desc: 'Route optimization, carrier integrations, and real-time tracking.' },
+      { name: 'Nonprofit & NGO Pack', sku: 'BUNDLE-NGO', price: 149, desc: 'Discounted plan with grant reporting and donor management.' },
+    ];
+    for (const b of industryBundles) {
+      products.push({
+        name: b.name,
+        description: b.desc,
+        sku: b.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.PLATFORM,
+        basePrice: b.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.ANNUAL,
+        minCommitmentMonths: 12,
+        active: true,
+        isAddon: false,
+      });
+    }
+
+    // ── Usage-based API products × 5 ─────────────────────────────────────────
+    const usageProducts = [
+      { name: 'SMS Notifications (per 1k)', sku: 'USAGE-SMS', price: 4.99 },
+      { name: 'Email Delivery (per 10k)', sku: 'USAGE-EMAIL', price: 1.99 },
+      { name: 'OCR Processing (per 1k pages)', sku: 'USAGE-OCR', price: 9.99 },
+      { name: 'ML Inference (per 1k calls)', sku: 'USAGE-ML', price: 14.99 },
+      { name: 'Video Transcoding (per hour)', sku: 'USAGE-VIDEO', price: 2.99 },
+    ];
+    for (const u of usageProducts) {
+      products.push({
+        name: u.name,
+        description: `Usage-based: ${u.name}.`,
+        sku: u.sku,
+        pricingModel: PricingModel.CUSTOM,
+        chargeType: ChargeType.USAGE_BASED,
+        category: ProductCategory.API,
+        basePrice: u.price,
+        currency: 'EUR',
+        active: true,
+        isAddon: true,
+      });
+    }
+
+    // ── Collaboration & productivity add-ons × 10 ────────────────────────────
+    const collabAddons = [
+      { name: 'Video Conferencing Integration', sku: 'COLLAB-VIDEO', price: 149 },
+      { name: 'E-Signature Module', sku: 'COLLAB-ESIGN', price: 199 },
+      { name: 'Project Management Suite', sku: 'COLLAB-PM', price: 249 },
+      { name: 'CRM Connector Pack', sku: 'COLLAB-CRM', price: 179 },
+      { name: 'Slack & Teams Integration', sku: 'COLLAB-CHAT', price: 99 },
+      { name: 'Document Management', sku: 'COLLAB-DMS', price: 299 },
+      { name: 'HR System Connector', sku: 'COLLAB-HR', price: 149 },
+      { name: 'ERP Integration Bridge', sku: 'COLLAB-ERP', price: 399 },
+      { name: 'BI & Reporting Connector', sku: 'COLLAB-BI', price: 349 },
+      { name: 'Customer Portal', sku: 'COLLAB-PORTAL', price: 499 },
+    ];
+    for (const a of collabAddons) {
+      products.push({
+        name: a.name,
+        description: `Collaboration add-on: ${a.name}.`,
+        sku: a.sku,
+        pricingModel: PricingModel.FLAT_FEE,
+        chargeType: ChargeType.RECURRING,
+        category: ProductCategory.ADDON,
+        basePrice: a.price,
+        currency: 'EUR',
+        billingInterval: BillingInterval.MONTHLY,
+        active: true,
+        isAddon: true,
       });
     }
 
@@ -758,12 +872,35 @@ class DataGenerator {
   }
 
   // ---------------------------------------------------------------------------
-  // Clean
+  // Clean — paginate through all records and delete every one
   // ---------------------------------------------------------------------------
 
-  async clean() {
-    this.log('🧹 Cleaning existing data...');
+  private async fetchAllIds(url: string): Promise<string[]> {
+    const ids: string[] = [];
+    const pageSize = 100;
+    let offset = 0;
 
+    while (true) {
+      const response = await this.client.get(
+        `${url}?limit[eq]=${pageSize}&offset[eq]=${offset}`,
+      );
+      const items: any[] = response.data.data || [];
+      if (!Array.isArray(items) || items.length === 0) break;
+
+      ids.push(...items.map((item: any) => item.id));
+
+      // Stop when we've received fewer items than the page size
+      if (items.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    return ids;
+  }
+
+  async clean() {
+    this.log('🧹 Cleaning all existing data...');
+
+    // Order matters: delete contracts before accounts (FK), accounts before products
     const endpoints = [
       { url: '/api/contracts', name: 'contracts' },
       { url: '/api/accounts', name: 'accounts' },
@@ -772,25 +909,26 @@ class DataGenerator {
 
     for (const endpoint of endpoints) {
       try {
-        this.log(`Fetching all ${endpoint.name}...`);
-        const response = await this.client.get(`${endpoint.url}?limit[eq]=100`);
-        const items = response.data.data || [];
+        this.log(`Fetching all ${endpoint.name} (paginated)...`);
+        const ids = await this.fetchAllIds(endpoint.url);
 
-        if (!Array.isArray(items)) {
+        if (ids.length === 0) {
           this.log(`No ${endpoint.name} found to delete`);
           continue;
         }
 
-        for (const item of items) {
+        this.log(`Deleting ${ids.length} ${endpoint.name}...`);
+
+        for (const id of ids) {
           try {
-            await this.client.delete(`${endpoint.url}/${item.id}`);
-            this.success(`Deleted ${endpoint.name}: ${item.id}`);
+            await this.client.delete(`${endpoint.url}/${id}`);
+            this.success(`Deleted ${endpoint.name}: ${id}`);
           } catch (error) {
-            this.error(`Failed to delete ${endpoint.name} ${item.id}`, error);
+            this.error(`Failed to delete ${endpoint.name} ${id}`, error);
           }
         }
 
-        this.success(`Cleaned all ${endpoint.name}`);
+        this.success(`Cleaned all ${ids.length} ${endpoint.name}`);
       } catch (error) {
         this.error(`Failed to fetch ${endpoint.name}`, error);
       }
