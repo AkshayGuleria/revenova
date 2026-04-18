@@ -195,6 +195,23 @@ export class QueryInvoicesDto extends BasePaginationDto {
   @Type(() => Number)
   'total[lte]'?: number;
 
+  // Sub-invoice filters (Phase 4)
+  @ApiPropertyOptional({
+    description: 'Filter by parent invoice ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsString()
+  'parentInvoiceId[eq]'?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by invoice group ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsString()
+  'invoiceGroupId[eq]'?: string;
+
   // NULL operator
   @ApiPropertyOptional({
     description:
@@ -215,4 +232,14 @@ export class QueryInvoicesDto extends BasePaginationDto {
   @Type(() => Boolean)
   @IsBoolean()
   'paidDate[null]'?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter top-level invoices only (true = no parent) or sub-invoices only (false = has parent)',
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  'parentInvoiceId[null]'?: boolean;
 }

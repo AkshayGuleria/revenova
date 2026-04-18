@@ -11,6 +11,8 @@ import {
   UpdateInvoiceDto,
   QueryInvoicesDto,
   CreateInvoiceItemDto,
+  CreateSubInvoiceDto,
+  PaymentMode,
 } from './dto';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
@@ -20,6 +22,10 @@ import {
   buildPaginatedListResponse,
 } from '../../common/utils/response-builder';
 import { ApiResponse } from '../../common/interfaces';
+
+export { PaymentMode };
+
+const SUB_INVOICE_SUFFIX = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 @Injectable()
 export class InvoicesService {
@@ -211,10 +217,11 @@ export class InvoicesService {
             createdAt: 'asc',
           },
         },
+        invoiceGroup: {
+          select: { id: true, name: true, groupType: true, code: true },
+        },
         _count: {
-          select: {
-            items: true,
-          },
+          select: { items: true, subInvoices: true },
         },
       },
     });
@@ -223,7 +230,224 @@ export class InvoicesService {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
-    return buildSingleResponse(invoice);
+    // Build sub-invoice summary for parent invoices
+    let subInvoiceTotals: {
+      total: string;
+      paid: string;
+      outstanding: string;
+    } | null = null;
+
+    if ((invoice._count?.subInvoices ?? 0) > 0) {
+      const agg = await this.prisma.invoice.aggregate({
+        where: { parentInvoiceId: id },
+        _sum: { total: true, paidAmount: true },
+      });
+      const total = Number(agg._sum.total ?? 0);
+      const paid = Number(agg._sum.paidAmount ?? 0);
+      subInvoiceTotals = {
+        total: total.toFixed(2),
+        paid: paid.toFixed(2),
+        outstanding: (total - paid).toFixed(2),
+      };
+    }
+
+    return buildSingleResponse({
+      ...invoice,
+      subInvoiceCount: invoice._count?.subInvoices ?? 0,
+      subInvoiceTotals,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sub-Invoice Methods
+  // ---------------------------------------------------------------------------
+
+  async getSubInvoices(
+    parentId: string,
+    query: QueryInvoicesDto,
+  ): Promise<ApiResponse<any>> {
+    // Verify parent exists
+    await this.getInvoiceById(parentId);
+
+    const { pagination } = parseQuery(query);
+
+    const [subInvoices, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: { parentInvoiceId: parentId },
+        skip: pagination.offset,
+        take: pagination.limit,
+        orderBy: { invoiceNumber: 'asc' },
+        include: {
+          account: { select: { id: true, accountName: true, status: true } },
+          invoiceGroup: {
+            select: { id: true, name: true, groupType: true, code: true },
+          },
+          _count: { select: { items: true } },
+        },
+      }),
+      this.prisma.invoice.count({ where: { parentInvoiceId: parentId } }),
+    ]);
+
+    return buildPaginatedListResponse(
+      subInvoices,
+      pagination.offset,
+      pagination.limit,
+      total,
+    );
+  }
+
+  async createSubInvoice(
+    parentId: string,
+    dto: CreateSubInvoiceDto,
+  ): Promise<ApiResponse<any>> {
+    const parent = await this.getInvoiceById(parentId);
+
+    // Validate invoice group if provided
+    if (dto.invoiceGroupId) {
+      const group = await this.prisma.invoiceGroup.findUnique({
+        where: { id: dto.invoiceGroupId },
+      });
+      if (!group) {
+        throw new NotFoundException(
+          `Invoice group with ID ${dto.invoiceGroupId} not found`,
+        );
+      }
+      if (group.accountId !== parent.accountId) {
+        throw new BadRequestException(
+          'Invoice group does not belong to the same account as the parent invoice',
+        );
+      }
+    }
+
+    // Validate amounts
+    const calculatedTotal = dto.subtotal + (dto.tax ?? 0) - (dto.discount ?? 0);
+    const tolerance = 0.01;
+    if (Math.abs(calculatedTotal - dto.total) > tolerance) {
+      throw new BadRequestException(
+        `Total ${dto.total} does not match subtotal + tax - discount (${calculatedTotal.toFixed(2)})`,
+      );
+    }
+
+    // Generate sub-invoice number: INV-2026-000042-A, -B, etc.
+    const subInvoiceNumber = await this.generateSubInvoiceNumber(
+      parent.invoiceNumber,
+      parentId,
+    );
+
+    const currency =
+      dto.currency ?? this.configService.get<string>('DEFAULT_CURRENCY', 'EUR');
+
+    try {
+      const subInvoice = await this.prisma.invoice.create({
+        data: {
+          invoiceNumber: subInvoiceNumber,
+          accountId: parent.accountId,
+          contractId: dto.contractId ?? parent.contractId,
+          parentInvoiceId: parentId,
+          invoiceGroupId: dto.invoiceGroupId,
+          issueDate: new Date(dto.issueDate ?? parent.issueDate),
+          dueDate: new Date(dto.dueDate ?? parent.dueDate),
+          periodStart: dto.periodStart
+            ? new Date(dto.periodStart)
+            : (parent.periodStart ?? undefined),
+          periodEnd: dto.periodEnd
+            ? new Date(dto.periodEnd)
+            : (parent.periodEnd ?? undefined),
+          subtotal: dto.subtotal,
+          tax: dto.tax ?? 0,
+          discount: dto.discount ?? 0,
+          total: dto.total,
+          currency,
+          status: dto.status ?? parent.status,
+          billingType: parent.billingType,
+          consolidated: false,
+          notes: dto.notes,
+          internalNotes: dto.internalNotes,
+          metadata: dto.metadata,
+          items: dto.items ? { create: dto.items } : undefined,
+        },
+        include: {
+          items: true,
+          invoiceGroup: {
+            select: { id: true, name: true, groupType: true, code: true },
+          },
+        },
+      });
+
+      return buildSingleResponse(subInvoice);
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException(
+            'Sub-invoice with this number already exists',
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Cascade parent payment to all CHILD_PAYS-mode sub-invoices.
+   * Called when a parent invoice is marked as paid.
+   */
+  async cascadeParentPayment(parentId: string, paidDate: Date): Promise<void> {
+    const parent = await this.getInvoiceById(parentId);
+
+    if (parent.paymentMode !== PaymentMode.PARENT_PAYS) {
+      return; // CHILD_PAYS or null — no cascade
+    }
+
+    await this.prisma.invoice.updateMany({
+      where: { parentInvoiceId: parentId },
+      data: {
+        status: 'paid',
+        paidDate,
+        paidAmount: undefined, // keep per-child paidAmount as-is
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Returns the raw invoice record (not wrapped in ApiResponse).
+   */
+  private async getInvoiceById(id: string) {
+    const invoice = await this.prisma.invoice.findUnique({ where: { id } });
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with ID ${id} not found`);
+    }
+    return invoice;
+  }
+
+  /**
+   * Generates sub-invoice number: parent-A, parent-B, … parent-Z, parent-AA, etc.
+   */
+  private async generateSubInvoiceNumber(
+    parentNumber: string,
+    parentId: string,
+  ): Promise<string> {
+    const existingCount = await this.prisma.invoice.count({
+      where: { parentInvoiceId: parentId },
+    });
+
+    // Convert count (0-based) to alphabetic suffix: 0→A, 1→B, …, 25→Z, 26→AA
+    const suffix = this.indexToSuffix(existingCount);
+    return `${parentNumber}-${suffix}`;
+  }
+
+  private indexToSuffix(index: number): string {
+    let result = '';
+    let n = index;
+    do {
+      result = SUB_INVOICE_SUFFIX[n % 26] + result;
+      n = Math.floor(n / 26) - 1;
+    } while (n >= 0);
+    return result;
   }
 
   async update(
@@ -379,18 +603,10 @@ export class InvoicesService {
   }
 
   /**
-   * Helper method to get invoice's account ID
+   * Helper method to get invoice's account ID (used in update validation).
    */
   private async getInvoiceAccountId(invoiceId: string): Promise<string> {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      select: { accountId: true },
-    });
-
-    if (!invoice) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
-    }
-
+    const invoice = await this.getInvoiceById(invoiceId);
     return invoice.accountId;
   }
 }

@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
 
 export class CreateInvoiceItemDto {
   @ApiProperty({
@@ -32,4 +32,13 @@ export class CreateInvoiceItemDto {
   @IsNumber()
   @Min(0)
   amount: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Organizational unit reference for cost allocation (cost center code, department code, etc.)',
+    example: 'DEPT-ENG',
+  })
+  @IsOptional()
+  @IsString()
+  groupReference?: string;
 }

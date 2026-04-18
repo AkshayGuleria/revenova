@@ -116,12 +116,19 @@ describe('ContractsController', () => {
   describe('shareContract', () => {
     it('should call service.shareContract with contract id, account id and notes', async () => {
       const contractId = 'contract-123';
-      const dto: ShareContractDto = { accountId: 'account-456', notes: 'Shared for subsidiary' };
+      const dto: ShareContractDto = {
+        accountId: 'account-456',
+        notes: 'Shared for subsidiary',
+      };
       const result = { data: { id: 'share-1' }, paging: {} };
       mockContractsService.shareContract.mockResolvedValue(result);
 
       expect(await controller.shareContract(contractId, dto)).toBe(result);
-      expect(service.shareContract).toHaveBeenCalledWith(contractId, dto.accountId, dto.notes);
+      expect(service.shareContract).toHaveBeenCalledWith(
+        contractId,
+        dto.accountId,
+        dto.notes,
+      );
       expect(service.shareContract).toHaveBeenCalledTimes(1);
     });
   });
@@ -133,7 +140,10 @@ describe('ContractsController', () => {
       mockContractsService.unshareContract.mockResolvedValue(undefined);
 
       await controller.unshareContract(contractId, accountId);
-      expect(service.unshareContract).toHaveBeenCalledWith(contractId, accountId);
+      expect(service.unshareContract).toHaveBeenCalledWith(
+        contractId,
+        accountId,
+      );
       expect(service.unshareContract).toHaveBeenCalledTimes(1);
     });
   });
@@ -154,10 +164,16 @@ describe('ContractsController', () => {
     it('should call service.getSharedContractsForAccount with account id', async () => {
       const accountId = 'account-123';
       const result = { data: [], paging: { total: 0 } };
-      mockContractsService.getSharedContractsForAccount.mockResolvedValue(result);
+      mockContractsService.getSharedContractsForAccount.mockResolvedValue(
+        result,
+      );
 
-      expect(await controller.getSharedContractsForAccount(accountId)).toBe(result);
-      expect(service.getSharedContractsForAccount).toHaveBeenCalledWith(accountId);
+      expect(await controller.getSharedContractsForAccount(accountId)).toBe(
+        result,
+      );
+      expect(service.getSharedContractsForAccount).toHaveBeenCalledWith(
+        accountId,
+      );
       expect(service.getSharedContractsForAccount).toHaveBeenCalledTimes(1);
     });
   });

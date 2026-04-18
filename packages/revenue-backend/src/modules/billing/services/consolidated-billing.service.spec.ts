@@ -367,7 +367,9 @@ describe('ConsolidatedBillingService', () => {
       const originalFindUnique = mockPrismaService.account.findUnique;
       const originalFindMany = mockPrismaService.account.findMany;
 
-      mockPrismaService.account.findUnique = jest.fn().mockResolvedValue(parentAccount);
+      mockPrismaService.account.findUnique = jest
+        .fn()
+        .mockResolvedValue(parentAccount);
       mockPrismaService.account.findMany = jest.fn().mockImplementation(() => {
         const result = childrenByCall[findManyCallCount] ?? [];
         findManyCallCount++;
@@ -395,13 +397,17 @@ describe('ConsolidatedBillingService', () => {
         total: new Decimal(1500),
       };
 
-      mockPrismaService.contract.findMany = jest.fn().mockResolvedValue(contracts);
+      mockPrismaService.contract.findMany = jest
+        .fn()
+        .mockResolvedValue(contracts);
       mockPrismaService.invoice.count = jest.fn().mockResolvedValue(0);
 
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const mockTx = {
           invoice: { create: jest.fn().mockResolvedValueOnce(createdInvoice) },
-          invoiceItem: { createMany: jest.fn().mockResolvedValueOnce({ count: 1 }) },
+          invoiceItem: {
+            createMany: jest.fn().mockResolvedValueOnce({ count: 1 }),
+          },
         };
         return callback(mockTx);
       });
@@ -456,15 +462,21 @@ describe('ConsolidatedBillingService', () => {
         total: new Decimal(10000),
       };
 
-      jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(parentAccount as any);
+      jest
+        .spyOn(prisma.account, 'findUnique')
+        .mockResolvedValueOnce(parentAccount as any);
       jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
-      jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(quarterlyContracts as any);
+      jest
+        .spyOn(prisma.contract, 'findMany')
+        .mockResolvedValueOnce(quarterlyContracts as any);
       jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(1);
 
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const mockTx = {
           invoice: { create: jest.fn().mockResolvedValueOnce(createdInvoice) },
-          invoiceItem: { createMany: jest.fn().mockResolvedValueOnce({ count: 1 }) },
+          invoiceItem: {
+            createMany: jest.fn().mockResolvedValueOnce({ count: 1 }),
+          },
         };
         return callback(mockTx);
       });

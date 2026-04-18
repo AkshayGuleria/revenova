@@ -589,7 +589,9 @@ describe('AccountsService', () => {
         parentAccountId: null,
       });
 
-      const result = await service.update('account-1', { parentAccountId: null });
+      const result = await service.update('account-1', {
+        parentAccountId: null,
+      });
 
       expect(result.data.parentAccountId).toBeNull();
     });
@@ -835,8 +837,16 @@ describe('AccountsService', () => {
     });
 
     it('should stop traversal if a parent account is deleted', async () => {
-      const account = { id: 'child-id', parentAccountId: 'parent-id', deletedAt: null };
-      const deletedParent = { id: 'parent-id', parentAccountId: null, deletedAt: new Date() };
+      const account = {
+        id: 'child-id',
+        parentAccountId: 'parent-id',
+        deletedAt: null,
+      };
+      const deletedParent = {
+        id: 'parent-id',
+        parentAccountId: null,
+        deletedAt: new Date(),
+      };
 
       jest
         .spyOn(prisma.account, 'findUnique')
@@ -914,7 +924,9 @@ describe('AccountsService', () => {
       const originalFindUnique = mockPrismaService.account.findUnique;
       const originalFindMany = mockPrismaService.account.findMany;
 
-      mockPrismaService.account.findUnique = jest.fn().mockResolvedValue(rootAccount);
+      mockPrismaService.account.findUnique = jest
+        .fn()
+        .mockResolvedValue(rootAccount);
 
       // Build 5 levels: each level has one child
       const levels = [

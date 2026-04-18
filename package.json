@@ -19,10 +19,20 @@
     "start:all": "npm run build && concurrently \"npm run start:backend\" \"npm run start:frontend\" --names \"backend,frontend\" --prefix-colors \"blue,magenta\"",
     "start": "npm run dev"
   },
+  "dependencies": {
+    "@fastify/static": "^9.1.1",
+    "@nestjs/common": "^11.1.19",
+    "@nestjs/core": "^11.1.19",
+    "chokidar": "^3.6.0"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "overrides": {
+    "@nestjs/common": "^11.1.19",
+    "@nestjs/core": "^11.1.19"
   }
 }

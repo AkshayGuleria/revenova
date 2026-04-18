@@ -89,7 +89,8 @@ export class CreateProductDto {
   currency?: string;
 
   @ApiPropertyOptional({
-    description: 'Charge type: recurring (auto-billed), one_time (first invoice only), usage_based (Phase 6)',
+    description:
+      'Charge type: recurring (auto-billed), one_time (first invoice only), usage_based (Phase 6)',
     enum: ChargeType,
     default: ChargeType.RECURRING,
     example: ChargeType.RECURRING,
@@ -110,7 +111,7 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({
     description: 'One-time setup fee added to the first invoice only',
-    example: 500.00,
+    example: 500.0,
   })
   @IsOptional()
   @IsNumber()

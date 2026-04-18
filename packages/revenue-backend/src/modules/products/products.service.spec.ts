@@ -5,7 +5,11 @@ import { ProductsService } from './products.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { CreateProductDto, UpdateProductDto } from './dto';
-import { PricingModel, ChargeType, ProductCategory } from './dto/create-product.dto';
+import {
+  PricingModel,
+  ChargeType,
+  ProductCategory,
+} from './dto/create-product.dto';
 
 describe('ProductsService', () => {
   let service: ProductsService;
@@ -167,7 +171,7 @@ describe('ProductsService', () => {
         pricingModel: PricingModel.CUSTOM,
         chargeType: ChargeType.USAGE_BASED,
         category: ProductCategory.STORAGE,
-        basePrice: 0.10,
+        basePrice: 0.1,
       };
 
       const mockUsageProduct = {
@@ -233,7 +237,10 @@ describe('ProductsService', () => {
       mockPrismaService.product.create.mockRejectedValue(genericError);
 
       await expect(
-        service.create({ name: 'Test Product', pricingModel: PricingModel.FLAT_FEE }),
+        service.create({
+          name: 'Test Product',
+          pricingModel: PricingModel.FLAT_FEE,
+        }),
       ).rejects.toThrow('Generic DB error');
     });
 
@@ -418,7 +425,12 @@ describe('ProductsService', () => {
 
     it('should filter products by chargeType[eq]=one_time', async () => {
       const oneTimeProducts = [
-        { id: 'p1', name: 'Onboarding Package', chargeType: 'one_time', category: 'professional_services' },
+        {
+          id: 'p1',
+          name: 'Onboarding Package',
+          chargeType: 'one_time',
+          category: 'professional_services',
+        },
       ];
       const query = { 'chargeType[eq]': 'one_time' };
 
@@ -437,7 +449,12 @@ describe('ProductsService', () => {
 
     it('should filter products by category[eq]=addon', async () => {
       const addonProducts = [
-        { id: 'p1', name: 'AI Assistant', chargeType: 'recurring', category: 'addon' },
+        {
+          id: 'p1',
+          name: 'AI Assistant',
+          chargeType: 'recurring',
+          category: 'addon',
+        },
       ];
       const query = { 'category[eq]': 'addon' };
 
@@ -473,7 +490,8 @@ describe('ProductsService', () => {
         (where.AND && where.AND.some((c: any) => c.chargeType === 'one_time'));
       const hasCategory =
         where.category === 'professional_services' ||
-        (where.AND && where.AND.some((c: any) => c.category === 'professional_services'));
+        (where.AND &&
+          where.AND.some((c: any) => c.category === 'professional_services'));
       expect(hasChargeType).toBe(true);
       expect(hasCategory).toBe(true);
     });

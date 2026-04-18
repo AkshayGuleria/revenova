@@ -10,7 +10,11 @@ describe('InvoicesModule', () => {
 
   beforeEach(async () => {
     module = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true }), InvoicesModule, PrismaModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
+        InvoicesModule,
+        PrismaModule,
+      ],
     }).compile();
   });
 
@@ -31,7 +35,11 @@ describe('InvoicesModule', () => {
 
   it('should export InvoicesService', async () => {
     const testModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true }), InvoicesModule, PrismaModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
+        InvoicesModule,
+        PrismaModule,
+      ],
     }).compile();
 
     const invoicesService = testModule.get<InvoicesService>(InvoicesService);

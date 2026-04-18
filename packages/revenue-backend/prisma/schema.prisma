@@ -54,6 +54,7 @@ model Account {
   children              Account[]        @relation("AccountHierarchy")
   contracts             Contract[]
   invoices              Invoice[]
+  invoiceGroups         InvoiceGroup[]
   sharedContracts       ContractShare[]  @relation("SharedContracts")
 
   @@index([parentAccountId])
@@ -173,6 +174,25 @@ model Product {
   @@map("products")
 }
 
+// Phase 4: Invoice Groups - Organizational groupings for sub-invoice allocation
+model InvoiceGroup {
+  id          String    @id @default(uuid())
+  accountId   String    @map("account_id")
+  name        String    // "Engineering Dept", "US-West Cost Center"
+  groupType   String    @map("group_type") // DEPARTMENT | COST_CENTER | LOCATION | CUSTOM
+  code        String?   // "DEPT-ENG", "CC-001", "LOC-USW"
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  account     Account   @relation(fields: [accountId], references: [id])
+  invoices    Invoice[]
+
+  @@unique([accountId, groupType, code])
+  @@index([accountId])
+  @@map("invoice_groups")
+}
+
 model Invoice {
   id                    String    @id @default(uuid())
   invoiceNumber         String    @unique @map("invoice_number")
@@ -205,7 +225,20 @@ model Invoice {
 
   // Enterprise Features
   consolidated          Boolean   @default(false)
+
+  // Sub-Invoice Hierarchy (Phase 4)
   parentInvoiceId       String?   @map("parent_invoice_id")
+  parentInvoice         Invoice?  @relation("InvoiceHierarchy", fields: [parentInvoiceId], references: [id])
+  subInvoices           Invoice[] @relation("InvoiceHierarchy")
+
+  // Invoice Group (Phase 4)
+  invoiceGroupId        String?   @map("invoice_group_id")
+  invoiceGroup          InvoiceGroup? @relation(fields: [invoiceGroupId], references: [id])
+
+  // Payment mode — only set on parent invoices (Phase 4)
+  // PARENT_PAYS: paying the parent cascades status to all children
+  // CHILD_PAYS:  each sub-invoice is paid independently
+  paymentMode           String?   @map("payment_mode")
 
   // Notes & Metadata
   notes                 String?
@@ -225,20 +258,23 @@ model Invoice {
   @@index([status])
   @@index([dueDate])
   @@index([purchaseOrderNumber])
+  @@index([parentInvoiceId])
+  @@index([invoiceGroupId])
   @@map("invoices")
 }
 
 model InvoiceItem {
-  id          String   @id @default(uuid())
-  invoiceId   String   @map("invoice_id")
-  description String
-  quantity    Decimal  @db.Decimal(10, 2)
-  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
-  amount      Decimal  @db.Decimal(10, 2)
+  id             String   @id @default(uuid())
+  invoiceId      String   @map("invoice_id")
+  description    String
+  quantity       Decimal  @db.Decimal(10, 2)
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(10, 2)
+  amount         Decimal  @db.Decimal(10, 2)
+  groupReference String?  @map("group_reference") // Links item to org unit (cost center code, dept code, etc.)
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
   @@map("invoice_items")

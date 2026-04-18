@@ -1,9 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import {
-  AppConfigService,
-  SUPPORTED_CURRENCIES,
-} from './app-config.service';
+import { AppConfigService, SUPPORTED_CURRENCIES } from './app-config.service';
 
 describe('AppConfigService', () => {
   let service: AppConfigService;
