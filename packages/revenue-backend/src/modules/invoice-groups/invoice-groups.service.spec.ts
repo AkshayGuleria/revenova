@@ -110,6 +110,34 @@ describe('InvoiceGroupsService', () => {
         ConflictException,
       );
     });
+
+    it('re-throws non-P2002 Prisma errors from create without wrapping', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-1',
+      });
+      const dbError = new PrismaClientKnownRequestError('Foreign key violation', {
+        code: 'P2003',
+        clientVersion: '5.0',
+      });
+      mockPrismaService.invoiceGroup.create.mockRejectedValue(dbError);
+
+      await expect(service.create(createDto)).rejects.toThrow(dbError);
+      await expect(service.create(createDto)).rejects.not.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('re-throws non-Prisma errors from create as-is', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-1',
+      });
+      const unexpectedError = new Error('Unexpected DB connection error');
+      mockPrismaService.invoiceGroup.create.mockRejectedValue(unexpectedError);
+
+      await expect(service.create(createDto)).rejects.toThrow(
+        'Unexpected DB connection error',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -189,6 +217,65 @@ describe('InvoiceGroupsService', () => {
 
       await expect(service.update('bad-id', { name: 'X' })).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('throws ConflictException on P2002 during update (duplicate code)', async () => {
+      const existing = {
+        id: 'group-1',
+        name: 'Eng',
+        account: {},
+        _count: { invoices: 0 },
+      };
+      mockPrismaService.invoiceGroup.findUnique.mockResolvedValue(existing);
+      mockPrismaService.invoiceGroup.update.mockRejectedValue(
+        new PrismaClientKnownRequestError('Unique constraint', {
+          code: 'P2002',
+          clientVersion: '5.0',
+        }),
+      );
+
+      await expect(service.update('group-1', { code: 'TAKEN' })).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('re-throws non-P2002 Prisma errors from update without wrapping', async () => {
+      const existing = {
+        id: 'group-1',
+        name: 'Eng',
+        account: {},
+        _count: { invoices: 0 },
+      };
+      const dbError = new PrismaClientKnownRequestError('Record not found', {
+        code: 'P2025',
+        clientVersion: '5.0',
+      });
+      mockPrismaService.invoiceGroup.findUnique.mockResolvedValue(existing);
+      mockPrismaService.invoiceGroup.update.mockRejectedValue(dbError);
+
+      await expect(service.update('group-1', { name: 'X' })).rejects.toThrow(
+        dbError,
+      );
+      await expect(
+        service.update('group-1', { name: 'X' }),
+      ).rejects.not.toThrow(ConflictException);
+    });
+
+    it('re-throws non-Prisma errors from update as-is', async () => {
+      const existing = {
+        id: 'group-1',
+        name: 'Eng',
+        account: {},
+        _count: { invoices: 0 },
+      };
+      mockPrismaService.invoiceGroup.findUnique.mockResolvedValue(existing);
+      mockPrismaService.invoiceGroup.update.mockRejectedValue(
+        new Error('Unexpected error'),
+      );
+
+      await expect(service.update('group-1', { name: 'X' })).rejects.toThrow(
+        'Unexpected error',
       );
     });
   });

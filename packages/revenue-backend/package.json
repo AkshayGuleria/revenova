@@ -104,5 +104,8 @@
         "statements": 80
       }
     }
+  },
+  "optionalDependencies": {
+    "chokidar": "^3.5.1"
   }
 }

@@ -20,8 +20,10 @@
     "start": "npm run dev"
   },
   "dependencies": {
+    "@fastify/static": "^9.1.1",
     "@nestjs/common": "^11.1.19",
-    "@nestjs/core": "^11.1.19"
+    "@nestjs/core": "^11.1.19",
+    "chokidar": "^3.6.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
