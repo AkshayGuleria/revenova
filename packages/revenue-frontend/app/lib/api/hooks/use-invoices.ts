@@ -11,6 +11,7 @@ import type {
   CreateInvoiceDto,
   UpdateInvoiceDto,
   CreateInvoiceItemDto,
+  CreateSubInvoiceDto,
 } from "~/types/models";
 import type { QueryParams } from "~/types/api";
 
@@ -121,6 +122,48 @@ export function useDeleteInvoice() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.lists() });
+    },
+  });
+}
+
+/**
+ * Fetch sub-invoices for a parent invoice
+ */
+export function useSubInvoices(parentId: string, params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.invoices.subInvoices(parentId),
+    queryFn: async () => {
+      const response = await apiClient.get<Invoice[]>(
+        `/api/invoices/${parentId}/sub-invoices`,
+        params
+      );
+      return response;
+    },
+    enabled: !!parentId,
+  });
+}
+
+/**
+ * Create a sub-invoice under a parent invoice
+ */
+export function useCreateSubInvoice(parentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateSubInvoiceDto) => {
+      const response = await apiClient.post<Invoice>(
+        `/api/invoices/${parentId}/sub-invoices`,
+        data
+      );
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.invoices.detail(parentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.invoices.subInvoices(parentId),
+      });
     },
   });
 }

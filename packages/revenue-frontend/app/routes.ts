@@ -27,6 +27,12 @@ export default [
   route("invoices/new", "routes/invoices.new.tsx"),
   route("invoices/:id", "routes/invoices.$id.tsx"),
   route("invoices/:id/edit", "routes/invoices.$id.edit.tsx"),
+  route("invoices/:id/sub-invoices/new", "routes/invoices.$id.sub-invoices.new.tsx"),
+
+  // Invoice Groups
+  route("invoice-groups", "routes/invoice-groups._index.tsx"),
+  route("invoice-groups/new", "routes/invoice-groups.new.tsx"),
+  route("invoice-groups/:id/edit", "routes/invoice-groups.$id.edit.tsx"),
 
   // Billing
   route("billing", "routes/billing._index.tsx"),

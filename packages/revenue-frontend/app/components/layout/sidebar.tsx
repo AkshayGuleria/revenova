@@ -11,6 +11,7 @@ import {
   Package,
   Receipt,
   CreditCard,
+  Layers,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const navigation = [
   { name: "Contracts", href: "/contracts", icon: FileText },
   { name: "Products", href: "/products", icon: Package },
   { name: "Invoices", href: "/invoices", icon: Receipt },
+  { name: "Invoice Groups", href: "/invoice-groups", icon: Layers },
   { name: "Billing", href: "/billing", icon: CreditCard },
 ];
 

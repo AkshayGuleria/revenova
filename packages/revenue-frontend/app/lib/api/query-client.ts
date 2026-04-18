@@ -129,6 +129,18 @@ export const queryKeys = {
       [...queryKeys.invoices.lists(), params] as const,
     details: () => [...queryKeys.invoices.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.invoices.details(), id] as const,
+    subInvoices: (parentId: string) =>
+      [...queryKeys.invoices.detail(parentId), "sub-invoices"] as const,
+  },
+
+  // Invoice Groups
+  invoiceGroups: {
+    all: ["invoice-groups"] as const,
+    lists: () => [...queryKeys.invoiceGroups.all, "list"] as const,
+    list: (params?: Record<string, any>) =>
+      [...queryKeys.invoiceGroups.lists(), params] as const,
+    details: () => [...queryKeys.invoiceGroups.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.invoiceGroups.details(), id] as const,
   },
 
   // Billing

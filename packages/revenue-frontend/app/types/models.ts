@@ -246,6 +246,62 @@ export interface Product {
 }
 
 // ============================================================================
+// INVOICE GROUP TYPES
+// ============================================================================
+
+export enum InvoiceGroupType {
+  DEPARTMENT = 'DEPARTMENT',
+  COST_CENTER = 'COST_CENTER',
+  LOCATION = 'LOCATION',
+  CUSTOM = 'CUSTOM',
+}
+
+export interface InvoiceGroup {
+  id: string;
+  accountId: string;
+  account?: Pick<Account, 'id' | 'accountName'>;
+  name: string;
+  groupType: InvoiceGroupType;
+  code?: string;
+  metadata?: Record<string, any>;
+  _count?: { invoices: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateInvoiceGroupDto {
+  accountId: string;
+  name: string;
+  groupType: InvoiceGroupType;
+  code?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateInvoiceGroupDto {
+  name?: string;
+  code?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface CreateSubInvoiceDto {
+  invoiceGroupId?: string;
+  contractId?: string;
+  issueDate?: string;
+  dueDate?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  subtotal: number;
+  tax?: number;
+  discount?: number;
+  total: number;
+  currency?: string;
+  status?: string;
+  notes?: string;
+  items?: any[];
+  metadata?: Record<string, any>;
+}
+
+// ============================================================================
 // INVOICE TYPES
 // ============================================================================
 
@@ -294,6 +350,12 @@ export interface Invoice {
   // Consolidated billing (Phase 3)
   consolidated: boolean;
   parentInvoiceId?: string;
+
+  // Invoice Groups & Sub-Invoices
+  invoiceGroupId?: string;
+  invoiceGroup?: Pick<InvoiceGroup, 'id' | 'name' | 'groupType' | 'code'>;
+  subInvoiceCount?: number;
+  subInvoiceTotals?: { total: string; paid: string; outstanding: string } | null;
 
   // Notes
   notes?: string;
