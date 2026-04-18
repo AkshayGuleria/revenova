@@ -228,6 +228,72 @@ describe('InvoicesService', () => {
       );
     });
 
+    it('should fall back to 0 when basePrice is null (no unitPrice, no basePrice)', async () => {
+      const contractWithNullBasePrice = {
+        ...mockContractWithProducts,
+        products: [
+          {
+            ...mockContractWithProducts.products[0],
+            unitPrice: null,
+            discount: null,
+            product: {
+              id: 'product-1',
+              name: 'Free Plan',
+              basePrice: null, // triggers ?? 0 fallback
+            },
+          },
+        ],
+      };
+      const mockAccount = { id: 'account-id-123' };
+      const mockInvoice = { id: 'invoice-free', items: [] };
+
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.contract.findUnique.mockResolvedValue(contractWithNullBasePrice);
+      mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
+
+      await service.create(createDto);
+
+      // unitPrice = 0 (null basePrice falls back to 0), quantity=10 → subtotal=0
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            subtotal: 0,
+            total: 0,
+          }),
+        }),
+      );
+    });
+
+    it('should apply product-level discount when contractProduct has a non-null discount', async () => {
+      const contractWithDiscount = {
+        ...mockContractWithProducts,
+        products: [
+          {
+            ...mockContractWithProducts.products[0],
+            unitPrice: null,
+            discount: { toNumber: () => 0.1 }, // 10% discount
+          },
+        ],
+      };
+      const mockAccount = { id: 'account-id-123' };
+      const mockInvoice = { id: 'invoice-discounted', items: [] };
+
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.contract.findUnique.mockResolvedValue(contractWithDiscount);
+      mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
+
+      await service.create(createDto);
+
+      // unitPrice=99.99, quantity=10, discount=0.1 → amount = 99.99 * 10 * 0.9 = 899.91
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            subtotal: expect.closeTo(899.91, 1),
+          }),
+        }),
+      );
+    });
+
     it('should use contractProduct.unitPrice override when set', async () => {
       const contractWithPriceOverride = {
         ...mockContractWithProducts,
@@ -304,6 +370,25 @@ describe('InvoicesService', () => {
       );
       await expect(service.create(createDto)).rejects.toThrow(
         'Account with ID account-id-123 not found',
+      );
+    });
+
+    it('should throw BadRequestException if contractId is missing at service layer', async () => {
+      // CreateInvoiceDto requires contractId via class-validator but the service
+      // also guards against a falsy value in case it's bypassed.
+      const dtoWithoutContract = {
+        invoiceNumber: 'INV-NO-CONTRACT',
+        accountId: 'account-id-123',
+        issueDate: '2024-01-01',
+        dueDate: '2024-01-31',
+        // contractId intentionally omitted
+      } as CreateInvoiceDto;
+
+      await expect(service.create(dtoWithoutContract)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.create(dtoWithoutContract)).rejects.toThrow(
+        'contractId is required to create an invoice',
       );
     });
 
@@ -1239,6 +1324,191 @@ describe('InvoicesService', () => {
         } as any),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('throws ConflictException on P2002 when sub-invoice number already exists', async () => {
+      const { PrismaClientKnownRequestError } = jest.requireActual(
+        '@prisma/client/runtime/library',
+      ) as { PrismaClientKnownRequestError: typeof import('@prisma/client/runtime/library').PrismaClientKnownRequestError };
+      const prismaError = new PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.0.0' },
+      );
+
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockRejectedValue(prismaError);
+
+      await expect(
+        service.createSubInvoice('parent-id', subDto as any),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.createSubInvoice('parent-id', subDto as any),
+      ).rejects.toThrow('Sub-invoice with this number already exists');
+    });
+
+    it('rethrows unknown errors during createSubInvoice', async () => {
+      const unknownError = new Error('Unexpected DB failure');
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockRejectedValue(unknownError);
+
+      await expect(
+        service.createSubInvoice('parent-id', subDto as any),
+      ).rejects.toThrow('Unexpected DB failure');
+    });
+
+    it('omits periodStart and periodEnd when parent has none and DTO has none', async () => {
+      const parentWithNoPeriod = {
+        ...parentInvoice,
+        periodStart: null,
+        periodEnd: null,
+      };
+      const createdSub = {
+        id: 'sub-no-period',
+        invoiceNumber: 'INV-2026-000001-A',
+        parentInvoiceId: 'parent-id',
+        periodStart: undefined,
+        periodEnd: undefined,
+        items: [],
+        invoiceGroup: null,
+      };
+
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentWithNoPeriod);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockResolvedValue(createdSub);
+
+      await service.createSubInvoice('parent-id', subDto as any);
+
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            periodStart: undefined,
+            periodEnd: undefined,
+          }),
+        }),
+      );
+    });
+
+    it('uses default 0 for tax and discount when omitted in DTO', async () => {
+      const dtoWithoutTaxDiscount = {
+        subtotal: 5000,
+        total: 5000,
+        // tax and discount omitted — triggers ?? 0 branches at line 355, 389, 390
+      };
+      const createdSub = {
+        id: 'sub-no-tax',
+        invoiceNumber: 'INV-2026-000001-A',
+        parentInvoiceId: 'parent-id',
+        tax: 0,
+        discount: 0,
+        items: [],
+        invoiceGroup: null,
+      };
+
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockResolvedValue(createdSub);
+
+      await service.createSubInvoice('parent-id', dtoWithoutTaxDiscount as any);
+
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tax: 0,
+            discount: 0,
+          }),
+        }),
+      );
+    });
+
+    it('inherits periodStart and periodEnd from parent when omitted in DTO', async () => {
+      const createdSub = {
+        id: 'sub-inherit',
+        invoiceNumber: 'INV-2026-000001-A',
+        parentInvoiceId: 'parent-id',
+        periodStart: parentInvoice.periodStart,
+        periodEnd: parentInvoice.periodEnd,
+        items: [],
+        invoiceGroup: null,
+      };
+
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockResolvedValue(createdSub);
+
+      await service.createSubInvoice('parent-id', subDto as any);
+
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            periodStart: parentInvoice.periodStart,
+            periodEnd: parentInvoice.periodEnd,
+          }),
+        }),
+      );
+    });
+
+    it('uses explicitly provided periodStart and periodEnd from DTO', async () => {
+      const dtoWithPeriod = {
+        ...subDto,
+        periodStart: '2026-02-01',
+        periodEnd: '2026-02-28',
+      };
+      const createdSub = {
+        id: 'sub-explicit-period',
+        invoiceNumber: 'INV-2026-000001-A',
+        parentInvoiceId: 'parent-id',
+        periodStart: new Date('2026-02-01'),
+        periodEnd: new Date('2026-02-28'),
+        items: [],
+        invoiceGroup: null,
+      };
+
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockResolvedValue(createdSub);
+
+      await service.createSubInvoice('parent-id', dtoWithPeriod as any);
+
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            periodStart: new Date('2026-02-01'),
+            periodEnd: new Date('2026-02-28'),
+          }),
+        }),
+      );
+    });
+
+    it('includes line items when items array is provided in DTO', async () => {
+      const dtoWithItems = {
+        ...subDto,
+        items: [
+          { description: 'Support fee', quantity: 1, unitPrice: 500, amount: 500 },
+        ],
+      };
+      const createdSub = {
+        id: 'sub-with-items',
+        invoiceNumber: 'INV-2026-000001-A',
+        parentInvoiceId: 'parent-id',
+        items: [{ id: 'item-1', description: 'Support fee', quantity: 1, unitPrice: 500, amount: 500 }],
+        invoiceGroup: null,
+      };
+
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockResolvedValue(createdSub);
+
+      await service.createSubInvoice('parent-id', dtoWithItems as any);
+
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            items: { create: dtoWithItems.items },
+          }),
+        }),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -1353,6 +1623,30 @@ describe('InvoicesService', () => {
         total: '15000.00',
         paid: '5000.00',
         outstanding: '10000.00',
+      });
+    });
+
+    it('handles null aggregate sums gracefully (treats null as 0)', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'parent-id',
+        invoiceNumber: 'INV-2026-000001',
+        account: {},
+        contract: null,
+        items: [],
+        invoiceGroup: null,
+        _count: { items: 0, subInvoices: 2 },
+      });
+      // Prisma returns null sums when no rows matched
+      mockPrismaService.invoice.aggregate.mockResolvedValue({
+        _sum: { total: null, paidAmount: null },
+      });
+
+      const result = await service.findOne('parent-id');
+
+      expect((result.data as any).subInvoiceTotals).toEqual({
+        total: '0.00',
+        paid: '0.00',
+        outstanding: '0.00',
       });
     });
 

@@ -177,7 +177,8 @@ export function InvoiceForm({
   const handleSubmit = (data: InvoiceFormData) => {
     if (invoice) {
       onSubmit({
-        contractId: data.contractId,
+        accountId: data.accountId,
+        ...(data.contractId ? { contractId: data.contractId } : {}),
         issueDate: data.issueDate,
         dueDate: data.dueDate,
         status: data.status,
@@ -418,66 +419,112 @@ export function InvoiceForm({
           </div>
         </Card>
 
-        {/* Contract Products Preview */}
-        {selectedContractId && (
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Package className="h-5 w-5 text-teal-600" />
-              <h3 className="text-lg font-semibold">Line Items Preview</h3>
-              <span className="text-xs text-gray-500 ml-1">(auto-generated from contract products)</span>
-            </div>
-
-            {contractProducts.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No products found on the selected contract.
-              </p>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-gray-500">
-                        <th className="pb-2 font-medium">Product</th>
-                        <th className="pb-2 font-medium text-right">Qty</th>
-                        <th className="pb-2 font-medium text-right">Unit Price</th>
-                        <th className="pb-2 font-medium text-right">Discount</th>
-                        <th className="pb-2 font-medium text-right">Amount</th>
+        {/* Line Items */}
+        {invoice ? (
+          /* Edit mode: show the stored invoice items (locked at creation) */
+          invoice.items && invoice.items.length > 0 && (
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="h-5 w-5 text-teal-600" />
+                <h3 className="text-lg font-semibold">Line Items</h3>
+                <span className="text-xs text-gray-500 ml-1">(locked at invoice creation)</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-gray-500">
+                      <th className="pb-2 font-medium">Description</th>
+                      <th className="pb-2 font-medium text-right">Qty</th>
+                      <th className="pb-2 font-medium text-right">Unit Price</th>
+                      <th className="pb-2 font-medium text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {invoice.items.map((item) => (
+                      <tr key={item.id} className="py-2">
+                        <td className="py-2">{item.description}</td>
+                        <td className="py-2 text-right">{item.quantity}</td>
+                        <td className="py-2 text-right">
+                          <CurrencyDisplay amount={Number(item.unitPrice)} currency={selectedCurrency} />
+                        </td>
+                        <td className="py-2 text-right font-medium">
+                          <CurrencyDisplay amount={Number(item.amount)} currency={selectedCurrency} />
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {contractProducts.map((cp) => {
-                        const unitPrice = cp.unitPrice ?? cp.product?.basePrice ?? 0;
-                        const discount = cp.discount ?? 0;
-                        const amount = Number(unitPrice) * cp.quantity * (1 - Number(discount));
-                        return (
-                          <tr key={cp.id} className="py-2">
-                            <td className="py-2">{cp.product?.name ?? cp.productId}</td>
-                            <td className="py-2 text-right">{cp.quantity}</td>
-                            <td className="py-2 text-right">
-                              <CurrencyDisplay amount={Number(unitPrice)} currency={selectedCurrency} />
-                            </td>
-                            <td className="py-2 text-right">
-                              {Number(discount) > 0 ? `${(Number(discount) * 100).toFixed(0)}%` : "—"}
-                            </td>
-                            <td className="py-2 text-right font-medium">
-                              <CurrencyDisplay amount={amount} currency={selectedCurrency} />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 border-t pt-3 flex justify-end">
+                <div className="text-sm text-gray-500 mr-4">Subtotal:</div>
+                <div className="font-semibold">
+                  <CurrencyDisplay amount={Number(invoice.subtotal)} currency={selectedCurrency} />
                 </div>
+              </div>
+            </Card>
+          )
+        ) : (
+          /* Create mode: preview items that will be generated from contract products */
+          selectedContractId && (
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="h-5 w-5 text-teal-600" />
+                <h3 className="text-lg font-semibold">Line Items Preview</h3>
+                <span className="text-xs text-gray-500 ml-1">(auto-generated from contract products)</span>
+              </div>
 
-                <div className="mt-4 border-t pt-3 flex justify-end">
-                  <div className="text-sm text-gray-500 mr-4">Estimated subtotal:</div>
-                  <div className="font-semibold">
-                    <CurrencyDisplay amount={previewSubtotal} currency={selectedCurrency} />
+              {contractProducts.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  No products found on the selected contract.
+                </p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-gray-500">
+                          <th className="pb-2 font-medium">Product</th>
+                          <th className="pb-2 font-medium text-right">Qty</th>
+                          <th className="pb-2 font-medium text-right">Unit Price</th>
+                          <th className="pb-2 font-medium text-right">Discount</th>
+                          <th className="pb-2 font-medium text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {contractProducts.map((cp) => {
+                          const unitPrice = cp.unitPrice ?? cp.product?.basePrice ?? 0;
+                          const discount = cp.discount ?? 0;
+                          const amount = Number(unitPrice) * cp.quantity * (1 - Number(discount));
+                          return (
+                            <tr key={cp.id} className="py-2">
+                              <td className="py-2">{cp.product?.name ?? cp.productId}</td>
+                              <td className="py-2 text-right">{cp.quantity}</td>
+                              <td className="py-2 text-right">
+                                <CurrencyDisplay amount={Number(unitPrice)} currency={selectedCurrency} />
+                              </td>
+                              <td className="py-2 text-right">
+                                {Number(discount) > 0 ? `${(Number(discount) * 100).toFixed(0)}%` : "—"}
+                              </td>
+                              <td className="py-2 text-right font-medium">
+                                <CurrencyDisplay amount={amount} currency={selectedCurrency} />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              </>
-            )}
-          </Card>
+
+                  <div className="mt-4 border-t pt-3 flex justify-end">
+                    <div className="text-sm text-gray-500 mr-4">Estimated subtotal:</div>
+                    <div className="font-semibold">
+                      <CurrencyDisplay amount={previewSubtotal} currency={selectedCurrency} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
+          )
         )}
 
         {/* Form Actions */}

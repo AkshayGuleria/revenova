@@ -97,6 +97,9 @@ export class ConsolidatedBillingService {
             accountId: true,
           },
         },
+        products: {
+          include: { product: true },
+        },
       },
     });
 
@@ -111,22 +114,16 @@ export class ConsolidatedBillingService {
     let subtotal = new Decimal(0);
 
     for (const contract of contracts) {
-      const contractAmount = await this.calculateContractAmount(
+      const contractLineItems = await this.calculateContractLineItems(
         contract,
         periodStart,
         periodEnd,
       );
 
-      if (contractAmount.total.gt(0)) {
+      for (const item of contractLineItems) {
+        if (!item.amount.gt(0)) continue;
         lineItems.push({
-          description: this.buildLineItemDescription(
-            contract,
-            periodStart,
-            periodEnd,
-          ),
-          quantity: contractAmount.quantity,
-          unitPrice: contractAmount.unitPrice,
-          amount: contractAmount.total,
+          ...item,
           metadata: {
             contractId: contract.id,
             contractNumber: contract.contractNumber,
@@ -134,8 +131,7 @@ export class ConsolidatedBillingService {
             accountName: contract.account.accountName,
           },
         });
-
-        subtotal = subtotal.add(contractAmount.total);
+        subtotal = subtotal.add(item.amount);
       }
     }
 
@@ -244,74 +240,69 @@ export class ConsolidatedBillingService {
   }
 
   /**
-   * Calculate amount for a single contract in the billing period
-   * TODO: Implement pro-rated billing based on period dates
+   * Return line items for a single contract.
+   * Prefers contract products when attached; falls back to seat/flat-fee billing.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async calculateContractAmount(
+  private async calculateContractLineItems(
     contract: any,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     periodStart: Date,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     periodEnd: Date,
-  ): Promise<{
-    quantity: Decimal;
-    unitPrice: Decimal;
-    total: Decimal;
-  }> {
-    // Determine billing frequency
-    const frequency = contract.billingFrequency.toLowerCase();
-
-    // Calculate quantity (seats or units)
-    const quantity = contract.seatCount
-      ? new Decimal(contract.seatCount)
-      : new Decimal(1);
-
-    // Calculate unit price based on frequency
-    let unitPrice = new Decimal(contract.contractValue);
-
-    if (frequency === 'annual') {
-      unitPrice = unitPrice.div(12); // Monthly rate from annual
-    } else if (frequency === 'quarterly') {
-      unitPrice = unitPrice.div(3); // Monthly rate from quarterly
-    }
-
-    // For seat-based pricing
-    if (contract.seatPrice) {
-      unitPrice = new Decimal(contract.seatPrice);
-    }
-
-    const total = quantity.mul(unitPrice);
-
-    return {
-      quantity,
-      unitPrice,
-      total,
-    };
-  }
-
-  /**
-   * Build line item description
-   */
-  private buildLineItemDescription(
-    contract: any,
-    periodStart: Date,
-    periodEnd: Date,
-  ): string {
-    const accountName = contract.account.accountName;
-    const contractNumber = contract.contractNumber;
+  ): Promise<
+    Array<{ description: string; quantity: Decimal; unitPrice: Decimal; amount: Decimal }>
+  > {
     const startStr = periodStart.toISOString().split('T')[0];
     const endStr = periodEnd.toISOString().split('T')[0];
+    const periodSuffix = ` — ${contract.account.accountName} (${startStr} to ${endStr})`;
 
-    let description = `Contract ${contractNumber} - ${accountName}`;
+    if (contract.products && contract.products.length > 0) {
+      return contract.products.map((cp: any) => {
+        const unitPrice =
+          cp.unitPrice != null
+            ? new Decimal(cp.unitPrice)
+            : new Decimal(cp.product.basePrice);
+        const discountRate =
+          cp.discount != null ? new Decimal(cp.discount) : new Decimal(0);
+        const amount = unitPrice
+          .mul(cp.quantity)
+          .mul(new Decimal(1).sub(discountRate));
 
-    if (contract.seatCount) {
-      description += ` (${contract.seatCount} seats)`;
+        return {
+          description: `${cp.product.name}${periodSuffix}`,
+          quantity: new Decimal(cp.quantity),
+          unitPrice,
+          amount,
+        };
+      });
     }
 
-    description += ` - Period: ${startStr} to ${endStr}`;
+    // No products attached — fall back to seat-based or flat-fee
+    const frequency = contract.billingFrequency.toLowerCase();
+    let quantity: Decimal;
+    let unitPrice: Decimal;
 
-    return description;
+    if (contract.seatCount && contract.seatPrice) {
+      quantity = new Decimal(contract.seatCount);
+      unitPrice = new Decimal(contract.seatPrice);
+    } else {
+      quantity = new Decimal(1);
+      unitPrice = new Decimal(contract.contractValue);
+      if (frequency === 'annual') unitPrice = unitPrice.div(12);
+      else if (frequency === 'quarterly') unitPrice = unitPrice.div(3);
+    }
+
+    const seatSuffix = contract.seatCount
+      ? ` (${contract.seatCount} seats)`
+      : '';
+    return [
+      {
+        description: `Contract ${contract.contractNumber}${seatSuffix}${periodSuffix}`,
+        quantity,
+        unitPrice,
+        amount: quantity.mul(unitPrice),
+      },
+    ];
   }
 
   /**

@@ -56,7 +56,7 @@ async function bootstrap() {
       .swagger-ui .topbar { display: none }
       .swagger-ui .info { margin: 20px 0 }
     `,
-    customJs: '/swagger-search.js', // Custom search functionality
+    customJs: '/swagger-search.js',
     swaggerOptions: {
       // filter: true, // Enable tag filter
       showRequestDuration: true, // Show request duration

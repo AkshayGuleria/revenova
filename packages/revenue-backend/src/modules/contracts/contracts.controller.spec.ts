@@ -8,6 +8,7 @@ import {
   ContractStatus,
   ShareContractDto,
 } from './dto';
+import { CreateContractProductDto } from './dto/contract-product.dto';
 
 describe('ContractsController', () => {
   let controller: ContractsController;
@@ -179,6 +180,53 @@ describe('ContractsController', () => {
         accountId,
       );
       expect(service.getSharedContractsForAccount).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Contract-Product sub-endpoints
+  // ---------------------------------------------------------------------------
+
+  describe('findProducts', () => {
+    it('should call service.findProducts with contract id and return result', async () => {
+      const contractId = 'contract-123';
+      const result = {
+        data: [{ id: 'cp-1', productId: 'product-1', quantity: 10 }],
+        paging: { total: 1, offset: null, limit: null, totalPages: null, hasNext: null, hasPrev: null },
+      };
+      mockContractsService.findProducts.mockResolvedValue(result);
+
+      expect(await controller.findProducts(contractId)).toBe(result);
+      expect(service.findProducts).toHaveBeenCalledWith(contractId);
+      expect(service.findProducts).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('addProduct', () => {
+    it('should call service.addProduct with contract id and dto', async () => {
+      const contractId = 'contract-123';
+      const dto: CreateContractProductDto = { productId: 'product-456', quantity: 5 };
+      const result = {
+        data: { id: 'cp-1', contractId, productId: 'product-456', quantity: 5 },
+        paging: { offset: null, limit: null, total: null, totalPages: null, hasNext: null, hasPrev: null },
+      };
+      mockContractsService.addProduct.mockResolvedValue(result);
+
+      expect(await controller.addProduct(contractId, dto)).toBe(result);
+      expect(service.addProduct).toHaveBeenCalledWith(contractId, dto);
+      expect(service.addProduct).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('removeProduct', () => {
+    it('should call service.removeProduct with contract id and product id', async () => {
+      const contractId = 'contract-123';
+      const productId = 'product-456';
+      mockContractsService.removeProduct.mockResolvedValue(undefined);
+
+      await controller.removeProduct(contractId, productId);
+      expect(service.removeProduct).toHaveBeenCalledWith(contractId, productId);
+      expect(service.removeProduct).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -54,9 +54,10 @@ async function apiFetch<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  const defaultHeaders: HeadersInit = {
-    "Content-Type": "application/json",
-  };
+  const hasBody = options.body !== undefined && options.body !== null;
+  const defaultHeaders: HeadersInit = hasBody
+    ? { "Content-Type": "application/json" }
+    : {};
 
   const config: RequestInit = {
     ...options,

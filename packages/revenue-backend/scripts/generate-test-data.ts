@@ -121,7 +121,7 @@ const US_CITIES: { city: string; state: string; zip: string }[] = [
   { city: 'Jacksonville', state: 'FL', zip: '32201' },
 ];
 
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'CAD', 'AUD'];
+const CURRENCIES = ['EUR'];
 
 const PAYMENT_TERMS_LIST = [
   { terms: PaymentTerms.NET_30, days: 30 },
@@ -394,7 +394,7 @@ class DataGenerator {
       });
     }
 
-    // ── USD-priced plan variants × 20 (mirrors EUR plans, different currency) ──
+    // ── EUR-priced plan variants × 20 (mirrors base EUR plans, different intervals) ──
     for (const plan of plans) {
       for (const interval of intervals) {
         const discount = interval === BillingInterval.ANNUAL ? 0.8
@@ -402,14 +402,14 @@ class DataGenerator {
           : interval === BillingInterval.QUARTERLY ? 0.94
           : 1.0;
         products.push({
-          name: `${plan.name} Plan (${interval}) — USD`,
-          description: `${plan.name} plan billed ${interval} in USD.`,
-          sku: `${plan.sku}-${interval.toUpperCase()}-USD`,
+          name: `${plan.name} Plan (${interval}) — EUR`,
+          description: `${plan.name} plan billed ${interval} in EUR.`,
+          sku: `${plan.sku}-${interval.toUpperCase()}-EUR`,
           pricingModel: PricingModel.SEAT_BASED,
           chargeType: ChargeType.RECURRING,
           category: ProductCategory.PLATFORM,
           basePrice: Math.round(plan.basePrice * discount * 1.08 * 100) / 100,
-          currency: 'USD',
+          currency: 'EUR',
           billingInterval: interval,
           setupFee: (plan as any).setupFee,
           minSeats: plan.minSeats,

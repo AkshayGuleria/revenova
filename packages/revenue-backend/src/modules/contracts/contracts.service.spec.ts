@@ -266,6 +266,16 @@ describe('ContractsService', () => {
       expect((result.paging as any).total).toBe(1);
     });
 
+    it('should return empty array when contract has no products', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
+      mockPrismaService.contractProduct.findMany.mockResolvedValue([]);
+
+      const result = await service.findProducts('contract-1');
+
+      expect(result.data).toEqual([]);
+      expect((result.paging as any).total).toBe(0);
+    });
+
     it('should throw NotFoundException when contract not found', async () => {
       mockPrismaService.contract.findUnique.mockResolvedValue(null);
 
@@ -338,6 +348,17 @@ describe('ContractsService', () => {
       await expect(
         service.addProduct('contract-1', { productId: 'product-1' }),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('should rethrow non-P2002 errors from addProduct', async () => {
+      const genericError = new Error('Unexpected DB error in addProduct');
+      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
+      mockPrismaService.product.findUnique.mockResolvedValue({ id: 'product-1' });
+      mockPrismaService.contractProduct.create.mockRejectedValue(genericError);
+
+      await expect(
+        service.addProduct('contract-1', { productId: 'product-1' }),
+      ).rejects.toThrow('Unexpected DB error in addProduct');
     });
   });
 

@@ -556,7 +556,7 @@ export class InvoicesService {
       const updateData: any = { ...data };
 
       if (accountId) updateData.accountId = accountId;
-      if (contractId !== undefined) updateData.contractId = contractId;
+      if (contractId) updateData.contractId = contractId;
       if (issueDate) updateData.issueDate = new Date(issueDate);
       if (dueDate) updateData.dueDate = new Date(dueDate);
       if (periodStart) updateData.periodStart = new Date(periodStart);
