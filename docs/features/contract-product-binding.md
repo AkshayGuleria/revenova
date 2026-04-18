@@ -1,6 +1,6 @@
 # Contract-Product Binding & Contract-Mandatory Invoices
 
-**Status:** In Progress
+**Status:** Implemented ✅
 **Phase:** Phase 4 — Enterprise Operations
 **Planned Start:** April 2026
 **ADR Compliance:** [ADR-003: REST API Response Structure & Query Parameters](../adrs/003-rest-api-response-structure.md)
@@ -147,20 +147,20 @@ Existing contracts have no products; existing invoices may have `contractId = nu
 
 | ID | Task | Status |
 |----|------|--------|
-| CP1 | Add `ContractProduct` model to Prisma schema + run migration | [ ] |
-| CP2 | Add `contractProductId` FK to `InvoiceItem` | [ ] |
-| CP3 | Create `contract-product.dto.ts` | [ ] |
-| CP4 | Update `CreateContractDto` — require `products[]` (min 1) | [ ] |
-| CP5 | Update `ContractsService.create()` — write products in transaction, validate product IDs | [ ] |
-| CP6 | Add `GET/POST/DELETE /api/contracts/:id/products` sub-endpoints | [ ] |
-| CP7 | Update `contracts.service.spec.ts` — fix fixtures, add product tests | [ ] |
-| CP8 | Update `CreateInvoiceDto` — require `contractId`, remove `items` | [ ] |
-| CP9 | Update `InvoicesService.create()` — fetch contract products, auto-generate items | [ ] |
-| CP10 | Update `invoices.service.spec.ts` — fix fixtures, add auto-generation tests | [ ] |
-| CP11 | Update `generate-test-data.ts` — include products in contract create payload | [ ] |
-| CP12 | Update `models.ts` — add `ContractProduct`, `CreateContractProductDto`, update `Contract` and `CreateInvoiceDto` | [ ] |
-| CP13 | Update `contract-form.tsx` — add product picker with `useFieldArray` | [ ] |
-| CP14 | Update `invoice-form.tsx` — require contractId, remove manual items, show contract-product preview | [ ] |
+| CP1 | Add `ContractProduct` model to Prisma schema + run migration | [x] |
+| CP2 | Add `contractProductId` FK to `InvoiceItem` | [x] |
+| CP3 | Create `contract-product.dto.ts` | [x] |
+| CP4 | Update `CreateContractDto` — require `products[]` (min 1) | [x] |
+| CP5 | Update `ContractsService.create()` — write products in transaction, validate product IDs | [x] |
+| CP6 | Add `GET/POST/DELETE /api/contracts/:id/products` sub-endpoints | [x] |
+| CP7 | Update `contracts.service.spec.ts` — fix fixtures, add product tests | [x] |
+| CP8 | Update `CreateInvoiceDto` — require `contractId`, remove `items` | [x] |
+| CP9 | Update `InvoicesService.create()` — fetch contract products, auto-generate items | [x] |
+| CP10 | Update `invoices.service.spec.ts` — fix fixtures, add auto-generation tests | [x] |
+| CP11 | Update `generate-test-data.ts` — include products in contract create payload | [x] |
+| CP12 | Update `models.ts` — add `ContractProduct`, `CreateContractProductDto`, update `Contract` and `CreateInvoiceDto` | [x] |
+| CP13 | Update `contract-form.tsx` — add product picker with `useFieldArray` | [x] |
+| CP14 | Update `invoice-form.tsx` — require contractId, remove manual items, show contract-product preview | [x] |
 
 ---
 
