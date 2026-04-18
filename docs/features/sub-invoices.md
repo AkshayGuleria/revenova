@@ -280,6 +280,76 @@ Invoices, sub-invoices, and invoice items **cannot be deleted or detached**. All
 
 ---
 
+## Frontend Implementation Plan
+
+> Planned: April 2026. Backend APIs fully implemented; no frontend exists yet.
+
+### New Files to Create
+
+| File | Purpose |
+|------|---------|
+| `app/lib/api/hooks/use-invoice-groups.ts` | TanStack Query hooks for invoice group CRUD |
+| `app/components/invoice-groups/invoice-group-form.tsx` | Create/edit form (account, name, groupType, code) |
+| `app/components/invoices/sub-invoice-form.tsx` | Simplified form — inherits accountId, auto-generates number |
+| `app/components/invoices/sub-invoices-table.tsx` | Sub-invoices list rendered on parent detail page |
+| `app/routes/invoice-groups._index.tsx` | List page with search + filter by account/type |
+| `app/routes/invoice-groups.new.tsx` | Create group route |
+| `app/routes/invoice-groups.$id.edit.tsx` | Edit group route (doubles as detail view) |
+| `app/routes/invoices.$id.sub-invoices.new.tsx` | Create sub-invoice under a specific parent |
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `app/types/models.ts` | Add `InvoiceGroup`, `InvoiceGroupType`; extend `Invoice` with `invoiceGroupId`, `invoiceGroup`, `subInvoiceCount`, `subInvoiceTotals` |
+| `app/lib/api/query-client.ts` | Add `invoiceGroups` query key namespace |
+| `app/lib/api/hooks/use-invoices.ts` | Add `useSubInvoices`, `useCreateSubInvoice` |
+| `app/routes/invoices.$id.tsx` | Add sub-invoices card (when parent) + parent breadcrumb (when child) |
+| `app/routes/invoices._index.tsx` | Add group filter, sub-invoice badge, top-level-only toggle |
+| `app/components/invoices/invoice-form.tsx` | Add optional Invoice Group select (filtered by selected account) |
+| `app/routes.ts` | Register 4 new routes |
+| `app/components/layout/sidebar.tsx` | Add Invoice Groups link under Invoices section |
+
+### Implementation Order
+
+```
+Step 1 — Types & hooks (no UI, no risk)
+Step 2 — Invoice Groups CRUD (independent feature, ship first)
+Step 3 — Parent invoice detail enhancements (sub-invoices card, group badge)
+Step 4 — Sub-invoice creation flow (invoices.$id.sub-invoices.new.tsx)
+Step 5 — Invoice list updates (filter, badge, toggle)
+```
+
+### UX Decisions
+
+| # | Decision | Recommendation |
+|---|----------|----------------|
+| A | Default list filter | Top-level only (`parentInvoiceId[null]=true`) — sub-invoices accessed via parent detail |
+| B | Invoice Groups navigation | Link in Invoices page header (defer sidebar refactor) |
+| C | Sub-invoice creation entry point | Only from parent detail page — backend nested endpoint enforces parent context |
+| D | Invoice Group on "New Invoice" form | Add optional field — backend `CreateInvoiceDto` accepts `invoiceGroupId` |
+
+### Frontend Task Tracker
+
+| ID | Task | Status |
+|----|------|--------|
+| FE1 | Add `InvoiceGroup` type, extend `Invoice` in `models.ts` | [x] |
+| FE2 | Add `invoiceGroups` query keys, create `use-invoice-groups.ts` | [x] |
+| FE3 | Add `useSubInvoices` + `useCreateSubInvoice` to `use-invoices.ts` | [x] |
+| FE4 | Build `invoice-group-form.tsx` component | [x] |
+| FE5 | Build `invoice-groups._index.tsx` list route | [x] |
+| FE6 | Build `invoice-groups.new.tsx` + `invoice-groups.$id.edit.tsx` | [x] |
+| FE7 | Add Invoice Groups to sidebar/navigation | [x] |
+| FE8 | Add sub-invoices card to `invoices.$id.tsx` | [x] |
+| FE9 | Add parent breadcrumb to sub-invoice detail pages | [x] |
+| FE10 | Build `sub-invoice-form.tsx` component | [x] |
+| FE11 | Build `invoices.$id.sub-invoices.new.tsx` route | [x] |
+| FE12 | Add group filter + sub-invoice badge to `invoices._index.tsx` | [x] |
+| FE13 | Add Invoice Group select to `invoice-form.tsx` | [ ] |
+| FE14 | Register all new routes in `routes.ts` | [x] |
+
+---
+
 ## Related Documents
 
 - [Invoices API Feature](./invoices.md)

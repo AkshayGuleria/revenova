@@ -245,17 +245,17 @@ export default function InvoiceDetailsRoute() {
         actions={
           <div className="flex gap-3">
             <Link to={`/invoices/${id}/edit`}>
-              <Button variant="outline">
+              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900">
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
             </Link>
-            <Button variant="outline">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900">
               <FileText className="mr-2 h-4 w-4" />
               Download PDF
             </Button>
             {invoice.status === "draft" && (
-              <Button>
+              <Button className="hover:scale-105 active:scale-95 transition-transform duration-200">
                 <Send className="mr-2 h-4 w-4" />
                 Send Invoice
               </Button>
