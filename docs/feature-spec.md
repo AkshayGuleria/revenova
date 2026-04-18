@@ -5,7 +5,7 @@ status: in_progress
 priority: high
 assignee: billman, habibi
 created: 2026-01-11
-updated: 2026-04-15
+updated: 2026-04-18
 dependencies: [api-layer]
 blocks: []
 type: backend
@@ -15,7 +15,7 @@ phase1_status: completed (enterprise accounts, contracts, products, invoices)
 phase2_status: completed (contract billing + hybrid scalability)
 phase3_status: completed (hierarchical accounts, consolidated billing)
 phase3_5_status: completed (product pricing enhancement — chargeType, category, setupFee)
-phase4_status: planned (purchase orders, credit management, sub-invoices)
+phase4_status: in_progress (sub-invoices + invoice groups: completed; purchase orders, credit management: planned)
 phase5_status: planned (analytics, renewal tracking, SLA adjustments)
 scalability: hybrid (cluster + worker threads + queues)
 ---
@@ -564,42 +564,42 @@ Full detail: [`docs/features/sub-invoices.md`](./features/sub-invoices.md)
 | ID | Task | Complexity | Status | Notes |
 |----|------|------------|--------|-------|
 | **Phase A: Database Schema** | | | | |
-| A1 | Create `InvoiceGroup` entity | Medium | planned | DEPARTMENT, COST_CENTER, LOCATION, CUSTOM |
-| A2 | Add Prisma self-referencing relationship for `parentInvoiceId` | Low | planned | Defines Invoice hierarchy |
-| A3 | Add `invoiceGroupId` FK to Invoice model | Low | planned | Links invoice to org group |
-| A4 | Add `groupType` enum | Low | planned | See InvoiceGroup entity |
-| A5 | Add `groupReference` field to InvoiceItem | Low | planned | Line-item org attribution |
-| A6 | Create database migration | Medium | planned | All schema changes |
-| A7 | Add index on `parentInvoiceId` | Low | planned | Efficient hierarchy queries |
+| A1 | Create `InvoiceGroup` entity | Medium | completed | DEPARTMENT, COST_CENTER, LOCATION, CUSTOM |
+| A2 | Add Prisma self-referencing relationship for `parentInvoiceId` | Low | completed | Defines Invoice hierarchy |
+| A3 | Add `invoiceGroupId` FK to Invoice model | Low | completed | Links invoice to org group |
+| A4 | Add `groupType` enum | Low | completed | See InvoiceGroup entity |
+| A5 | Add `groupReference` field to InvoiceItem | Low | completed | Line-item org attribution |
+| A6 | Create database migration | Medium | completed | All schema changes |
+| A7 | Add index on `parentInvoiceId` | Low | completed | Efficient hierarchy queries |
 | **Phase B: Invoice Group Management** | | | | |
-| B1 | `InvoiceGroup` service (CRUD) | Medium | planned | |
-| B2 | DTOs for invoice group create/update/query | Medium | planned | |
-| B3 | Invoice group controller + REST endpoints | Medium | planned | `/api/invoice-groups` |
-| B4 | Validate group uniqueness per account | Low | planned | |
-| B5 | Cascade behavior on group soft delete | Low | planned | |
+| B1 | `InvoiceGroup` service (CRUD) | Medium | completed | |
+| B2 | DTOs for invoice group create/update/query | Medium | completed | |
+| B3 | Invoice group controller + REST endpoints | Medium | completed | `/api/invoice-groups` |
+| B4 | Validate group uniqueness per account | Low | completed | |
+| B5 | Cascade behavior on group soft delete | Low | completed | |
 | **Phase C: Sub-Invoice Core Logic** | | | | |
-| C1 | Update Invoice service for parent-child support | Medium | planned | |
-| C2 | `createSubInvoice()` method | Medium | planned | Links to parent |
-| C3 | `getSubInvoices()` method | Low | planned | Children of a parent |
-| C4 | `getParentInvoice()` method | Low | planned | Parent of a child |
-| C5 | Sub-invoice number generation (`INV-001-A/B/C`) | Medium | planned | |
-| C6 | Rollup calculation (parent totals = sum of children) | Medium | planned | |
-| C7 | Validation: sub-invoice totals must match parent | Medium | planned | |
-| C8 | Cascade status updates (parent → children) | Medium | planned | Paying parent marks children paid |
+| C1 | Update Invoice service for parent-child support | Medium | completed | |
+| C2 | `createSubInvoice()` method | Medium | completed | Links to parent |
+| C3 | `getSubInvoices()` method | Low | completed | Children of a parent |
+| C4 | `getParentInvoice()` method | Low | completed | Parent of a child |
+| C5 | Sub-invoice number generation (`INV-001-A/B/C`) | Medium | completed | |
+| C6 | Rollup calculation (parent totals = sum of children) | Medium | completed | |
+| C7 | Validation: sub-invoice totals must match parent | Medium | completed | |
+| C8 | Cascade status updates (parent → children) | Medium | completed | Paying parent marks children paid |
 | **Phase D: Invoice Item Grouping** | | | | |
-| D1 | Add `groupReference` to InvoiceItem | Low | planned | |
+| D1 | Add `groupReference` to InvoiceItem | Low | completed | |
 | D2 | Grouping logic in invoice creation | Medium | planned | |
 | D3 | Move items between groups/sub-invoices endpoint | Medium | planned | |
 | D4 | Validation for item reassignment | Medium | planned | Amount consistency |
 | **Phase E: API Endpoints** | | | | |
-| E1 | `GET /api/invoices/:id/sub-invoices` | Low | planned | |
-| E2 | `POST /api/invoices/:id/sub-invoices` | Medium | planned | |
+| E1 | `GET /api/invoices/:id/sub-invoices` | Low | completed | |
+| E2 | `POST /api/invoices/:id/sub-invoices` | Medium | completed | |
 | E3 | `GET /api/invoices/:id/parent` | Low | planned | |
 | E4 | `POST /api/invoices/:id/split` | High | planned | Split by group |
 | E5 | `POST /api/invoices/:id/merge` | High | planned | Merge sub-invoices |
-| E6 | `parentInvoiceId[eq]` filter on list endpoint | Low | planned | |
+| E6 | `parentInvoiceId[eq]` filter on list endpoint | Low | completed | |
 | E7 | `includeSubInvoices` query param | Medium | planned | Nested response |
-| E8 | Invoice detail includes sub-invoice summary | Low | planned | |
+| E8 | Invoice detail includes sub-invoice summary | Low | completed | |
 | **Phase F: Consolidated Billing Integration** | | | | |
 | F1 | Update consolidated billing for parent + sub-invoices | High | planned | |
 | F2 | Strategy: sub-invoice per subsidiary account | Medium | planned | |
@@ -607,9 +607,9 @@ Full detail: [`docs/features/sub-invoices.md`](./features/sub-invoices.md)
 | F4 | `consolidationStrategy` param (FLAT, BY_ACCOUNT, BY_GROUP) | Medium | planned | |
 | F5 | Update billing processor for sub-invoice generation | Medium | planned | |
 | **Phase G: Testing** | | | | |
-| G1 | Unit tests for invoice group service | Medium | planned | |
-| G2 | Unit tests for sub-invoice creation/retrieval | Medium | planned | |
-| G3 | Unit tests for rollup calculations | Medium | planned | |
+| G1 | Unit tests for invoice group service | Medium | completed | |
+| G2 | Unit tests for sub-invoice creation/retrieval | Medium | completed | |
+| G3 | Unit tests for rollup calculations | Medium | completed | |
 | G4 | Integration tests for split/merge operations | High | planned | |
 | G5 | Integration tests for consolidated billing with sub-invoices | High | planned | |
 | G6 | E2E tests for complete sub-invoice workflows | High | planned | |

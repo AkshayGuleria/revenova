@@ -21,7 +21,7 @@
 
 A complete revenue management system designed for B2B SaaS companies selling to large enterprises. Handles multi-year contracts, hierarchical account structures, consolidated billing, and custom payment terms.
 
-**Current Status:** ✅ Phase 3 - Hierarchical Accounts & Consolidated Billing (COMPLETED)
+**Current Status:** Phase 4 In Progress — Sub-Invoices & Invoice Groups (COMPLETED), Purchase Orders + Credit Management (PLANNED)
 
 ### Key Features
 
@@ -105,7 +105,7 @@ Frontend runs at `http://localhost:5173` and connects to backend at `http://loca
 - ✅ Responsive layout with collapsible sidebar
 - ✅ Type-safe API integration with TanStack Query
 - ✅ Form validation with React Hook Form + Zod
-- 🚧 Invoice generation and tracking (in progress)
+- ✅ Invoice generation, sub-invoices, and invoice groups
 - 🚧 Billing operations dashboard (in progress)
 - ⚪ Analytics and reporting (Phase 5, planned)
 
@@ -199,7 +199,8 @@ revenova/
 | **Phase 1** | Foundation - Accounts, Contracts, Products, Invoices | ✅ Completed |
 | **Phase 2** | Contract Billing + Scalability (PM2, BullMQ, Workers) | ✅ Completed |
 | **Phase 3** | Hierarchical Accounts + Consolidated Billing | ✅ Completed |
-| **Phase 4** | Purchase Orders + Credit Management + Payments | ⚪ Planned |
+| **Phase 3.5** | Product Pricing Enhancement (chargeType, category, setupFee) | ✅ Completed |
+| **Phase 4** | Sub-Invoices + Invoice Groups + Purchase Orders + Credit Management | 🚧 In Progress |
 | **Phase 5** | Analytics + Renewal Tracking + Webhooks | ⚪ Planned |
 | **Phase 6+** | B2C Event-Based Billing | 🔵 Deferred |
 
@@ -459,4 +460,4 @@ UNLICENSED - Internal use only
 
 **Built with:** NestJS • Fastify • Prisma • PostgreSQL • TypeScript • SWC
 
-**Status:** ✅ Phases 1-3 Completed | Phase 4-5 Planned
+**Status:** ✅ Phases 1-3.5 + Phase 4 (Sub-Invoices) Completed | Phase 4 (POs, Credit) + Phase 5 Planned

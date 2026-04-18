@@ -1,8 +1,8 @@
 # Sub-Invoices Feature
 
-**Status:** Planned
+**Status:** Implemented
 **Phase:** Phase 4 — Enterprise Operations
-**Planned Start:** April 2026
+**Implementation Date:** April 2026
 **ADR Compliance:** [ADR-003: REST API Response Structure & Query Parameters](../adrs/003-rest-api-response-structure.md)
 
 ---
