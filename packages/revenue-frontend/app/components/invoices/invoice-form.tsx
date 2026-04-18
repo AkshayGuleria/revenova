@@ -61,9 +61,9 @@ const invoiceFormSchema = z.object({
   tax: z.coerce.number().min(0).default(0),
   discount: z.coerce.number().min(0).default(0),
 }).refine((data) => {
-  return new Date(data.dueDate) >= new Date(data.issueDate);
+  return new Date(data.dueDate) > new Date(data.issueDate);
 }, {
-  message: "Due date must be on or after the issue date",
+  message: "Due date must be after the issue date",
   path: ["dueDate"],
 }).refine((data) => {
   const subtotal = data.items.reduce(
@@ -239,6 +239,27 @@ export function InvoiceForm({
 
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const total = subtotal - data.discount + data.tax;
+
+    // On update (edit mode), omit read-only fields like invoiceNumber and accountId
+    // that the backend accepts but should not be changed after creation.
+    // The backend PATCH endpoint ignores items array updates; line item changes
+    // are managed separately via /invoices/:id/items endpoints.
+    if (invoice) {
+      const updatePayload = {
+        contractId: data.contractId || undefined,
+        issueDate: data.issueDate,
+        dueDate: data.dueDate,
+        status: data.status,
+        currency: data.currency || defaultCurrency,
+        notes: data.notes,
+        subtotal,
+        tax: data.tax,
+        discount: data.discount,
+        total,
+      };
+      onSubmit(updatePayload);
+      return;
+    }
 
     const invoiceData = {
       invoiceNumber: data.invoiceNumber,

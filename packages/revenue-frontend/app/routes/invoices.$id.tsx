@@ -12,10 +12,40 @@ import { StatusBadge } from "~/components/status-badge";
 import { DateDisplay } from "~/components/date-display";
 import { CurrencyDisplay } from "~/components/currency-display";
 import { DataTable, type Column } from "~/components/data-table";
-import { useInvoice } from "~/lib/api/hooks/use-invoices";
-import { Edit, FileText, Send, DollarSign } from "lucide-react";
-import type { InvoiceItem } from "~/types/models";
+import {
+  useInvoice,
+  useSubInvoices,
+} from "~/lib/api/hooks/use-invoices";
+import {
+  Edit,
+  FileText,
+  Send,
+  ChevronRight,
+  Plus,
+  Layers,
+} from "lucide-react";
+import type { InvoiceItem, Invoice } from "~/types/models";
+import { InvoiceGroupType } from "~/types/models";
 import { useConfigStore } from "~/lib/stores/config-store";
+
+const STATUS_COLOR_MAP: Record<
+  string,
+  "green" | "gray" | "yellow" | "red" | "blue"
+> = {
+  draft: "gray",
+  sent: "blue",
+  paid: "green",
+  overdue: "red",
+  cancelled: "gray",
+  void: "gray",
+};
+
+const GROUP_TYPE_LABELS: Record<InvoiceGroupType, string> = {
+  [InvoiceGroupType.DEPARTMENT]: "Department",
+  [InvoiceGroupType.COST_CENTER]: "Cost Center",
+  [InvoiceGroupType.LOCATION]: "Location",
+  [InvoiceGroupType.CUSTOM]: "Custom",
+};
 
 export default function InvoiceDetailsRoute() {
   const { id } = useParams<{ id: string }>();
@@ -25,16 +55,23 @@ export default function InvoiceDetailsRoute() {
 
   const invoice = data?.data;
 
-  const columns: Column<InvoiceItem>[] = [
+  const isParent = (invoice?.subInvoiceCount ?? 0) > 0;
+  const isSubInvoice = !!invoice?.parentInvoiceId;
+
+  // Sub-invoices query — only runs when this is a parent invoice
+  const { data: subInvoicesData, isLoading: subInvoicesLoading } =
+    useSubInvoices(id!, undefined);
+
+  const lineItemColumns: Column<InvoiceItem>[] = [
     {
       key: "description",
       header: "Description",
       cell: (item) => (
         <div>
           <div className="font-medium">{item.description}</div>
-          {item.productId && (
+          {(item as any).productId && (
             <div className="text-sm text-gray-500">
-              Product ID: {item.productId}
+              Product ID: {(item as any).productId}
             </div>
           )}
         </div>
@@ -59,9 +96,9 @@ export default function InvoiceDetailsRoute() {
       key: "discount",
       header: "Discount",
       cell: (item) =>
-        item.discountAmount ? (
+        (item as any).discountAmount ? (
           <CurrencyDisplay
-            amount={item.discountAmount}
+            amount={(item as any).discountAmount}
             currency={invoice?.currency || defaultCurrency}
           />
         ) : (
@@ -72,9 +109,9 @@ export default function InvoiceDetailsRoute() {
       key: "tax",
       header: "Tax",
       cell: (item) =>
-        item.taxAmount ? (
+        (item as any).taxAmount ? (
           <CurrencyDisplay
-            amount={item.taxAmount}
+            amount={(item as any).taxAmount}
             currency={invoice?.currency || defaultCurrency}
           />
         ) : (
@@ -86,8 +123,61 @@ export default function InvoiceDetailsRoute() {
       header: "Line Total",
       cell: (item) => (
         <CurrencyDisplay
-          amount={item.lineTotal}
+          amount={(item as any).lineTotal ?? item.amount}
           currency={invoice?.currency || defaultCurrency}
+        />
+      ),
+    },
+  ];
+
+  const subInvoiceColumns: Column<Invoice>[] = [
+    {
+      key: "invoiceNumber",
+      header: "Invoice #",
+      cell: (sub) => (
+        <Link
+          to={`/invoices/${sub.id}`}
+          className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          {sub.invoiceNumber}
+        </Link>
+      ),
+    },
+    {
+      key: "group",
+      header: "Group",
+      cell: (sub) =>
+        sub.invoiceGroup ? (
+          <StatusBadge
+            status={
+              GROUP_TYPE_LABELS[sub.invoiceGroup.groupType] ??
+              sub.invoiceGroup.groupType
+            }
+            color="blue"
+          />
+        ) : (
+          <span className="text-gray-400 text-sm">—</span>
+        ),
+    },
+    {
+      key: "issueDate",
+      header: "Issue Date",
+      cell: (sub) => <DateDisplay date={sub.issueDate} />,
+    },
+    {
+      key: "total",
+      header: "Total",
+      cell: (sub) => (
+        <CurrencyDisplay amount={sub.total} currency={sub.currency} />
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (sub) => (
+        <StatusBadge
+          status={sub.status}
+          color={STATUS_COLOR_MAP[sub.status] ?? "gray"}
         />
       ),
     },
@@ -113,37 +203,59 @@ export default function InvoiceDetailsRoute() {
     );
   }
 
-  const colorMap: Record<
-    string,
-    "green" | "gray" | "yellow" | "red" | "blue"
-  > = {
-    draft: "gray",
-    sent: "blue",
-    paid: "green",
-    overdue: "red",
-    cancelled: "gray",
-    void: "gray",
-  };
+  const subInvoices = Array.isArray(subInvoicesData?.data)
+    ? subInvoicesData.data
+    : [];
 
   return (
     <AppShell>
+      {/* Parent breadcrumb bar — shown when this is a sub-invoice */}
+      {isSubInvoice && (
+        <div className="mb-4 flex items-center gap-3 text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
+          <span className="text-blue-500 font-medium">Sub-invoice of</span>
+          <Link
+            to={`/invoices/${invoice.parentInvoiceId}`}
+            className="text-blue-700 font-semibold hover:underline flex items-center gap-1"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {invoice.parentInvoiceId}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+          {invoice.invoiceGroup && (
+            <>
+              <span className="text-gray-400">|</span>
+              <span className="text-gray-600">
+                Grouped under:
+              </span>
+              <StatusBadge
+                status={`${invoice.invoiceGroup.name} (${
+                  GROUP_TYPE_LABELS[invoice.invoiceGroup.groupType] ??
+                  invoice.invoiceGroup.groupType
+                })`}
+                color="blue"
+              />
+            </>
+          )}
+        </div>
+      )}
+
       <PageHeader
         title={`Invoice ${invoice.invoiceNumber}`}
         description={`Issued on ${new Date(invoice.issueDate).toLocaleDateString()}`}
         actions={
           <div className="flex gap-3">
             <Link to={`/invoices/${id}/edit`}>
-              <Button variant="outline">
+              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900">
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
             </Link>
-            <Button variant="outline">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900">
               <FileText className="mr-2 h-4 w-4" />
               Download PDF
             </Button>
             {invoice.status === "draft" && (
-              <Button>
+              <Button className="hover:scale-105 active:scale-95 transition-transform duration-200">
                 <Send className="mr-2 h-4 w-4" />
                 Send Invoice
               </Button>
@@ -172,12 +284,23 @@ export default function InvoiceDetailsRoute() {
                     {invoice.account.primaryContactEmail}
                   </p>
                 )}
-                {invoice.billingAddress && (
+                {(invoice as any).billingAddress && (
                   <p className="text-sm text-gray-600 whitespace-pre-line">
-                    {invoice.billingAddress}
+                    {(invoice as any).billingAddress}
                   </p>
                 )}
               </div>
+
+              {/* Invoice Group badge in header */}
+              {invoice.invoiceGroup && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-gray-400" />
+                  <StatusBadge
+                    status={`${invoice.invoiceGroup.name}${invoice.invoiceGroup.code ? ` · ${invoice.invoiceGroup.code}` : ""}`}
+                    color="blue"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -188,7 +311,7 @@ export default function InvoiceDetailsRoute() {
                 <div className="mt-1">
                   <StatusBadge
                     status={invoice.status}
-                    color={colorMap[invoice.status]}
+                    color={STATUS_COLOR_MAP[invoice.status]}
                   />
                 </div>
               </div>
@@ -259,7 +382,7 @@ export default function InvoiceDetailsRoute() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Line Items</h3>
           <DataTable
-            columns={columns}
+            columns={lineItemColumns}
             data={invoice.items || []}
             isLoading={false}
             emptyState={
@@ -281,24 +404,26 @@ export default function InvoiceDetailsRoute() {
               />
             </div>
 
-            {invoice.discountAmount > 0 && (
+            {((invoice as any).discountAmount ?? invoice.discount ?? 0) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Discount:</span>
                 <span className="text-green-600">
                   -
                   <CurrencyDisplay
-                    amount={invoice.discountAmount}
+                    amount={
+                      (invoice as any).discountAmount ?? invoice.discount ?? 0
+                    }
                     currency={invoice.currency}
                   />
                 </span>
               </div>
             )}
 
-            {invoice.taxAmount > 0 && (
+            {((invoice as any).taxAmount ?? invoice.tax ?? 0) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Tax:</span>
                 <CurrencyDisplay
-                  amount={invoice.taxAmount}
+                  amount={(invoice as any).taxAmount ?? invoice.tax ?? 0}
                   currency={invoice.currency}
                 />
               </div>
@@ -314,13 +439,15 @@ export default function InvoiceDetailsRoute() {
               />
             </div>
 
-            {invoice.amountPaid > 0 && (
+            {((invoice as any).amountPaid ?? invoice.paidAmount ?? 0) > 0 && (
               <>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Amount Paid:</span>
                   <span className="text-green-600">
                     <CurrencyDisplay
-                      amount={invoice.amountPaid}
+                      amount={
+                        (invoice as any).amountPaid ?? invoice.paidAmount ?? 0
+                      }
                       currency={invoice.currency}
                     />
                   </span>
@@ -329,7 +456,10 @@ export default function InvoiceDetailsRoute() {
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Balance Due:</span>
                   <CurrencyDisplay
-                    amount={invoice.total - invoice.amountPaid}
+                    amount={
+                      invoice.total -
+                      ((invoice as any).amountPaid ?? invoice.paidAmount ?? 0)
+                    }
                     currency={invoice.currency}
                   />
                 </div>
@@ -338,8 +468,63 @@ export default function InvoiceDetailsRoute() {
           </div>
         </Card>
 
+        {/* Sub-Invoices card — shown when this is a parent invoice */}
+        {isParent && (
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">
+                  Sub-Invoices
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({invoice.subInvoiceCount})
+                  </span>
+                </h3>
+                {invoice.subInvoiceTotals && (
+                  <div className="flex gap-6 mt-2 text-sm text-gray-600">
+                    <span>
+                      Total:{" "}
+                      <span className="font-semibold text-gray-900">
+                        {invoice.subInvoiceTotals.total}
+                      </span>
+                    </span>
+                    <span>
+                      Paid:{" "}
+                      <span className="font-semibold text-green-700">
+                        {invoice.subInvoiceTotals.paid}
+                      </span>
+                    </span>
+                    <span>
+                      Outstanding:{" "}
+                      <span className="font-semibold text-orange-700">
+                        {invoice.subInvoiceTotals.outstanding}
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Link to={`/invoices/${id}/sub-invoices/new`}>
+                <Button size="sm" className="hover:scale-105 active:scale-95 transition-transform duration-200">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Sub-Invoice
+                </Button>
+              </Link>
+            </div>
+
+            <DataTable
+              columns={subInvoiceColumns}
+              data={subInvoices}
+              isLoading={subInvoicesLoading}
+              emptyState={
+                <div className="text-center py-8 text-gray-500">
+                  No sub-invoices yet
+                </div>
+              }
+            />
+          </Card>
+        )}
+
         {/* Payment History */}
-        {invoice.amountPaid > 0 && (
+        {((invoice as any).amountPaid ?? invoice.paidAmount ?? 0) > 0 && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Payment History</h3>
             <div className="text-sm text-gray-500">
