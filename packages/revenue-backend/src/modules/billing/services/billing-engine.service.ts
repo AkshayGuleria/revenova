@@ -3,6 +3,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { InvoiceDryRunResult } from '../interfaces/dry-run.interface';
 
 export interface GenerateInvoiceParams {
   contractId: string;
@@ -77,7 +78,7 @@ export class BillingEngineService {
       );
     }
 
-    const amounts = await this.calculateInvoiceAmounts(
+    const amounts = await this.computeLineItems(
       contract,
       product,
       billingPeriod.start,
@@ -141,6 +142,83 @@ export class BillingEngineService {
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       total: invoice.total,
+    };
+  }
+
+  /**
+   * Preview invoice from contract without persisting anything to the database.
+   * Runs the full billing calculation pipeline and returns a dry-run result.
+   */
+  async previewInvoice(
+    params: GenerateInvoiceParams,
+  ): Promise<InvoiceDryRunResult> {
+    const { contractId, periodStart, periodEnd } = params;
+
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
+      include: {
+        account: true,
+        products: { include: { product: true } },
+      },
+    });
+
+    if (!contract) {
+      throw new NotFoundException(`Contract ${contractId} not found`);
+    }
+
+    if (contract.status !== 'active') {
+      throw new Error(`Contract ${contractId} is not active`);
+    }
+
+    const billingPeriod = this.calculateBillingPeriod(
+      contract,
+      periodStart,
+      periodEnd,
+    );
+
+    const product: BillableProduct | null = null;
+
+    if (
+      !this.shouldBillProduct(product, contract.startDate, billingPeriod.start)
+    ) {
+      throw new Error(
+        `Product billing skipped for period ${billingPeriod.start.toISOString()} ` +
+          `(usage_based, trial, or one_time after first period)`,
+      );
+    }
+
+    const amounts = await this.computeLineItems(
+      contract,
+      product,
+      billingPeriod.start,
+    );
+
+    const projectedInvoiceNumber = await this.generateInvoiceNumber();
+
+    const issueDate = new Date();
+    const projectedDueDate = this.calculateDueDate(
+      issueDate,
+      contract.account.paymentTermsDays,
+    );
+
+    return {
+      invoiceId: null,
+      projectedInvoiceNumber,
+      contractId: contract.id,
+      accountId: contract.accountId,
+      currency: contract.account.currency,
+      issueDate,
+      projectedDueDate,
+      periodStart: billingPeriod.start,
+      periodEnd: billingPeriod.end,
+      lineItems: amounts.lineItems,
+      subtotal: amounts.subtotal,
+      tax: amounts.tax,
+      discount: amounts.discount,
+      total: amounts.total,
+      billingType: 'recurring',
+      isDryRun: true,
+      computedAt: new Date().toISOString(),
     };
   }
 
@@ -246,7 +324,7 @@ export class BillingEngineService {
     return { start, end };
   }
 
-  private async calculateInvoiceAmounts(
+  async computeLineItems(
     contract: any,
     product: BillableProduct | null,
     periodStart: Date,

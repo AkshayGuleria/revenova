@@ -7,6 +7,7 @@ import {
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { ConsolidatedDryRunResult } from '../interfaces/dry-run.interface';
 
 export interface ConsolidatedInvoiceParams {
   parentAccountId: string;
@@ -234,6 +235,144 @@ export class ConsolidatedBillingService {
       invoiceNumber: invoice.invoiceNumber,
       total: invoice.total,
       subsidiariesIncluded: accountIds.length - 1, // Exclude parent
+    };
+  }
+
+  /**
+   * Preview consolidated invoice for parent account and all subsidiaries
+   * without persisting anything to the database. Skips credit hold check
+   * since this is a read-only operation.
+   */
+  async previewConsolidatedInvoice(
+    params: ConsolidatedInvoiceParams,
+  ): Promise<ConsolidatedDryRunResult> {
+    const {
+      parentAccountId,
+      periodStart,
+      periodEnd,
+      includeChildren = true,
+    } = params;
+
+    // Fetch parent account
+    const parentAccount = await this.prisma.account.findUnique({
+      where: { id: parentAccountId },
+    });
+
+    if (!parentAccount || parentAccount.deletedAt) {
+      throw new NotFoundException(
+        `Parent account ${parentAccountId} not found`,
+      );
+    }
+
+    // Note: creditHold check is intentionally skipped for dry run (read-only preview)
+
+    // Get all descendant accounts if requested
+    const accountIds = [parentAccountId];
+    if (includeChildren) {
+      const descendants = await this.getDescendantAccounts(parentAccountId);
+      accountIds.push(...descendants.map((acc) => acc.id));
+    }
+
+    // Collect all contracts for these accounts in the period
+    const contracts = await this.prisma.contract.findMany({
+      where: {
+        OR: [
+          { accountId: { in: accountIds } },
+          { shares: { some: { accountId: { in: accountIds } } } },
+        ],
+        status: 'active',
+        startDate: { lte: periodEnd },
+        endDate: { gte: periodStart },
+      },
+      include: {
+        account: {
+          select: {
+            id: true,
+            accountName: true,
+            billingContactName: true,
+            billingContactEmail: true,
+          },
+        },
+        shares: { select: { accountId: true } },
+        products: { include: { product: true } },
+      },
+    });
+
+    if (contracts.length === 0) {
+      throw new BadRequestException(
+        `No active contracts found for consolidated billing period`,
+      );
+    }
+
+    // Calculate total amounts across all contracts
+    const lineItems: Array<{
+      description: string;
+      quantity: Decimal;
+      unitPrice: Decimal;
+      amount: Decimal;
+      contractId: string;
+      contractNumber: string;
+      accountId: string;
+      accountName: string;
+    }> = [];
+    let subtotal = new Decimal(0);
+
+    for (const contract of contracts) {
+      const contractLineItems = await this.calculateContractLineItems(
+        contract,
+        periodStart,
+        periodEnd,
+      );
+
+      for (const item of contractLineItems) {
+        if (!item.amount.gt(0)) continue;
+        lineItems.push({
+          ...item,
+          contractId: contract.id,
+          contractNumber: contract.contractNumber,
+          accountId: contract.accountId,
+          accountName: contract.account.accountName,
+        });
+        subtotal = subtotal.add(item.amount);
+      }
+    }
+
+    if (lineItems.length === 0) {
+      throw new BadRequestException(
+        `No billable items found for the specified period`,
+      );
+    }
+
+    const tax = this.calculateTax(subtotal, parentAccount);
+    const discount = new Decimal(0);
+    const total = subtotal.add(tax).sub(discount);
+
+    const projectedInvoiceNumber = await this.generateInvoiceNumber();
+
+    const issueDate = new Date();
+    const projectedDueDate = this.calculateDueDate(
+      issueDate,
+      parentAccount.paymentTermsDays,
+    );
+
+    return {
+      invoiceId: null,
+      projectedInvoiceNumber,
+      parentAccountId,
+      currency: parentAccount.currency,
+      issueDate,
+      projectedDueDate,
+      periodStart,
+      periodEnd,
+      lineItems,
+      subtotal,
+      tax,
+      discount,
+      total,
+      accountsIncluded: accountIds,
+      subsidiariesIncluded: accountIds.length - 1,
+      isDryRun: true,
+      computedAt: new Date().toISOString(),
     };
   }
 
