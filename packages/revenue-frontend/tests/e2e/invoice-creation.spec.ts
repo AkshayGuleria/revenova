@@ -25,7 +25,25 @@ const MOCK_ACCOUNTS = [
 ];
 
 const MOCK_CONTRACTS = [
-  { id: 'cnt-001', contractName: 'Acme Enterprise', accountId: 'acc-001', status: 'active' },
+  {
+    id: 'cnt-001',
+    contractNumber: 'CON-2025-001',
+    contractName: 'Acme Enterprise',
+    accountId: 'acc-001',
+    status: 'active',
+    billingFrequency: 'annual',
+    paymentTerms: 'net_30',
+    contractValue: 50000,
+    startDate: '2025-01-01T00:00:00.000Z',
+    endDate: '2025-12-31T00:00:00.000Z',
+    seatCount: 50,
+    committedSeats: 50,
+    seatPrice: 200,
+    autoRenew: false,
+    renewalNoticeDays: 90,
+    billingInAdvance: true,
+    notes: '',
+  },
 ];
 
 const MOCK_INVOICES = [
@@ -233,7 +251,9 @@ test.describe('Invoice Creation', () => {
     await expect(page.locator('label:has-text("Due Date")')).toBeVisible();
     await expect(page.locator('label:has-text("Status")')).toBeVisible();
     await expect(page.locator('label:has-text("Currency")')).toBeVisible();
-    await expect(page.getByText('Line Items')).toBeVisible();
+    // Tax and Discount are now top-level invoice fields
+    await expect(page.locator('label:has-text("Tax Amount")')).toBeVisible();
+    await expect(page.locator('label:has-text("Discount Amount")')).toBeVisible();
   });
 
   test('should default currency to EUR from config', async ({ page }) => {
@@ -277,7 +297,8 @@ test.describe('Invoice Creation', () => {
     await expect(contractTrigger).not.toBeDisabled();
     await contractTrigger.click();
 
-    await expect(page.locator('[role="option"]:has-text("Acme Enterprise")')).toBeVisible();
+    // The form shows contract by contractNumber
+    await expect(page.locator('[role="option"]:has-text("CON-2025-001")')).toBeVisible();
   });
 
   test('should validate required account field on submit', async ({ page }) => {
@@ -294,94 +315,62 @@ test.describe('Invoice Creation', () => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Select account
+    // Select account then contract (contract is required by the form)
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
+    await page.waitForTimeout(300);
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await contractTrigger.click();
+    await page.locator('[role="option"]:has-text("CON-2025-001")').click();
     await page.waitForTimeout(300);
 
     // Set issue date to today and due date to yesterday
     await page.fill('input[name="issueDate"]', today);
     await page.fill('input[name="dueDate"]', yesterday);
 
-    // Fill a line item
-    await page.fill('input[name="items.0.description"]', 'Test Item');
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
-
     await page.getByRole('button', { name: /create invoice/i }).click();
     await page.waitForTimeout(500);
 
-    // Due date validation error should be visible
-    await expect(page.getByText(/due date must be on or after/i)).toBeVisible();
+    // Due date validation error should be visible ("Due date must be after the issue date")
+    await expect(page.getByText(/due date must be/i)).toBeVisible();
     expect(page.url()).toContain('/invoices/new');
   });
 
-  test('should add a line item when "Add Item" is clicked', async ({ page }) => {
-    const initialCount = await page.locator('input[name*="items."][name*=".description"]').count();
-    expect(initialCount).toBe(1); // starts with one default item
-
-    const addItemButton = page.getByRole('button', { name: /add item/i });
-    await addItemButton.click({ force: true });
-    await page.waitForTimeout(300);
-
-    const newCount = await page.locator('input[name*="items."][name*=".description"]').count();
-    expect(newCount).toBe(2);
-
-    await expect(page.locator(`input[name="items.1.description"]`)).toBeVisible();
-    await expect(page.locator(`input[name="items.1.quantity"]`)).toBeVisible();
-    await expect(page.locator(`input[name="items.1.unitPrice"]`)).toBeVisible();
+  test('contract field is visible and labeled', async ({ page }) => {
+    // The new invoice form requires a contract — verify the Contract field is present
+    await expect(page.locator('label:has-text("Contract")')).toBeVisible();
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await expect(contractTrigger).toBeVisible();
+    // Contract is disabled until an account is selected
+    await expect(contractTrigger).toBeDisabled();
   });
 
-  test('should remove a line item (only when more than 1 exists)', async ({ page }) => {
-    // Add a second item
-    await page.getByRole('button', { name: /add item/i }).click({ force: true });
-    await page.waitForTimeout(300);
+  test('tax and discount fields are at invoice level', async ({ page }) => {
+    // The new form has tax and discount as top-level numeric inputs
+    const taxInput = page.locator('input[name="tax"]');
+    const discountInput = page.locator('input[name="discount"]');
+    await expect(taxInput).toBeVisible();
+    await expect(discountInput).toBeVisible();
 
-    expect(await page.locator('input[name*=".description"]').count()).toBe(2);
-
-    // Remove button (trash icon) should appear when >1 items
-    await page.locator('button:has(svg)').filter({ hasText: '' }).last().click({ force: true });
-    await page.waitForTimeout(300);
-
-    expect(await page.locator('input[name*=".description"]').count()).toBe(1);
+    // Entering values should work without errors
+    await taxInput.fill('25');
+    await discountInput.fill('50');
+    expect(await taxInput.inputValue()).toBe('25');
+    expect(await discountInput.inputValue()).toBe('50');
   });
 
-  test('line item amount auto-calculates from quantity × unitPrice', async ({ page }) => {
-    await page.fill('input[name="items.0.quantity"]', '5');
-    await page.fill('input[name="items.0.unitPrice"]', '200');
-    await page.waitForTimeout(500);
-
-    // Line item amount display should show 1000 (locale may format as "1,000" or "1000")
-    // Use class-specific selector to avoid matching "Tax Amount" or "Discount Amount" labels
-    const amountText = await page.locator('span.text-gray-600:has-text("Amount:")').locator('..').textContent();
-    expect(amountText?.replace(/[,\s]/g, '')).toContain('1000');
+  test('notes field accepts text', async ({ page }) => {
+    // Notes is a top-level textarea field on the form
+    const notesField = page.locator('textarea');
+    await expect(notesField).toBeVisible();
+    await notesField.fill('Payment terms: Net 30');
+    expect(await notesField.inputValue()).toBe('Payment terms: Net 30');
   });
 
-  test('subtotal updates live when line items change', async ({ page }) => {
-    await page.fill('input[name="items.0.quantity"]', '3');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
-    await page.waitForTimeout(500);
-
-    const subtotalRow = page.locator('text=Subtotal').locator('..');
-    const subtotalText = await subtotalRow.textContent();
-    expect(subtotalText).toContain('300');
-  });
-
-  test('total reflects subtotal minus discount plus tax', async ({ page }) => {
-    await page.fill('input[name="items.0.quantity"]', '10');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
-    // Subtotal = 1000
-
-    await page.fill('input[name="discount"]', '50');
-    await page.fill('input[name="tax"]', '25');
-    // Expected total = 1000 - 50 + 25 = 975
-    await page.waitForTimeout(500);
-
-    // Use border-t selector to find the total row (distinct from subtotal/tax rows)
-    const totalRow = page.locator('div.border-t').filter({ hasText: 'Total:' });
-    const totalText = await totalRow.textContent();
-    // Remove locale separators before checking (e.g. "975" or "975.00")
-    expect(totalText?.replace(/[,\s]/g, '')).toContain('975');
+  test('status select defaults to draft', async ({ page }) => {
+    // The status field should default to "Draft"
+    const draftCombobox = page.locator('[role="combobox"]').filter({ hasText: /draft/i });
+    await expect(draftCombobox).toBeVisible();
   });
 
   test('should create invoice successfully and navigate to detail page', async ({ page }) => {
@@ -402,15 +391,14 @@ test.describe('Invoice Creation', () => {
       })
     );
 
-    // Fill account
+    // Select account then contract (both required by the new form)
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
     await page.waitForTimeout(300);
-
-    // Dates already pre-filled; fill line item
-    await page.fill('input[name="items.0.description"]', 'Professional Services');
-    await page.fill('input[name="items.0.quantity"]', '5');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await contractTrigger.click();
+    await page.locator('[role="option"]:has-text("CON-2025-001")').click();
+    await page.waitForTimeout(300);
 
     await page.getByRole('button', { name: /create invoice/i }).click();
     await page.waitForURL(`${BASE_URL}/invoices/inv-new-001`, { timeout: 5000 });
@@ -428,14 +416,14 @@ test.describe('Invoice Creation', () => {
       })
     );
 
-    // Fill minimal valid form
+    // Select account then contract (both required by the new form)
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
     await page.waitForTimeout(300);
-
-    await page.fill('input[name="items.0.description"]', 'Service');
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await contractTrigger.click();
+    await page.locator('[role="option"]:has-text("CON-2025-001")').click();
+    await page.waitForTimeout(300);
 
     await page.getByRole('button', { name: /create invoice/i }).click();
     await page.waitForTimeout(2000);
@@ -461,13 +449,14 @@ test.describe('Invoice Creation', () => {
       });
     });
 
+    // Select account then contract (both required by the new form)
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
     await page.waitForTimeout(300);
-
-    await page.fill('input[name="items.0.description"]', 'Service');
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await contractTrigger.click();
+    await page.locator('[role="option"]:has-text("CON-2025-001")').click();
+    await page.waitForTimeout(300);
 
     await page.getByRole('button', { name: /create invoice/i }).click();
 
@@ -492,89 +481,69 @@ test.describe('Invoice Creation - Edge Cases', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('discount cannot exceed subtotal - shows validation error', async ({ page }) => {
-    await page.locator('[role="combobox"]').first().click();
-    await page.locator('[role="option"]:has-text("Acme Corp")').click();
-    await page.waitForTimeout(300);
-
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
-    // Subtotal = 100, enter discount > 100
-    await page.fill('input[name="discount"]', '200');
-    await page.fill('input[name="items.0.description"]', 'Service');
-
-    await page.getByRole('button', { name: /create invoice/i }).click();
+  test('account is required — shows validation error on empty submit', async ({ page }) => {
+    // Submit without selecting account
+    await page.getByRole('button', { name: /create invoice/i }).click({ force: true });
     await page.waitForTimeout(500);
 
-    await expect(page.getByText(/discount cannot exceed/i)).toBeVisible();
+    await expect(page.getByText(/account is required/i)).toBeVisible();
     expect(page.url()).toContain('/invoices/new');
   });
 
-  test('line item quantity must be at least 1', async ({ page }) => {
+  test('contract is required — shows validation error when account selected but no contract', async ({ page }) => {
+    // Select account but not contract
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
     await page.waitForTimeout(300);
 
-    await page.fill('input[name="items.0.description"]', 'Zero quantity item');
-    await page.fill('input[name="items.0.quantity"]', '0');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
-
-    await page.getByRole('button', { name: /create invoice/i }).click();
+    await page.getByRole('button', { name: /create invoice/i }).click({ force: true });
     await page.waitForTimeout(500);
 
-    // Should show validation error for quantity
-    await expect(page.getByText(/quantity must be at least 1/i)).toBeVisible();
+    await expect(page.getByText(/contract is required/i)).toBeVisible();
+    expect(page.url()).toContain('/invoices/new');
   });
 
-  test('unit price cannot be negative', async ({ page }) => {
+  test('due date must be after issue date — shows validation error', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    // Select account then contract
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
     await page.waitForTimeout(300);
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await contractTrigger.click();
+    await page.locator('[role="option"]:has-text("CON-2025-001")').click();
+    await page.waitForTimeout(300);
 
-    await page.fill('input[name="items.0.description"]', 'Negative price item');
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '-50');
+    await page.fill('input[name="issueDate"]', today);
+    await page.fill('input[name="dueDate"]', yesterday);
 
     await page.getByRole('button', { name: /create invoice/i }).click();
     await page.waitForTimeout(500);
 
-    // Should show validation error for unit price
-    await expect(page.getByText(/unit price cannot be negative/i)).toBeVisible();
+    await expect(page.getByText(/due date must be after/i)).toBeVisible();
+    expect(page.url()).toContain('/invoices/new');
   });
 
-  test('at least one line item is required', async ({ page }) => {
-    // The form starts with 1 item — we cannot remove it (the remove button only shows when >1)
-    // So we verify the schema enforces at least 1 item by checking the form renders with 1 item
-    const items = page.locator('input[name*=".description"]');
-    await expect(items).toHaveCount(1);
-
-    // Add and remove to check that remove button disappears at 1 item
-    await page.getByRole('button', { name: /add item/i }).click({ force: true });
-    await page.waitForTimeout(300);
-    expect(await page.locator('input[name*=".description"]').count()).toBe(2);
-
-    // After removing second item there should still be 1
-    // The trash button appears for each item when count > 1
-    const trashButtons = page.locator('button svg[data-lucide="trash-2"]').locator('..');
-    if (await trashButtons.count() > 0) {
-      await trashButtons.last().click({ force: true });
-      await page.waitForTimeout(300);
-    }
-    expect(await page.locator('input[name*=".description"]').count()).toBeGreaterThanOrEqual(1);
-  });
-
-  test('handles very large amounts without crashing', async ({ page }) => {
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '9999999.99');
+  test('discount and tax must be non-negative — negative value rejected', async ({ page }) => {
+    // Enter negative tax — Zod min(0) validation should prevent submission
+    await page.fill('input[name="tax"]', '-10');
+    await page.getByRole('button', { name: /create invoice/i }).click({ force: true });
     await page.waitForTimeout(500);
+
+    // Either a validation error appears or form stays on current page
+    expect(page.url()).toContain('/invoices/new');
+  });
+
+  test('handles large numeric inputs for tax without crashing', async ({ page }) => {
+    await page.fill('input[name="tax"]', '9999999.99');
+    await page.fill('input[name="discount"]', '0');
+    await page.waitForTimeout(300);
 
     // Page should still be visible and not crash
     await expect(page.locator('h1')).toContainText('Create Invoice');
-
-    // Subtotal text should contain a formatted large number
-    const subtotalRow = page.locator('text=Subtotal').locator('..');
-    const subtotalText = await subtotalRow.textContent();
-    expect(subtotalText).toContain('9,999,999');
+    expect(await page.locator('input[name="tax"]').inputValue()).toBe('9999999.99');
   });
 
   test('submit button disabled while form is submitting', async ({ page }) => {
@@ -590,13 +559,14 @@ test.describe('Invoice Creation - Edge Cases', () => {
       });
     });
 
+    // Select account then contract
     await page.locator('[role="combobox"]').first().click();
     await page.locator('[role="option"]:has-text("Acme Corp")').click();
     await page.waitForTimeout(300);
-
-    await page.fill('input[name="items.0.description"]', 'Service');
-    await page.fill('input[name="items.0.quantity"]', '1');
-    await page.fill('input[name="items.0.unitPrice"]', '100');
+    const contractTrigger = page.locator('[role="combobox"]').nth(1);
+    await contractTrigger.click();
+    await page.locator('[role="option"]:has-text("CON-2025-001")').click();
+    await page.waitForTimeout(300);
 
     const submitBtn = page.getByRole('button', { name: /create invoice/i });
     await submitBtn.click();

@@ -231,6 +231,17 @@ test.describe('Contracts — List Page', () => {
 // Create Contract Form
 // ===========================================================================
 
+const MOCK_PRODUCT = {
+  id: 'prod-001',
+  name: 'Enterprise License',
+  sku: 'ENT-001',
+  pricingModel: 'seat_based',
+  basePrice: 200,
+  currency: 'EUR',
+  billingInterval: 'annual',
+  active: true,
+};
+
 test.describe('Contracts — Create Form', () => {
   test.beforeEach(async ({ page }) => {
     // arrange
@@ -242,6 +253,14 @@ test.describe('Contracts — Create Form', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ data: [MOCK_ACCOUNT], paging: LIST_PAGING(1) }),
+      })
+    );
+    // Products are required in create mode (the form requires at least one product)
+    await page.route('**/api/products**', (route: any) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [MOCK_PRODUCT], paging: LIST_PAGING(1) }),
       })
     );
     await page.goto(`${BASE_URL}/contracts/new`);
@@ -263,11 +282,12 @@ test.describe('Contracts — Create Form', () => {
   });
 
   test('section headings are visible', async ({ page }) => {
-    // assert
-    await expect(page.getByText('Basic Information')).toBeVisible();
-    await expect(page.getByText('Billing Configuration')).toBeVisible();
-    await expect(page.getByText('Seat-Based Pricing (Optional)')).toBeVisible();
-    await expect(page.getByText('Renewal Configuration')).toBeVisible();
+    // assert – use exact match to avoid matching page description text that
+    // also contains the words "billing configuration"
+    await expect(page.getByText('Basic Information', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Billing Configuration' })).toBeVisible();
+    await expect(page.getByText('Seat-Based Pricing (Optional)', { exact: true })).toBeVisible();
+    await expect(page.getByText('Renewal Configuration', { exact: true })).toBeVisible();
   });
 
   test('validation errors appear on empty submit', async ({ page }) => {
@@ -283,11 +303,11 @@ test.describe('Contracts — Create Form', () => {
     // act – open the Billing Frequency select
     await page.getByLabel('Billing Frequency').click();
 
-    // assert
-    await expect(page.getByRole('option', { name: 'Monthly' })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Quarterly' })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Semi-Annual' })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Annual' })).toBeVisible();
+    // assert – use exact: true to avoid "Annual" matching "Semi-Annual"
+    await expect(page.getByRole('option', { name: 'Monthly', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Quarterly', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Semi-Annual', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Annual', exact: true })).toBeVisible();
   });
 
   test('paymentTerms dropdown contains all options', async ({ page }) => {
@@ -350,6 +370,10 @@ test.describe('Contracts — Create Form', () => {
     await page.getByLabel('Start Date *').fill('2025-01-01');
     await page.getByLabel('End Date *').fill('2025-12-31');
     await page.getByLabel('Contract Value *').fill('120000');
+    // Select a product (required in create mode)
+    const productSelect = page.locator('[role="combobox"]').filter({ hasText: /select product/i });
+    await productSelect.click();
+    await page.getByRole('option', { name: /Enterprise License/i }).click();
     await page.getByRole('button', { name: 'Create Contract' }).click();
 
     // assert
@@ -380,6 +404,10 @@ test.describe('Contracts — Create Form', () => {
     await page.getByLabel('Start Date *').fill('2025-03-01');
     await page.getByLabel('End Date *').fill('2026-02-28');
     await page.getByLabel('Contract Value *').fill('50000');
+    // The create form requires at least one product – select one to allow submission
+    const productSelect = page.locator('[role="combobox"]').filter({ hasText: /select product/i });
+    await productSelect.click();
+    await page.getByRole('option', { name: /Enterprise License/i }).click();
     await page.getByRole('button', { name: 'Create Contract' }).click();
     await page.waitForTimeout(1000);
 
@@ -391,6 +419,8 @@ test.describe('Contracts — Create Form', () => {
     expect(requestBody).toHaveProperty('contractValue');
     expect(requestBody).toHaveProperty('billingFrequency');
     expect(requestBody).toHaveProperty('paymentTerms');
+    // products array must be present in create payload
+    expect(requestBody).toHaveProperty('products');
     // These old/incorrect names must NOT appear
     expect(requestBody).not.toHaveProperty('pricePerSeat');
     expect(requestBody).not.toHaveProperty('seatCount_v1');
@@ -515,7 +545,15 @@ test.describe('Contracts — Detail Page', () => {
   });
 
   test('contract not found shows 404 message', async ({ page }) => {
-    // arrange
+    // arrange – register a general fallback first, then the specific 404 last
+    // (Playwright uses last-registered-wins for overlapping globs)
+    await page.route('**/api/contracts**', (route: any) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [], paging: LIST_PAGING(0) }),
+      })
+    );
     await page.route('**/api/contracts/con-999', (route: any) =>
       route.fulfill({
         status: 404,
@@ -524,10 +562,9 @@ test.describe('Contracts — Detail Page', () => {
       })
     );
     await page.goto(`${BASE_URL}/contracts/con-999`);
-    await page.waitForLoadState('networkidle');
 
-    // assert
-    await expect(page.getByText('Contract not found')).toBeVisible();
+    // assert – allow up to 15 s for TanStack Query to exhaust retries and render the not-found UI
+    await expect(page.getByText('Contract not found')).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('link', { name: 'Back to Contracts' })).toBeVisible();
   });
 });
