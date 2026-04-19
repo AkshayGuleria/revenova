@@ -72,6 +72,7 @@ describe('BillingQueueService', () => {
         'generate-contract-invoice',
         jobData,
         {
+          jobId: 'contract-invoice_contract-123_2026-01-01_2026-03-31',
           removeOnComplete: { count: 100, age: 3600 },
           removeOnFail: false,
         },
@@ -349,6 +350,7 @@ describe('BillingQueueService', () => {
         'generate-consolidated-invoice',
         jobData,
         {
+          jobId: 'consolidated_parent-123_2026-01-01_2026-01-31',
           removeOnComplete: { count: 100, age: 3600 },
           removeOnFail: false,
         },

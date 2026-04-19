@@ -334,6 +334,8 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  periodStart?: string | null;
+  periodEnd?: string | null;
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;

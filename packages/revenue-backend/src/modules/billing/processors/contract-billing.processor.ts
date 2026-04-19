@@ -1,5 +1,5 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BillingEngineService } from '../services/billing-engine.service';
 import { QUEUE_NAMES, JOB_TYPES } from '../../../common/queues';
@@ -57,11 +57,25 @@ export class ContractBillingProcessor extends WorkerHost {
 
     this.logger.log(`Generating invoice for contract ${contractId}`);
 
-    const result = await this.billingEngine.generateInvoiceFromContract({
-      contractId,
-      periodStart: periodStart ? new Date(periodStart) : undefined,
-      periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-    });
+    let result: any;
+    try {
+      result = await this.billingEngine.generateInvoiceFromContract({
+        contractId,
+        periodStart: periodStart ? new Date(periodStart) : undefined,
+        periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        // Invoice already exists for this contract + period — not an error for
+        // the queue worker; treat as a successful no-op so the job completes
+        // instead of entering the failed/retry cycle.
+        this.logger.warn(
+          `Skipping duplicate invoice generation for contract ${contractId}: ${error.message}`,
+        );
+        return { skipped: true, reason: error.message };
+      }
+      throw error;
+    }
 
     this.logger.log(
       `Invoice ${result.invoiceNumber} generated for contract ${contractId}`,

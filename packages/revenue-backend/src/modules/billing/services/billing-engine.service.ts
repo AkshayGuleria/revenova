@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -90,38 +91,51 @@ export class BillingEngineService {
       contract.account.paymentTermsDays,
     );
 
-    const invoice = await this.prisma.$transaction(async (tx) => {
-      const newInvoice = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          accountId: contract.accountId,
-          contractId: contract.id,
-          issueDate,
-          dueDate,
-          periodStart: billingPeriod.start,
-          periodEnd: billingPeriod.end,
-          subtotal: amounts.subtotal,
-          tax: amounts.tax,
-          discount: amounts.discount,
-          total: amounts.total,
-          currency: contract.account.currency,
-          status: 'draft',
-          billingType: 'recurring',
-        },
-      });
+    let invoice: Awaited<ReturnType<typeof this.prisma.invoice.create>>;
+    try {
+      invoice = await this.prisma.$transaction(async (tx) => {
+        const newInvoice = await tx.invoice.create({
+          data: {
+            invoiceNumber,
+            accountId: contract.accountId,
+            contractId: contract.id,
+            issueDate,
+            dueDate,
+            periodStart: billingPeriod.start,
+            periodEnd: billingPeriod.end,
+            subtotal: amounts.subtotal,
+            tax: amounts.tax,
+            discount: amounts.discount,
+            total: amounts.total,
+            currency: contract.account.currency,
+            status: 'draft',
+            billingType: 'recurring',
+          },
+        });
 
-      await tx.invoiceItem.createMany({
-        data: amounts.lineItems.map((item) => ({
-          invoiceId: newInvoice.id,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          amount: item.amount,
-        })),
-      });
+        await tx.invoiceItem.createMany({
+          data: amounts.lineItems.map((item) => ({
+            invoiceId: newInvoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+          })),
+        });
 
-      return newInvoice;
-    });
+        return newInvoice;
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `An invoice already exists for contract ${contractId} for this billing period`,
+        );
+      }
+      throw error;
+    }
 
     return {
       invoiceId: invoice.id,
