@@ -1,13 +1,8 @@
-/**
- * Contract Form Component
- * Form for creating and editing contracts with validation
- */
-
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useFieldArray, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { FileText, CreditCard, Users, RefreshCw } from "lucide-react";
+import { FileText, CreditCard, Users, RefreshCw, Package, Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Form,
@@ -26,12 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import type { Contract, CreateContractDto, UpdateContractDto } from "~/types/models";
+import type { Account, Contract, CreateContractDto, Product, UpdateContractDto } from "~/types/models";
 import { ContractStatus, BillingFrequency, PaymentTerms } from "~/types/models";
 import { useAccounts } from "~/lib/api/hooks/use-accounts";
+import { useProducts } from "~/lib/api/hooks/use-products";
 import { useConfigStore } from "~/lib/stores/config-store";
 
-// Validation schema
+const contractProductSchema = z.object({
+  productId: z.string().min(1, "Product is required"),
+  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1").default(1),
+  unitPrice: z.coerce.number().min(0).optional(),
+  discount: z.coerce.number().min(0).max(1).optional(),
+});
+
 const contractFormSchema = z.object({
   contractNumber: z.string().min(1, "Contract number is required"),
   accountId: z.string().min(1, "Account is required"),
@@ -48,6 +50,7 @@ const contractFormSchema = z.object({
   renewalNoticeDays: z.coerce.number().int().positive().optional(),
   status: z.nativeEnum(ContractStatus).optional(),
   notes: z.string().optional(),
+  products: z.array(contractProductSchema).optional(),
 });
 
 type ContractFormValues = z.infer<typeof contractFormSchema>;
@@ -69,9 +72,11 @@ export function ContractForm({
 }: ContractFormProps) {
   const { defaultCurrency } = useConfigStore();
 
-  // Fetch accounts for selection
   const { data: accountsData } = useAccounts({ "limit[eq]": 100 });
-  const accounts = Array.isArray(accountsData?.data) ? accountsData.data : [];
+  const accounts = (accountsData?.data ?? []) as Account[];
+
+  const { data: productsData } = useProducts({ "limit[eq]": 100, "active[eq]": "true" });
+  const products = (productsData?.data ?? []) as Product[];
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(contractFormSchema) as Resolver<ContractFormValues>,
@@ -91,15 +96,39 @@ export function ContractForm({
       renewalNoticeDays: contract?.renewalNoticeDays || 90,
       status: contract?.status || ContractStatus.DRAFT,
       notes: contract?.notes || "",
+      products: mode === "create" ? [{ productId: "", quantity: 1 }] : [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "products",
   });
 
   const handleSubmit = (values: ContractFormValues) => {
     if (mode === "create") {
-      const { status, ...createData } = values;
-      onSubmit(createData as CreateContractDto);
+      const { status, products: productFields, ...rest } = values;
+      if (!productFields || productFields.length === 0) {
+        form.setError("products", { message: "At least one product is required" });
+        return;
+      }
+      const validProducts = productFields.filter((p) => p.productId);
+      if (validProducts.length === 0) {
+        form.setError("products", { message: "At least one product is required" });
+        return;
+      }
+      onSubmit({
+        ...rest,
+        products: validProducts.map((p) => ({
+          productId: p.productId,
+          quantity: p.quantity,
+          ...(p.unitPrice !== undefined && p.unitPrice > 0 ? { unitPrice: p.unitPrice } : {}),
+          ...(p.discount !== undefined && p.discount > 0 ? { discount: p.discount } : {}),
+        })),
+      } as CreateContractDto);
     } else {
-      onSubmit(values as UpdateContractDto);
+      const { products: _products, ...updateData } = values;
+      onSubmit(updateData as UpdateContractDto);
     }
   };
 
@@ -230,6 +259,158 @@ export function ContractForm({
             )}
           </div>
         </div>
+
+        {/* Products — create mode only */}
+        {mode === "create" && (
+          <div className="space-y-4 p-6 rounded-lg bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-teal-500 flex items-center justify-center">
+                  <Package className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Products *</h3>
+                  <p className="text-xs text-gray-500">Invoice line items will be auto-generated from these products</p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => append({ productId: "", quantity: 1 })}
+                className="border-teal-300 text-teal-700 hover:bg-teal-50"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Product
+              </Button>
+            </div>
+
+            {fields.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No products added. Click "Add Product" to include at least one product.
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {fields.map((field, index) => (
+                <div key={field.id} className="grid grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-teal-100">
+                  <div className="col-span-5">
+                    <FormField
+                      control={form.control}
+                      name={`products.${index}.productId`}
+                      render={({ field: f }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Product *</FormLabel>
+                          <Select onValueChange={f.onChange} value={f.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select product" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {products.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name}
+                                  {p.basePrice ? ` — ${p.currency} ${p.basePrice}` : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`products.${index}.quantity`}
+                      render={({ field: f }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Qty *</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" className="h-9" {...f} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`products.${index}.unitPrice`}
+                      render={({ field: f }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Price Override</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Base price"
+                              className="h-9"
+                              {...f}
+                              value={f.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`products.${index}.discount`}
+                      render={({ field: f }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Discount (0–1)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.01"
+                              placeholder="e.g. 0.1"
+                              className="h-9"
+                              {...f}
+                              value={f.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex justify-center pb-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      className="h-9 w-9 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {form.formState.errors.products && (
+              <p className="text-sm text-red-500">
+                {form.formState.errors.products.message ||
+                  form.formState.errors.products.root?.message}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Billing Configuration */}
         <div className="space-y-6 p-6 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100">

@@ -21,6 +21,8 @@ async function globalSetup() {
     // Delete in correct order (respecting foreign keys)
     await prisma.invoiceItem.deleteMany();
     await prisma.invoice.deleteMany();
+    await prisma.invoiceGroup.deleteMany();
+    await prisma.contractProduct.deleteMany();
     await prisma.contractShare.deleteMany();
     await prisma.contract.deleteMany();
     await prisma.product.deleteMany();

@@ -6,6 +6,7 @@ import {
   UpdateInvoiceDto,
   QueryInvoicesDto,
   CreateInvoiceItemDto,
+  CreateSubInvoiceDto,
 } from './dto';
 
 describe('InvoicesController', () => {
@@ -20,6 +21,8 @@ describe('InvoicesController', () => {
     remove: jest.fn(),
     addLineItem: jest.fn(),
     removeLineItem: jest.fn(),
+    getSubInvoices: jest.fn(),
+    createSubInvoice: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -48,10 +51,9 @@ describe('InvoicesController', () => {
       const dto: CreateInvoiceDto = {
         invoiceNumber: 'INV-001',
         accountId: 'account-123',
+        contractId: 'contract-123',
         issueDate: '2024-01-01',
         dueDate: '2024-01-31',
-        subtotal: 10000,
-        total: 10000,
       };
 
       const result = { data: { id: '123' }, paging: {} };
@@ -138,6 +140,49 @@ describe('InvoicesController', () => {
       await controller.removeLineItem(invoiceId, itemId);
       expect(service.removeLineItem).toHaveBeenCalledWith(invoiceId, itemId);
       expect(service.removeLineItem).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Sub-invoice endpoints
+  // ---------------------------------------------------------------------------
+
+  describe('getSubInvoices', () => {
+    it('should call service.getSubInvoices with parent id and query', async () => {
+      const parentId = 'parent-invoice-123';
+      const query: QueryInvoicesDto = {};
+      const result = {
+        data: [
+          { id: 'sub-1', invoiceNumber: 'INV-001-A', parentInvoiceId: parentId },
+        ],
+        paging: { offset: 0, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
+      };
+      mockInvoicesService.getSubInvoices.mockResolvedValue(result);
+
+      expect(await controller.getSubInvoices(parentId, query)).toBe(result);
+      expect(service.getSubInvoices).toHaveBeenCalledWith(parentId, query);
+      expect(service.getSubInvoices).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('createSubInvoice', () => {
+    it('should call service.createSubInvoice with parent id and dto', async () => {
+      const parentId = 'parent-invoice-123';
+      const dto: CreateSubInvoiceDto = {
+        subtotal: 5000,
+        tax: 400,
+        discount: 0,
+        total: 5400,
+      };
+      const result = {
+        data: { id: 'sub-1', invoiceNumber: 'INV-001-A', parentInvoiceId: parentId, ...dto },
+        paging: { offset: null, limit: null, total: null, totalPages: null, hasNext: null, hasPrev: null },
+      };
+      mockInvoicesService.createSubInvoice.mockResolvedValue(result);
+
+      expect(await controller.createSubInvoice(parentId, dto)).toBe(result);
+      expect(service.createSubInvoice).toHaveBeenCalledWith(parentId, dto);
+      expect(service.createSubInvoice).toHaveBeenCalledTimes(1);
     });
   });
 });

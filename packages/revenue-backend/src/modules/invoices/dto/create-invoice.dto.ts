@@ -6,12 +6,8 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
-  IsArray,
-  ValidateNested,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { CreateInvoiceItemDto } from './create-invoice-item.dto';
 
 export enum PaymentMode {
   PARENT_PAYS = 'PARENT_PAYS',
@@ -47,13 +43,12 @@ export class CreateInvoiceDto {
   @IsString()
   accountId: string;
 
-  @ApiPropertyOptional({
-    description: 'Contract ID (optional)',
+  @ApiProperty({
+    description: 'Contract ID (required — items are auto-generated from contract products)',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsOptional()
   @IsString()
-  contractId?: string;
+  contractId: string;
 
   @ApiPropertyOptional({
     description: 'Purchase order number',
@@ -93,16 +88,8 @@ export class CreateInvoiceDto {
   @IsDateString()
   periodEnd?: string;
 
-  @ApiProperty({
-    description: 'Subtotal amount (before tax and discount)',
-    example: 10000.0,
-  })
-  @IsNumber()
-  @Min(0)
-  subtotal: number;
-
   @ApiPropertyOptional({
-    description: 'Tax amount',
+    description: 'Tax amount (invoice-level adjustment)',
     example: 800.0,
     default: 0,
   })
@@ -112,7 +99,7 @@ export class CreateInvoiceDto {
   tax?: number;
 
   @ApiPropertyOptional({
-    description: 'Discount amount',
+    description: 'Discount amount (invoice-level adjustment)',
     example: 500.0,
     default: 0,
   })
@@ -121,18 +108,10 @@ export class CreateInvoiceDto {
   @Min(0)
   discount?: number;
 
-  @ApiProperty({
-    description: 'Total amount (subtotal + tax - discount)',
-    example: 10300.0,
-  })
-  @IsNumber()
-  @Min(0)
-  total: number;
-
   @ApiPropertyOptional({
     description: 'Currency code',
     example: 'USD',
-    default: 'USD',
+    default: 'EUR',
   })
   @IsOptional()
   @IsString()
@@ -222,16 +201,6 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   internalNotes?: string;
-
-  @ApiPropertyOptional({
-    description: 'Invoice line items',
-    type: [CreateInvoiceItemDto],
-  })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateInvoiceItemDto)
-  items?: CreateInvoiceItemDto[];
 
   @ApiPropertyOptional({
     description: 'Additional metadata as JSON',

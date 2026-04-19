@@ -4,6 +4,7 @@
  */
 
 import { useParams, Link } from "react-router";
+import { useState } from "react";
 import {
   Edit,
   FileText,
@@ -18,17 +19,271 @@ import {
   CheckCircle,
   AlertCircle,
   Receipt,
+  Package,
+  Plus,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "~/components/layout/app-shell";
 import { PageHeader } from "~/components/layout/page-header";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { PageLoader } from "~/components/page-loader";
 import { StatusBadge } from "~/components/status-badge";
 import { DateDisplay } from "~/components/date-display";
 import { CurrencyDisplay } from "~/components/currency-display";
-import { useContract } from "~/lib/api/hooks/use-contracts";
+import { useContract, useContractProducts, useAddContractProduct, useRemoveContractProduct } from "~/lib/api/hooks/use-contracts";
+import { useProducts } from "~/lib/api/hooks/use-products";
+import type { ContractProduct, Product } from "~/types/models";
+
+function ContractProductsTab({ contractId }: { contractId: string }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newProductId, setNewProductId] = useState("");
+  const [newQuantity, setNewQuantity] = useState("1");
+  const [newUnitPrice, setNewUnitPrice] = useState("");
+  const [newDiscount, setNewDiscount] = useState("");
+
+  const { data: cpData, isLoading: cpLoading } = useContractProducts(contractId);
+  const contractProducts = (cpData?.data ?? []) as ContractProduct[];
+
+  const { data: productsData } = useProducts({ "limit[eq]": 100, "active[eq]": "true" });
+  const allProducts = (productsData?.data ?? []) as Product[];
+
+  const addProduct = useAddContractProduct(contractId);
+  const removeProduct = useRemoveContractProduct(contractId);
+
+  const attachedProductIds = new Set(contractProducts.map((cp) => cp.productId));
+  const availableProducts = allProducts.filter((p) => !attachedProductIds.has(p.id));
+
+  const handleAdd = async () => {
+    if (!newProductId) return;
+    try {
+      await addProduct.mutateAsync({
+        productId: newProductId,
+        quantity: parseInt(newQuantity) || 1,
+        ...(newUnitPrice ? { unitPrice: parseFloat(newUnitPrice) } : {}),
+        ...(newDiscount ? { discount: parseFloat(newDiscount) } : {}),
+      });
+      toast.success("Product added to contract");
+      setShowAddForm(false);
+      setNewProductId("");
+      setNewQuantity("1");
+      setNewUnitPrice("");
+      setNewDiscount("");
+    } catch {
+      toast.error("Failed to add product");
+    }
+  };
+
+  const handleRemove = async (productId: string) => {
+    try {
+      await removeProduct.mutateAsync(productId);
+      toast.success("Product removed from contract");
+    } catch {
+      toast.error("Failed to remove product");
+    }
+  };
+
+  if (cpLoading) {
+    return <div className="text-center py-8 text-gray-500">Loading products...</div>;
+  }
+
+  return (
+    <Card className="overflow-hidden border-0 shadow-lg">
+      <div className="h-2 bg-gradient-to-r from-teal-500 to-cyan-600" />
+      <CardHeader className="bg-gradient-to-br from-teal-50 to-cyan-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-teal-500 flex items-center justify-center">
+              <Package className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-gray-900">Contract Products</CardTitle>
+              <CardDescription className="text-gray-600">
+                {contractProducts.length} product(s) — invoice items are auto-generated from these
+              </CardDescription>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-teal-300 text-teal-700 hover:bg-teal-50"
+            onClick={() => setShowAddForm((v) => !v)}
+            disabled={availableProducts.length === 0}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Product
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-6 space-y-4">
+        {/* Inline add form */}
+        {showAddForm && (
+          <div className="p-4 rounded-lg border-2 border-dashed border-teal-200 bg-teal-50/50 space-y-3">
+            <p className="text-sm font-semibold text-teal-800">Add product to contract</p>
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-5">
+                <Select value={newProductId} onValueChange={setNewProductId}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableProducts.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}{p.basePrice ? ` — ${p.currency} ${p.basePrice}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Qty"
+                  className="h-9"
+                  value={newQuantity}
+                  onChange={(e) => setNewQuantity(e.target.value)}
+                />
+              </div>
+              <div className="col-span-2">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Price override"
+                  className="h-9"
+                  value={newUnitPrice}
+                  onChange={(e) => setNewUnitPrice(e.target.value)}
+                />
+              </div>
+              <div className="col-span-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  placeholder="Discount (0–1)"
+                  className="h-9"
+                  value={newDiscount}
+                  onChange={(e) => setNewDiscount(e.target.value)}
+                />
+              </div>
+              <div className="col-span-1 flex gap-1">
+                <Button
+                  size="sm"
+                  className="h-9 w-9 p-0 bg-teal-600 hover:bg-teal-700"
+                  onClick={handleAdd}
+                  disabled={!newProductId || addProduct.isPending}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {contractProducts.length === 0 ? (
+          <div className="text-center py-10">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-teal-100 flex items-center justify-center">
+              <Package className="h-8 w-8 text-teal-400" />
+            </div>
+            <p className="text-sm font-semibold text-gray-700">No products attached</p>
+            <p className="text-xs text-gray-500 mt-1">Add products to enable invoice auto-generation</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-500">
+                  <th className="pb-3 font-medium">Product</th>
+                  <th className="pb-3 font-medium">Category</th>
+                  <th className="pb-3 font-medium text-right">Qty</th>
+                  <th className="pb-3 font-medium text-right">Unit Price</th>
+                  <th className="pb-3 font-medium text-right">Discount</th>
+                  <th className="pb-3 font-medium text-right">Line Total</th>
+                  <th className="pb-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {contractProducts.map((cp) => {
+                  const unitPrice = cp.unitPrice ?? cp.product?.basePrice ?? 0;
+                  const discount = Number(cp.discount ?? 0);
+                  const lineTotal = Number(unitPrice) * cp.quantity * (1 - discount);
+                  return (
+                    <tr key={cp.id} className="py-3 hover:bg-gray-50/50">
+                      <td className="py-3 pr-4">
+                        <p className="font-medium text-gray-900">{cp.product?.name ?? cp.productId}</p>
+                        {cp.unitPrice != null && (
+                          <p className="text-xs text-teal-600">Custom price</p>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-gray-500 capitalize text-xs">
+                        {cp.product?.category?.replace(/_/g, " ") ?? "—"}
+                      </td>
+                      <td className="py-3 pr-4 text-right font-medium">{cp.quantity}</td>
+                      <td className="py-3 pr-4 text-right">
+                        <CurrencyDisplay amount={Number(unitPrice)} />
+                        {cp.unitPrice == null && (
+                          <span className="text-xs text-gray-400 block">base price</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-right">
+                        {discount > 0 ? (
+                          <span className="text-green-600 font-medium">{(discount * 100).toFixed(0)}%</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-right font-semibold">
+                        <CurrencyDisplay amount={lineTotal} />
+                      </td>
+                      <td className="py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleRemove(cp.productId)}
+                          disabled={removeProduct.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t bg-gray-50/50">
+                  <td colSpan={5} className="pt-3 pl-1 text-sm font-semibold text-gray-600">Estimated subtotal</td>
+                  <td className="pt-3 pr-4 text-right font-bold text-gray-900">
+                    <CurrencyDisplay
+                      amount={contractProducts.reduce((sum, cp) => {
+                        const up = Number(cp.unitPrice ?? cp.product?.basePrice ?? 0);
+                        return sum + up * cp.quantity * (1 - Number(cp.discount ?? 0));
+                      }, 0)}
+                    />
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ContractDetailsRoute() {
   const params = useParams();
@@ -100,6 +355,9 @@ export default function ContractDetailsRoute() {
           </TabsTrigger>
           <TabsTrigger value="invoices" className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
             Invoices
+          </TabsTrigger>
+          <TabsTrigger value="products" className="data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700">
+            Products
           </TabsTrigger>
         </TabsList>
 
@@ -368,6 +626,10 @@ export default function ContractDetailsRoute() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="products">
+          <ContractProductsTab contractId={contractId} />
         </TabsContent>
       </Tabs>
     </AppShell>

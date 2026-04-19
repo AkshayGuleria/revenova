@@ -84,6 +84,7 @@ describe('ConsolidatedBillingService', () => {
           seatCount: 10,
           seatPrice: new Decimal(1000),
           account: { id: 'parent-id', accountName: 'Parent Corp' },
+          products: [],
         },
         {
           id: 'contract-2',
@@ -95,6 +96,7 @@ describe('ConsolidatedBillingService', () => {
           seatCount: 5,
           seatPrice: new Decimal(1000),
           account: { id: 'sub-1', accountName: 'Subsidiary 1' },
+          products: [],
         },
       ];
 
@@ -236,7 +238,8 @@ describe('ConsolidatedBillingService', () => {
           seatPrice: null,
           account: { id: 'parent-id', accountName: 'Parent Corp' },
           shares: [],
-        },
+          products: [],
+},
       ];
 
       jest
@@ -280,7 +283,8 @@ describe('ConsolidatedBillingService', () => {
           seatPrice: null,
           account: { id: 'parent-id', accountName: 'Parent Corp' },
           shares: [],
-        },
+          products: [],
+},
       ];
 
       const createdInvoice = {
@@ -388,7 +392,8 @@ describe('ConsolidatedBillingService', () => {
           seatPrice: new Decimal(500),
           account: { id: 'parent-id', accountName: 'Root Corp' },
           shares: [],
-        },
+          products: [],
+},
       ];
 
       const createdInvoice = {
@@ -453,7 +458,8 @@ describe('ConsolidatedBillingService', () => {
           seatPrice: null,
           account: { id: 'parent-id', accountName: 'Parent Corp' },
           shares: [],
-        },
+          products: [],
+},
       ];
 
       const createdInvoice = {
@@ -512,6 +518,7 @@ describe('ConsolidatedBillingService', () => {
           seatCount: 10,
           seatPrice: new Decimal(1000),
           account: { id: 'parent-id', accountName: 'Parent Corp' },
+          products: [],
         },
       ];
 

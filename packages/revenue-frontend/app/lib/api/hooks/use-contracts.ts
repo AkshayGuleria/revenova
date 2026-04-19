@@ -8,7 +8,9 @@ import { apiClient } from "../client";
 import { queryKeys } from "../query-client";
 import type {
   Contract,
+  ContractProduct,
   CreateContractDto,
+  CreateContractProductDto,
   UpdateContractDto,
   ContractShare,
   ShareContractDto,
@@ -154,6 +156,65 @@ export function useDeleteContract() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contracts.lists() });
+    },
+  });
+}
+
+/**
+ * Fetch products attached to a contract
+ */
+export function useContractProducts(contractId: string) {
+  return useQuery({
+    queryKey: queryKeys.contracts.products(contractId),
+    queryFn: async () => {
+      const response = await apiClient.get<ContractProduct[]>(
+        `/api/contracts/${contractId}/products`
+      );
+      return response;
+    },
+    enabled: !!contractId,
+  });
+}
+
+/**
+ * Add a product to a contract
+ */
+export function useAddContractProduct(contractId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateContractProductDto) => {
+      const response = await apiClient.post<ContractProduct>(
+        `/api/contracts/${contractId}/products`,
+        data
+      );
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.contracts.products(contractId),
+      });
+    },
+  });
+}
+
+/**
+ * Remove a product from a contract
+ */
+export function useRemoveContractProduct(contractId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (productId: string) => {
+      const response = await apiClient.delete<void>(
+        `/api/contracts/${contractId}/products/${productId}`
+      );
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.contracts.products(contractId),
+      });
     },
   });
 }

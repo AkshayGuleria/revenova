@@ -141,6 +141,27 @@ export interface AccountHierarchyNode {
 // CONTRACT TYPES
 // ============================================================================
 
+export interface ContractProduct {
+  id: string;
+  contractId: string;
+  productId: string;
+  quantity: number;
+  unitPrice?: number | null;
+  discount?: number | null;
+  billingInterval?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  product?: Product;
+}
+
+export interface CreateContractProductDto {
+  productId: string;
+  quantity?: number;
+  unitPrice?: number;
+  discount?: number;
+  billingInterval?: string;
+}
+
 export interface Contract {
   id: string;
   contractNumber: string;
@@ -175,6 +196,7 @@ export interface Contract {
 
   // Relations
   invoices?: Invoice[];
+  products?: ContractProduct[];
   _count?: {
     invoices: number;
   };
@@ -451,6 +473,7 @@ export interface CreateContractDto {
   renewalNoticeDays?: number;
   notes?: string;
   metadata?: Record<string, any>;
+  products: CreateContractProductDto[];
 }
 
 export interface UpdateContractDto extends Partial<CreateContractDto> {
@@ -484,30 +507,36 @@ export interface UpdateProductDto extends Partial<CreateProductDto> {}
 export interface CreateInvoiceDto {
   invoiceNumber: string;
   accountId: string;
-  contractId?: string;
+  contractId: string;
   issueDate: string;
   dueDate: string;
-  subtotal: number;
   tax?: number;
   discount?: number;
-  total: number;
   currency?: string;
   status?: InvoiceStatus;
   billingType?: BillingType;
-  purchaseOrderNumber?: string;
-  periodStart?: string;
-  periodEnd?: string;
-  consolidated?: boolean;
+  invoiceGroupId?: string;
   parentInvoiceId?: string;
   notes?: string;
   internalNotes?: string;
-  items?: CreateInvoiceItemDto[];
   metadata?: Record<string, any>;
 }
 
-export interface UpdateInvoiceDto extends Partial<CreateInvoiceDto> {
+export interface UpdateInvoiceDto {
+  contractId?: string;
+  issueDate?: string;
+  dueDate?: string;
+  status?: InvoiceStatus;
+  currency?: string;
+  notes?: string;
+  internalNotes?: string;
+  subtotal?: number;
+  tax?: number;
+  discount?: number;
+  total?: number;
   paidAmount?: number;
   paidDate?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface CreateInvoiceItemDto {

@@ -68,43 +68,45 @@ export function Header() {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-64 shadow-xl border-0 rounded-lg overflow-hidden"
+            className="w-64 shadow-xl border-0 rounded-lg p-0"
           >
-            {/* Header with gradient */}
-            <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/50">
-                  <User className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <div className="text-white font-bold text-base">
-                    {user?.name || "User"}
+            <div className="overflow-hidden rounded-lg">
+              {/* Header with gradient */}
+              <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/50">
+                    <User className="h-6 w-6 text-white" />
                   </div>
-                  <div className="text-purple-100 text-sm">
-                    {user?.email || "user@example.com"}
+                  <div>
+                    <div className="text-white font-bold text-base">
+                      {user?.name || "User"}
+                    </div>
+                    <div className="text-purple-100 text-sm">
+                      {user?.email || "user@example.com"}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Menu Items */}
-            <div className="p-2">
-              <DropdownMenuItem className="cursor-pointer rounded-md hover:bg-purple-50 focus:bg-purple-50 py-3 px-3">
-                <UserCircle className="mr-3 h-4 w-4 text-purple-600" />
-                <span className="font-medium">Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer rounded-md hover:bg-purple-50 focus:bg-purple-50 py-3 px-3">
-                <Settings className="mr-3 h-4 w-4 text-purple-600" />
-                <span className="font-medium">Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-2" />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="cursor-pointer rounded-md hover:bg-red-50 focus:bg-red-50 py-3 px-3 text-red-600"
-              >
-                <LogOut className="mr-3 h-4 w-4" />
-                <span className="font-medium">Logout</span>
-              </DropdownMenuItem>
+              {/* Menu Items */}
+              <div className="p-2">
+                <DropdownMenuItem className="cursor-pointer rounded-md hover:bg-purple-50 focus:bg-purple-50 py-3 px-3">
+                  <UserCircle className="mr-3 h-4 w-4 text-purple-600" />
+                  <span className="font-medium">Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer rounded-md hover:bg-purple-50 focus:bg-purple-50 py-3 px-3">
+                  <Settings className="mr-3 h-4 w-4 text-purple-600" />
+                  <span className="font-medium">Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="cursor-pointer rounded-md hover:bg-red-50 focus:bg-red-50 py-3 px-3 text-red-600"
+                >
+                  <LogOut className="mr-3 h-4 w-4" />
+                  <span className="font-medium">Logout</span>
+                </DropdownMenuItem>
+              </div>
             </div>
           </DropdownMenuContent>
         </DropdownMenu>

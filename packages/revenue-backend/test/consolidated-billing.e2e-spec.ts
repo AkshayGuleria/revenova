@@ -39,14 +39,17 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
   });
 
+  let sharedProductId: string;
+
   beforeEach(async () => {
     // Wait for any background jobs from previous tests to complete
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Clean up database
+    // Clean up database in FK-safe order
     await prisma.contractShare.deleteMany();
     await prisma.invoiceItem.deleteMany();
     await prisma.invoice.deleteMany();
+    await prisma.contractProduct.deleteMany();
     await prisma.contract.deleteMany();
     await prisma.account.deleteMany();
 
@@ -83,7 +86,7 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
       });
     child2Account = child2Response.body.data;
 
-    // Create product
+    // Create product (required for contract creation)
     const productResponse = await request(app.getHttpServer())
       .post('/api/products')
       .send({
@@ -93,8 +96,7 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
         currency: 'USD',
         active: true,
       });
-    // Store product for tests (referenced by product.id)
-    void productResponse.body.data;
+    sharedProductId = productResponse.body.data.id;
   });
 
   describe('Shared Contracts', () => {
@@ -112,6 +114,7 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
           seatCount: 100,
           seatPrice: 100,
           status: 'active',
+          products: [{ productId: sharedProductId, quantity: 100 }],
         });
       sharedContract = contractResponse.body.data;
     });
@@ -227,6 +230,7 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
           seatCount: 100,
           seatPrice: 100,
           status: 'active',
+          products: [{ productId: sharedProductId, quantity: 100 }],
         });
       // Store parent contract (not used in this test)
       void parentContractResponse.body.data;
@@ -243,6 +247,7 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
           seatCount: 50,
           seatPrice: 100,
           status: 'active',
+          products: [{ productId: sharedProductId, quantity: 50 }],
         });
       // Store child1 contract (not used in this test)
       void child1ContractResponse.body.data;
@@ -304,6 +309,7 @@ describe('Consolidated Billing & Shared Contracts (E2E)', () => {
           seatCount: 25,
           seatPrice: 100,
           status: 'active',
+          products: [{ productId: sharedProductId, quantity: 25 }],
         });
       const sharedContract = sharedContractResponse.body.data;
 

@@ -43,12 +43,19 @@ export class InvoicesService {
       periodStart,
       periodEnd,
       paidDate,
-      items,
+      tax,
+      discount,
       ...data
     } = createInvoiceDto;
+
     data.currency =
       data.currency ??
       this.configService.get<string>('DEFAULT_CURRENCY', 'EUR');
+
+    // contractId is required — guard at service layer as well
+    if (!contractId) {
+      throw new BadRequestException('contractId is required to create an invoice');
+    }
 
     // Validate account exists
     const account = await this.prisma.account.findUnique({
@@ -59,22 +66,32 @@ export class InvoicesService {
       throw new NotFoundException(`Account with ID ${accountId} not found`);
     }
 
-    // Validate contract exists if provided
-    if (contractId) {
-      const contract = await this.prisma.contract.findUnique({
-        where: { id: contractId },
-      });
+    // Fetch contract with its products
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
+      include: {
+        products: {
+          include: { product: true },
+        },
+      },
+    });
 
-      if (!contract) {
-        throw new NotFoundException(`Contract with ID ${contractId} not found`);
-      }
+    if (!contract) {
+      throw new NotFoundException(`Contract with ID ${contractId} not found`);
+    }
 
-      // Validate contract belongs to account
-      if (contract.accountId !== accountId) {
-        throw new BadRequestException(
-          'Contract does not belong to the specified account',
-        );
-      }
+    // Validate contract belongs to account
+    if (contract.accountId !== accountId) {
+      throw new BadRequestException(
+        'Contract does not belong to the specified account',
+      );
+    }
+
+    // Contract must have at least one product
+    if (!contract.products || contract.products.length === 0) {
+      throw new BadRequestException(
+        `Contract ${contractId} has no products. Attach at least one product before creating an invoice.`,
+      );
     }
 
     // Validate dates
@@ -97,37 +114,52 @@ export class InvoicesService {
       }
     }
 
-    // Validate amount calculations
-    const calculatedTotal =
-      data.subtotal + (data.tax || 0) - (data.discount || 0);
-    const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+    // Auto-generate invoice items from contract products
+    const items = contract.products.map((cp) => {
+      const unitPrice = cp.unitPrice != null ? Number(cp.unitPrice) : Number(cp.product.basePrice ?? 0);
+      const discountFraction = cp.discount != null ? cp.discount.toNumber() : 0;
+      const amount = unitPrice * cp.quantity * (1 - discountFraction);
+      return {
+        description: cp.product.name,
+        quantity: cp.quantity,
+        unitPrice,
+        amount,
+        contractProductId: cp.id,
+      };
+    });
 
-    if (Math.abs(calculatedTotal - data.total) > tolerance) {
-      throw new BadRequestException(
-        `Total amount ${data.total} does not match calculated total ${calculatedTotal.toFixed(2)} (subtotal + tax - discount)`,
-      );
-    }
+    // Compute subtotal as sum of item amounts
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+
+    // Apply invoice-level tax and discount to compute total
+    const taxAmount = tax ?? 0;
+    const discountAmount = discount ?? 0;
+    const total = subtotal + taxAmount - discountAmount;
 
     try {
-      const invoice = await this.prisma.invoice.create({
-        data: {
-          ...data,
-          accountId,
-          contractId,
-          issueDate: issue,
-          dueDate: due,
-          periodStart: periodStart ? new Date(periodStart) : undefined,
-          periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-          paidDate: paidDate ? new Date(paidDate) : undefined,
-          items: items
-            ? {
-                create: items,
-              }
-            : undefined,
-        },
-        include: {
-          items: true,
-        },
+      const invoice = await this.prisma.$transaction(async (tx) => {
+        return tx.invoice.create({
+          data: {
+            ...data,
+            accountId,
+            contractId,
+            issueDate: issue,
+            dueDate: due,
+            periodStart: periodStart ? new Date(periodStart) : undefined,
+            periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+            paidDate: paidDate ? new Date(paidDate) : undefined,
+            subtotal,
+            tax: taxAmount,
+            discount: discountAmount,
+            total,
+            items: {
+              create: items,
+            },
+          },
+          include: {
+            items: true,
+          },
+        });
       });
 
       return buildSingleResponse(invoice);
@@ -465,12 +497,8 @@ export class InvoicesService {
       periodStart,
       periodEnd,
       paidDate,
-      items, // Removed in this version, kept for DTO compatibility
       ...data
     } = updateInvoiceDto;
-
-    // Note: items field is extracted but not used (DTO compatibility)
-    void items;
 
     // Validate account if being updated
     if (accountId) {
@@ -528,7 +556,7 @@ export class InvoicesService {
       const updateData: any = { ...data };
 
       if (accountId) updateData.accountId = accountId;
-      if (contractId !== undefined) updateData.contractId = contractId;
+      if (contractId) updateData.contractId = contractId;
       if (issueDate) updateData.issueDate = new Date(issueDate);
       if (dueDate) updateData.dueDate = new Date(dueDate);
       if (periodStart) updateData.periodStart = new Date(periodStart);

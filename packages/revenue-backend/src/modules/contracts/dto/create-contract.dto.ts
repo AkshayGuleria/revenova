@@ -8,7 +8,12 @@ import {
   IsDateString,
   Min,
   IsEnum,
+  IsArray,
+  ArrayMinSize,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateContractProductDto } from './contract-product.dto';
 
 export enum BillingFrequency {
   MONTHLY = 'monthly',
@@ -155,4 +160,14 @@ export class CreateContractDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
+
+  @ApiProperty({
+    description: 'Products attached to this contract (min 1 required)',
+    type: [CreateContractProductDto],
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateContractProductDto)
+  products: CreateContractProductDto[];
 }

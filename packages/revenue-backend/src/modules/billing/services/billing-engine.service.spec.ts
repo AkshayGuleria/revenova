@@ -100,7 +100,10 @@ describe('BillingEngineService', () => {
 
       expect(mockPrismaService.contract.findUnique).toHaveBeenCalledWith({
         where: { id: 'invalid-id' },
-        include: { account: true },
+        include: {
+          account: true,
+          products: { include: { product: true } },
+        },
       });
     });
 

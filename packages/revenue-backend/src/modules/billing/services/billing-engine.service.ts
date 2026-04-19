@@ -42,7 +42,10 @@ export class BillingEngineService {
 
     const contract = await this.prisma.contract.findUnique({
       where: { id: contractId },
-      include: { account: true },
+      include: {
+        account: true,
+        products: { include: { product: true } },
+      },
     });
 
     if (!contract) {
@@ -243,8 +246,30 @@ export class BillingEngineService {
 
     let subtotal = new Decimal(0);
 
-    // Seat-based billing
-    if (contract.seatCount && contract.seatPrice) {
+    if (contract.products && contract.products.length > 0) {
+      // Contract products attached — bill from them
+      for (const cp of contract.products) {
+        const unitPrice =
+          cp.unitPrice != null
+            ? new Decimal(cp.unitPrice)
+            : new Decimal(cp.product.basePrice);
+        const discountRate =
+          cp.discount != null ? new Decimal(cp.discount) : new Decimal(0);
+        const amount = unitPrice
+          .mul(cp.quantity)
+          .mul(new Decimal(1).sub(discountRate));
+
+        lineItems.push({
+          description: cp.product.name,
+          quantity: new Decimal(cp.quantity),
+          unitPrice,
+          amount,
+        });
+
+        subtotal = subtotal.add(amount);
+      }
+    } else if (contract.seatCount && contract.seatPrice) {
+      // No products attached — fall back to seat-based billing
       const seatPricing = this.seatCalculator.calculateSeatPricing(
         contract.seatCount,
         contract.seatPrice,
@@ -260,6 +285,7 @@ export class BillingEngineService {
 
       subtotal = subtotal.add(seatPricing.subtotal);
     } else {
+      // No products, no seat pricing — fall back to contract value
       const periodAmount = this.calculatePeriodAmount(
         contract.contractValue,
         contract.billingFrequency,
