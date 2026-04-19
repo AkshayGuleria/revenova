@@ -31,7 +31,7 @@ export class BillingQueueService {
       {
         // Deterministic job ID (Layer 3 dedup): BullMQ silently drops a new
         // job if one with the same ID already exists in waiting/active state.
-        jobId: `contract-invoice:${data.contractId}:${data.periodStart ?? 'auto'}:${data.periodEnd ?? 'auto'}`,
+        jobId: `contract-invoice_${data.contractId}_${data.periodStart ?? 'auto'}_${data.periodEnd ?? 'auto'}`,
         removeOnComplete: { count: 100, age: 3600 },
         removeOnFail: false,
       },
@@ -78,7 +78,7 @@ export class BillingQueueService {
       {
         // Deterministic job ID (Layer 3 dedup): prevents duplicate consolidated
         // billing jobs for the same parent account + period from being enqueued.
-        jobId: `consolidated:${data.parentAccountId}:${data.periodStart}:${data.periodEnd}`,
+        jobId: `consolidated_${data.parentAccountId}_${data.periodStart}_${data.periodEnd}`,
         removeOnComplete: { count: 100, age: 3600 },
         removeOnFail: false,
       },
