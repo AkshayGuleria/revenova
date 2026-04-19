@@ -362,6 +362,8 @@ describe('Billing API (e2e)', () => {
         .post('/api/billing/generate')
         .send({
           contractId: testContractId,
+          periodStart: '2025-01-01',
+          periodEnd: '2025-03-31',
         })
         .expect(201);
 
@@ -398,6 +400,8 @@ describe('Billing API (e2e)', () => {
         .post('/api/billing/generate')
         .send({
           contractId: testContractId,
+          periodStart: '2025-04-01',
+          periodEnd: '2025-06-30',
         });
 
       const invoiceId = response.body.data.invoiceId;
@@ -421,12 +425,16 @@ describe('Billing API (e2e)', () => {
         .post('/api/billing/generate')
         .send({
           contractId: testContractId,
+          periodStart: '2025-07-01',
+          periodEnd: '2025-09-30',
         });
 
       const response2 = await request(app.getHttpServer())
         .post('/api/billing/generate')
         .send({
           contractId: testContractId,
+          periodStart: '2025-10-01',
+          periodEnd: '2025-12-31',
         });
 
       expect(response1.body.data.invoiceNumber).not.toBe(
