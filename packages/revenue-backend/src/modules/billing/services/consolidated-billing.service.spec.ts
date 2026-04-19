@@ -19,6 +19,7 @@ describe('ConsolidatedBillingService', () => {
     invoice: {
       create: jest.fn(),
       count: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
     },
     invoiceItem: {
       createMany: jest.fn(),
