@@ -707,6 +707,10 @@ export default function ContractDetailsRoute() {
         <TabsContent value="products">
           <ContractProductsTab contractId={contractId} />
         </TabsContent>
+
+        <TabsContent value="products">
+          <ContractProductsTab contractId={contractId} />
+        </TabsContent>
       </Tabs>
     </AppShell>
   );
