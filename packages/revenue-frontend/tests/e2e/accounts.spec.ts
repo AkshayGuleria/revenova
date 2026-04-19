@@ -235,7 +235,8 @@ test.describe('Accounts — Create Form', () => {
     await expect(page.getByLabel('Primary Contact Email *')).toBeVisible();
     await expect(page.getByLabel('Account Type *')).toBeVisible();
     await expect(page.getByLabel('Payment Terms')).toBeVisible();
-    await expect(page.getByLabel('Currency')).toBeVisible();
+    // CurrencySelect uses a Radix combobox – locate it by its visible value instead
+    await expect(page.locator('[role="combobox"]').filter({ hasText: 'EUR' })).toBeVisible();
   });
 
   test('section headings are visible', async ({ page }) => {
@@ -380,18 +381,20 @@ test.describe('Accounts — Detail Page', () => {
     await page.route('**/api/config', (route: any) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(EUR_CONFIG) })
     );
-    await page.route(`**/api/accounts/acc-001`, (route: any) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: MOCK_ACCOUNT, paging: NULL_PAGING }),
-      })
-    );
+    // Register the general list mock first, then the specific one last.
+    // Playwright uses last-registered-wins for overlapping glob patterns.
     await page.route('**/api/accounts**', (route: any) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ data: [MOCK_ACCOUNT, MOCK_ACCOUNT_2], paging: LIST_PAGING(2) }),
+      })
+    );
+    await page.route('**/api/accounts/acc-001', (route: any) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: MOCK_ACCOUNT, paging: NULL_PAGING }),
       })
     );
     await page.route('**/api/contracts**', (route: any) =>
@@ -460,7 +463,8 @@ test.describe('Accounts — Detail Page', () => {
   });
 
   test('account not found shows 404 message', async ({ page }) => {
-    // arrange
+    // arrange – register the 404 mock last so it wins over the general **/api/accounts** mock.
+    // The query client has retry:3 with exponential back-off, so we use a generous timeout.
     await page.route('**/api/accounts/acc-999', (route: any) =>
       route.fulfill({
         status: 404,
@@ -469,10 +473,9 @@ test.describe('Accounts — Detail Page', () => {
       })
     );
     await page.goto(`${BASE_URL}/accounts/acc-999`);
-    await page.waitForLoadState('networkidle');
 
-    // assert
-    await expect(page.getByText('Account not found')).toBeVisible();
+    // assert – allow up to 15 s for TanStack Query to exhaust retries and render the not-found UI
+    await expect(page.getByText('Account not found')).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('link', { name: 'Back to Accounts' })).toBeVisible();
   });
 });

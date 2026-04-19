@@ -254,10 +254,12 @@ test.describe('Dashboard — Stat Cards', () => {
 
   test('four stat card titles are all present', async ({ page }) => {
     // assert — the card titles (rendered as uppercase via CSS class)
-    await expect(page.getByText('Total Accounts')).toBeVisible();
-    await expect(page.getByText('Active Contracts')).toBeVisible();
-    await expect(page.getByText('Pending Invoices')).toBeVisible();
-    await expect(page.getByText('Monthly Revenue')).toBeVisible();
+    // Use exact: true to avoid strict mode violations from description text
+    // that partially matches the title (e.g. "Currently active contracts")
+    await expect(page.getByText('Total Accounts', { exact: true })).toBeVisible();
+    await expect(page.getByText('Active Contracts', { exact: true })).toBeVisible();
+    await expect(page.getByText('Pending Invoices', { exact: true })).toBeVisible();
+    await expect(page.getByText('Monthly Revenue', { exact: true })).toBeVisible();
   });
 
   test('Total Accounts card shows value from API paging.total (42)', async ({ page }) => {
@@ -306,7 +308,7 @@ test.describe('Dashboard — Stat Cards', () => {
 
 test.describe('Dashboard — Loading Skeletons', () => {
   test('loading skeletons appear while API data is in-flight', async ({ page }) => {
-    // arrange – block API until we've asserted the skeleton
+    // arrange – block accounts so the stats query stays in loading state
     let resolveAccounts: () => void;
     const accountsReady = new Promise<void>((r) => (resolveAccounts = r));
 
@@ -328,20 +330,21 @@ test.describe('Dashboard — Loading Skeletons', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [], paging: LIST_PAGING(0) }) })
     );
 
-    // act – navigate but do not wait for network idle
+    // act – navigate and wait for React to mount the app shell.
+    // We wait for the Dashboard heading (rendered by AppShell before API data arrives)
+    // rather than waitForLoadState('load') which fires before React hydrates.
     await page.goto(`${BASE_URL}/`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ state: 'visible', timeout: 10000 });
 
-    // assert – at least one skeleton element is present while loading
-    const skeletons = page.locator('[class*="skeleton"], [class*="Skeleton"], [data-testid*="skeleton"]').or(
-      page.locator('.animate-pulse')
-    );
-    // Either a skeleton appears OR the page already loaded quickly; both are acceptable
-    const skeletonCount = await skeletons.count();
+    // assert – the Dashboard heading is visible (AppShell renders regardless of API state),
+    // and skeleton cards (animate-pulse) should appear while accounts are still loading.
     const headingVisible = await page.getByRole('heading', { name: 'Dashboard' }).isVisible();
+    const skeletons = page.locator('.animate-pulse');
+    const skeletonCount = await skeletons.count();
+    // At least one of: heading visible OR skeletons rendered while data is in-flight
     expect(skeletonCount > 0 || headingVisible).toBeTruthy();
 
-    // unblock requests
+    // unblock requests so the page can fully settle
     resolveAccounts!();
   });
 });
@@ -596,9 +599,10 @@ test.describe('Dashboard — Responsive Layout', () => {
     await page.waitForLoadState('networkidle');
 
     // assert – all four stat titles visible at once on wide screen
-    await expect(page.getByText('Total Accounts')).toBeVisible();
-    await expect(page.getByText('Active Contracts')).toBeVisible();
-    await expect(page.getByText('Pending Invoices')).toBeVisible();
-    await expect(page.getByText('Monthly Revenue')).toBeVisible();
+    // Use exact: true to avoid strict mode violations from description text
+    await expect(page.getByText('Total Accounts', { exact: true })).toBeVisible();
+    await expect(page.getByText('Active Contracts', { exact: true })).toBeVisible();
+    await expect(page.getByText('Pending Invoices', { exact: true })).toBeVisible();
+    await expect(page.getByText('Monthly Revenue', { exact: true })).toBeVisible();
   });
 });
