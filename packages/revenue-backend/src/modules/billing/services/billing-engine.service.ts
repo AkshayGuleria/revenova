@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -90,38 +91,75 @@ export class BillingEngineService {
       contract.account.paymentTermsDays,
     );
 
-    const invoice = await this.prisma.$transaction(async (tx) => {
-      const newInvoice = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          accountId: contract.accountId,
-          contractId: contract.id,
-          issueDate,
-          dueDate,
-          periodStart: billingPeriod.start,
-          periodEnd: billingPeriod.end,
-          subtotal: amounts.subtotal,
-          tax: amounts.tax,
-          discount: amounts.discount,
-          total: amounts.total,
-          currency: contract.account.currency,
-          status: 'draft',
-          billingType: 'recurring',
-        },
-      });
-
-      await tx.invoiceItem.createMany({
-        data: amounts.lineItems.map((item) => ({
-          invoiceId: newInvoice.id,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          amount: item.amount,
-        })),
-      });
-
-      return newInvoice;
+    // Layer 2: Soft pre-check before attempting the DB write.
+    // The DB partial unique index (Layer 1) is the ultimate guard, but this
+    // gives a clear ConflictException with a human-readable message before we
+    // even start the transaction.
+    const existingInvoice = await this.prisma.invoice.findFirst({
+      where: {
+        contractId,
+        periodStart: billingPeriod.start,
+        periodEnd: billingPeriod.end,
+        status: { notIn: ['cancelled', 'void'] },
+      },
+      select: { id: true, invoiceNumber: true },
     });
+    if (existingInvoice) {
+      throw new ConflictException(
+        `Invoice ${existingInvoice.invoiceNumber} already exists for contract ${contractId} for this period`,
+      );
+    }
+
+    let invoice: Awaited<ReturnType<typeof this.prisma.invoice.create>>;
+    try {
+      invoice = await this.prisma.$transaction(async (tx) => {
+        const newInvoice = await tx.invoice.create({
+          data: {
+            invoiceNumber,
+            accountId: contract.accountId,
+            contractId: contract.id,
+            issueDate,
+            dueDate,
+            periodStart: billingPeriod.start,
+            periodEnd: billingPeriod.end,
+            subtotal: amounts.subtotal,
+            tax: amounts.tax,
+            discount: amounts.discount,
+            total: amounts.total,
+            currency: contract.account.currency,
+            status: 'draft',
+            billingType: 'recurring',
+          },
+        });
+
+        await tx.invoiceItem.createMany({
+          data: amounts.lineItems.map((item) => ({
+            invoiceId: newInvoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+            periodStart: billingPeriod.start,
+            periodEnd: billingPeriod.end,
+          })),
+        });
+
+        return newInvoice;
+      });
+    } catch (error) {
+      // Layer 2 (race condition path): if two requests slipped past the soft
+      // check simultaneously the DB partial unique index fires P2002 — surface
+      // it as a ConflictException rather than a 500.
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `An invoice already exists for contract ${contractId} for this billing period (concurrent request)`,
+        );
+      }
+      throw error;
+    }
 
     return {
       invoiceId: invoice.id,
