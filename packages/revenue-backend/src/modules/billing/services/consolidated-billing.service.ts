@@ -2,7 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -51,6 +53,24 @@ export class ConsolidatedBillingService {
     if (parentAccount.creditHold) {
       throw new BadRequestException(
         `Account ${parentAccountId} is on credit hold. Cannot generate invoice.`,
+      );
+    }
+
+    // Layer 2: soft pre-check — the DB partial unique index (Layer 1) is the
+    // ultimate guard but this surfaces a clear error before any heavy work.
+    const existingConsolidated = await this.prisma.invoice.findFirst({
+      where: {
+        accountId: parentAccountId,
+        periodStart,
+        periodEnd,
+        consolidated: true,
+        status: { notIn: ['cancelled', 'void'] },
+      },
+      select: { id: true, invoiceNumber: true },
+    });
+    if (existingConsolidated) {
+      throw new ConflictException(
+        `Consolidated invoice ${existingConsolidated.invoiceNumber} already exists for account ${parentAccountId} for this period`,
       );
     }
 
@@ -157,40 +177,57 @@ export class ConsolidatedBillingService {
     );
 
     // Create consolidated invoice
-    const invoice = await this.prisma.$transaction(async (tx) => {
-      const newInvoice = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          accountId: parentAccountId,
-          issueDate,
-          dueDate,
-          periodStart,
-          periodEnd,
-          subtotal,
-          tax,
-          discount,
-          total,
-          currency: parentAccount.currency,
-          status: 'draft',
-          billingType: 'recurring',
-          consolidated: true,
-          notes: `Consolidated invoice for ${accountIds.length} account(s)`,
-        },
-      });
+    let invoice: Awaited<ReturnType<typeof this.prisma.invoice.create>>;
+    try {
+      invoice = await this.prisma.$transaction(async (tx) => {
+        const newInvoice = await tx.invoice.create({
+          data: {
+            invoiceNumber,
+            accountId: parentAccountId,
+            issueDate,
+            dueDate,
+            periodStart,
+            periodEnd,
+            subtotal,
+            tax,
+            discount,
+            total,
+            currency: parentAccount.currency,
+            status: 'draft',
+            billingType: 'recurring',
+            consolidated: true,
+            notes: `Consolidated invoice for ${accountIds.length} account(s)`,
+          },
+        });
 
-      // Create invoice items
-      await tx.invoiceItem.createMany({
-        data: lineItems.map((item) => ({
-          invoiceId: newInvoice.id,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          amount: item.amount,
-        })),
-      });
+        // Create invoice items — include billing period on each line item
+        await tx.invoiceItem.createMany({
+          data: lineItems.map((item) => ({
+            invoiceId: newInvoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+            periodStart,
+            periodEnd,
+          })),
+        });
 
-      return newInvoice;
-    });
+        return newInvoice;
+      });
+    } catch (error) {
+      // Layer 2 (race condition path): concurrent requests that both pass the
+      // soft pre-check will hit the DB partial unique index → P2002.
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `A consolidated invoice already exists for account ${parentAccountId} for this billing period (concurrent request)`,
+        );
+      }
+      throw error;
+    }
 
     return {
       invoiceId: invoice.id,
