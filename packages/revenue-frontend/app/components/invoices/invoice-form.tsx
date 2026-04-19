@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -434,24 +435,38 @@ export function InvoiceForm({
                   <thead>
                     <tr className="border-b text-left text-gray-500">
                       <th className="pb-2 font-medium">Description</th>
+                      <th className="pb-2 font-medium">Billing Period</th>
                       <th className="pb-2 font-medium text-right">Qty</th>
                       <th className="pb-2 font-medium text-right">Unit Price</th>
                       <th className="pb-2 font-medium text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {invoice.items.map((item) => (
-                      <tr key={item.id} className="py-2">
-                        <td className="py-2">{item.description}</td>
-                        <td className="py-2 text-right">{item.quantity}</td>
-                        <td className="py-2 text-right">
-                          <CurrencyDisplay amount={Number(item.unitPrice)} currency={selectedCurrency} />
-                        </td>
-                        <td className="py-2 text-right font-medium">
-                          <CurrencyDisplay amount={Number(item.amount)} currency={selectedCurrency} />
-                        </td>
-                      </tr>
-                    ))}
+                    {invoice.items.map((item) => {
+                      const fmtDate = (d: string) => format(new Date(d), "MMM d, yyyy");
+                      const hasPeriod = !!(item.periodStart || item.periodEnd);
+                      return (
+                        <tr key={item.id} className="py-2">
+                          <td className="py-2">{item.description}</td>
+                          <td className="py-2 text-gray-600">
+                            {hasPeriod ? (
+                              <span className="tabular-nums text-xs">
+                                {item.periodStart ? fmtDate(item.periodStart) : "?"} – {item.periodEnd ? fmtDate(item.periodEnd) : "?"}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right">{item.quantity}</td>
+                          <td className="py-2 text-right">
+                            <CurrencyDisplay amount={Number(item.unitPrice)} currency={selectedCurrency} />
+                          </td>
+                          <td className="py-2 text-right font-medium">
+                            <CurrencyDisplay amount={Number(item.amount)} currency={selectedCurrency} />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

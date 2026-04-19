@@ -301,6 +301,10 @@ model InvoiceItem {
   groupReference      String?  @map("group_reference") // Links item to org unit (cost center code, dept code, etc.)
   contractProductId   String?  @map("contract_product_id")
 
+  // Billing period this line item covers
+  periodStart         DateTime? @map("period_start") @db.Date
+  periodEnd           DateTime? @map("period_end") @db.Date
+
   createdAt           DateTime @default(now()) @map("created_at")
 
   invoice             Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)

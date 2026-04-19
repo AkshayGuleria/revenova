@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../../../common/queues';
 import { ConsolidatedBillingService } from '../services/consolidated-billing.service';
@@ -28,10 +28,10 @@ export class ConsolidatedBillingProcessor extends WorkerHost {
       `Processing consolidated billing job ${job.id} for parent account ${job.data.parentAccountId}`,
     );
 
-    try {
-      const { parentAccountId, periodStart, periodEnd, includeChildren } =
-        job.data;
+    const { parentAccountId, periodStart, periodEnd, includeChildren } =
+      job.data;
 
+    try {
       // Generate consolidated invoice
       const result =
         await this.consolidatedBillingService.generateConsolidatedInvoice({
@@ -54,11 +54,20 @@ export class ConsolidatedBillingProcessor extends WorkerHost {
         subsidiariesIncluded: result.subsidiariesIncluded,
       };
     } catch (error) {
-      // In test environment, background jobs may fail due to test cleanup
-      // Only log errors in non-test environments to avoid confusing test output
+      if (error instanceof ConflictException) {
+        // Consolidated invoice already exists for this account + period —
+        // treat as a successful no-op so the job completes cleanly.
+        this.logger.warn(
+          `Skipping duplicate consolidated invoice for parent account ${parentAccountId}: ${error.message}`,
+        );
+        return { skipped: true, reason: error.message };
+      }
+
+      // In test environment, background jobs may fail due to test cleanup.
+      // Only log errors in non-test environments to avoid confusing test output.
       if (process.env.NODE_ENV !== 'test') {
         this.logger.error(
-          `Failed to generate consolidated invoice for parent account ${job.data.parentAccountId}: ${error.message}`,
+          `Failed to generate consolidated invoice for parent account ${parentAccountId}: ${error.message}`,
           error.stack,
         );
       }
