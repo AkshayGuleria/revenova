@@ -436,6 +436,195 @@ describe('ConsolidatedBillingService', () => {
       expect(findManyCallCount).toBe(5);
     });
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // previewConsolidatedInvoice (dry run)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    describe('previewConsolidatedInvoice', () => {
+      const periodStart = new Date('2026-01-01');
+      const periodEnd = new Date('2026-01-31');
+
+      const parentAccount = {
+        id: 'parent-id',
+        accountName: 'Parent Corp',
+        currency: 'USD',
+        paymentTermsDays: 30,
+        creditHold: false,
+        deletedAt: null,
+      };
+
+      const subsidiaries = [
+        { id: 'sub-1', accountName: 'Sub 1', parentAccountId: 'parent-id' },
+      ];
+
+      const contracts = [
+        {
+          id: 'contract-1',
+          contractNumber: 'CNT-001',
+          accountId: 'parent-id',
+          status: 'active',
+          contractValue: new Decimal(12000),
+          billingFrequency: 'monthly',
+          seatCount: 10,
+          seatPrice: new Decimal(200),
+          account: { id: 'parent-id', accountName: 'Parent Corp' },
+          shares: [],
+          products: [],
+        },
+      ];
+
+      it('should return isDryRun true and invoiceId null', async () => {
+        // Use direct mock replacement (same pattern as maxDepth test) to avoid
+        // spy-stacking issues with sequential mockResolvedValueOnce calls.
+        const originalFindUnique = mockPrismaService.account.findUnique;
+        const originalFindMany = mockPrismaService.account.findMany;
+        const originalContractFindMany = mockPrismaService.contract.findMany;
+        const originalInvoiceCount = mockPrismaService.invoice.count;
+
+        let accountFindManyCallCount = 0;
+        // Call 0 → subsidiaries (for parent-id), Call 1 → [] (for sub-1's children)
+        const accountFindManyResults: any[][] = [subsidiaries, []];
+
+        mockPrismaService.account.findUnique = jest.fn().mockResolvedValue(parentAccount);
+        mockPrismaService.account.findMany = jest.fn().mockImplementation(() => {
+          const r = accountFindManyResults[accountFindManyCallCount] ?? [];
+          accountFindManyCallCount++;
+          return Promise.resolve(r);
+        });
+        mockPrismaService.contract.findMany = jest.fn().mockResolvedValue(contracts);
+        mockPrismaService.invoice.count = jest.fn().mockResolvedValue(0);
+
+        const result = await service.previewConsolidatedInvoice({
+          parentAccountId: 'parent-id',
+          periodStart,
+          periodEnd,
+          includeChildren: true,
+        });
+
+        // Restore originals
+        mockPrismaService.account.findUnique = originalFindUnique;
+        mockPrismaService.account.findMany = originalFindMany;
+        mockPrismaService.contract.findMany = originalContractFindMany;
+        mockPrismaService.invoice.count = originalInvoiceCount;
+
+        expect(result.isDryRun).toBe(true);
+        expect(result.invoiceId).toBeNull();
+        expect(result.lineItems.length).toBeGreaterThan(0);
+        expect(result.subsidiariesIncluded).toBe(1); // one subsidiary
+      });
+
+      it('should NOT throw for an account on credit hold (dry run skips credit check)', async () => {
+        const creditHoldAccount = { ...parentAccount, creditHold: true };
+
+        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(creditHoldAccount as any);
+        jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]); // no descendants
+        jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(contracts as any);
+        jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
+
+        // Must NOT reject — credit hold is intentionally skipped for dry run
+        await expect(
+          service.previewConsolidatedInvoice({
+            parentAccountId: 'parent-id',
+            periodStart,
+            periodEnd,
+            includeChildren: false,
+          }),
+        ).resolves.not.toThrow();
+      });
+
+      it('should NOT call $transaction (no DB writes)', async () => {
+        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(parentAccount as any);
+        jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
+        jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(contracts as any);
+        jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
+
+        await service.previewConsolidatedInvoice({
+          parentAccountId: 'parent-id',
+          periodStart,
+          periodEnd,
+          includeChildren: false,
+        });
+
+        expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
+      });
+
+      it('should NOT call invoice.findFirst (no dedup check)', async () => {
+        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(parentAccount as any);
+        jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
+        jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(contracts as any);
+        jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
+
+        // Reset call count from beforeEach defaults
+        mockPrismaService.invoice.findFirst.mockClear();
+
+        await service.previewConsolidatedInvoice({
+          parentAccountId: 'parent-id',
+          periodStart,
+          periodEnd,
+          includeChildren: false,
+        });
+
+        expect(mockPrismaService.invoice.findFirst).not.toHaveBeenCalled();
+      });
+
+      it('should throw NotFoundException for unknown parent account', async () => {
+        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(null);
+
+        await expect(
+          service.previewConsolidatedInvoice({
+            parentAccountId: 'ghost-id',
+            periodStart,
+            periodEnd,
+          }),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('should include parent + descendant IDs in accountsIncluded', async () => {
+        const twoSubs = [
+          { id: 'sub-1', accountName: 'Sub 1', parentAccountId: 'parent-id' },
+          { id: 'sub-2', accountName: 'Sub 2', parentAccountId: 'parent-id' },
+        ];
+
+        const originalFindUnique = mockPrismaService.account.findUnique;
+        const originalFindMany = mockPrismaService.account.findMany;
+        const originalContractFindMany = mockPrismaService.contract.findMany;
+        const originalInvoiceCount = mockPrismaService.invoice.count;
+
+        let callCount = 0;
+        // Call 0 → twoSubs (children of parent)
+        // Call 1 → [] (children of sub-1)
+        // Call 2 → [] (children of sub-2)
+        const accountFindManyResults: any[][] = [twoSubs, [], []];
+
+        mockPrismaService.account.findUnique = jest.fn().mockResolvedValue(parentAccount);
+        mockPrismaService.account.findMany = jest.fn().mockImplementation(() => {
+          const r = accountFindManyResults[callCount] ?? [];
+          callCount++;
+          return Promise.resolve(r);
+        });
+        mockPrismaService.contract.findMany = jest.fn().mockResolvedValue(contracts);
+        mockPrismaService.invoice.count = jest.fn().mockResolvedValue(0);
+
+        const result = await service.previewConsolidatedInvoice({
+          parentAccountId: 'parent-id',
+          periodStart,
+          periodEnd,
+          includeChildren: true,
+        });
+
+        mockPrismaService.account.findUnique = originalFindUnique;
+        mockPrismaService.account.findMany = originalFindMany;
+        mockPrismaService.contract.findMany = originalContractFindMany;
+        mockPrismaService.invoice.count = originalInvoiceCount;
+
+        expect(result.accountsIncluded).toContain('parent-id');
+        expect(result.accountsIncluded).toContain('sub-1');
+        expect(result.accountsIncluded).toContain('sub-2');
+        expect(result.accountsIncluded).toHaveLength(3);
+        expect(result.subsidiariesIncluded).toBe(2);
+      });
+    });
+
     it('should handle quarterly billing frequency in calculateContractAmount', async () => {
       // This test exercises the `frequency === "quarterly"` branch (line 276)
       const parentAccount = {
