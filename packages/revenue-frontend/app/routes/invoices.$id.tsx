@@ -3,6 +3,7 @@
  */
 
 import { useParams, useNavigate, Link } from "react-router";
+import { format } from "date-fns";
 import { AppShell } from "~/components/layout/app-shell";
 import { PageHeader } from "~/components/layout/page-header";
 import { Button } from "~/components/ui/button";
@@ -117,6 +118,21 @@ export default function InvoiceDetailsRoute() {
         ) : (
           "-"
         ),
+    },
+    {
+      key: "billingPeriod",
+      header: "Billing Period",
+      cell: (item) => {
+        const start = item.periodStart;
+        const end = item.periodEnd;
+        if (!start && !end) return <span className="text-gray-400">—</span>;
+        const fmt = (d: string) => format(new Date(d), "MMM d, yyyy");
+        return (
+          <span className="text-sm tabular-nums">
+            {start ? fmt(start) : "?"} – {end ? fmt(end) : "?"}
+          </span>
+        );
+      },
     },
     {
       key: "lineTotal",

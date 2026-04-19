@@ -43,7 +43,114 @@ import { DateDisplay } from "~/components/date-display";
 import { CurrencyDisplay } from "~/components/currency-display";
 import { useContract, useContractProducts, useAddContractProduct, useRemoveContractProduct } from "~/lib/api/hooks/use-contracts";
 import { useProducts } from "~/lib/api/hooks/use-products";
-import type { ContractProduct, Product } from "~/types/models";
+import { useInvoices } from "~/lib/api/hooks/use-invoices";
+import type { ContractProduct, Invoice, Product } from "~/types/models";
+
+function ContractInvoicesTab({ contractId }: { contractId: string }) {
+  const { data, isLoading } = useInvoices({
+    "contractId[eq]": contractId,
+    "limit[eq]": 100,
+  });
+  const invoices = (data?.data ?? []) as Invoice[];
+  const total = data?.paging?.total ?? invoices.length;
+
+  const statusColorMap: Record<string, "green" | "gray" | "yellow" | "red" | "blue"> = {
+    draft: "gray",
+    sent: "blue",
+    paid: "green",
+    overdue: "red",
+    cancelled: "gray",
+    void: "gray",
+  };
+
+  return (
+    <Card className="overflow-hidden border-0 shadow-lg">
+      <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-600" />
+      <CardHeader className="bg-gradient-to-br from-purple-50 to-pink-50">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-purple-500 flex items-center justify-center">
+            <Receipt className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <CardTitle className="text-xl font-bold text-gray-900">Contract Invoices</CardTitle>
+            <CardDescription className="text-gray-600">
+              {isLoading ? "Loading…" : `${total} invoice${total !== 1 ? "s" : ""} for this contract`}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        {isLoading ? (
+          <div className="text-center py-8 text-gray-500">Loading invoices…</div>
+        ) : invoices.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-200 flex items-center justify-center">
+              <Receipt className="h-10 w-10 text-purple-400" />
+            </div>
+            <p className="text-lg font-semibold text-gray-900 mb-2">No Invoices Yet</p>
+            <p className="text-sm text-gray-600 mb-6">
+              Invoices will appear here once generated from this contract
+            </p>
+            <Link to="/billing/generate">
+              <Button className="hover:scale-105 active:scale-95 transition-transform duration-200">
+                Generate Invoice
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-500">
+                  <th className="pb-3 font-medium">Invoice #</th>
+                  <th className="pb-3 font-medium">Issue Date</th>
+                  <th className="pb-3 font-medium">Billing Period</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="py-3 hover:bg-gray-50/50 transition-colors">
+                    <td className="py-3 pr-4">
+                      <Link
+                        to={`/invoices/${inv.id}`}
+                        className="font-medium text-purple-700 hover:text-purple-900 hover:underline"
+                      >
+                        {inv.invoiceNumber}
+                      </Link>
+                    </td>
+                    <td className="py-3 pr-4 text-gray-700">
+                      <DateDisplay date={inv.issueDate} />
+                    </td>
+                    <td className="py-3 pr-4 text-gray-600">
+                      {inv.periodStart && inv.periodEnd ? (
+                        <span className="tabular-nums">
+                          <DateDisplay date={inv.periodStart} /> – <DateDisplay date={inv.periodEnd} />
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <StatusBadge
+                        status={inv.status}
+                        color={statusColorMap[inv.status] ?? "gray"}
+                      />
+                    </td>
+                    <td className="py-3 text-right font-semibold">
+                      <CurrencyDisplay amount={inv.total} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function ContractProductsTab({ contractId }: { contractId: string }) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -594,38 +701,7 @@ export default function ContractDetailsRoute() {
         </TabsContent>
 
         <TabsContent value="invoices">
-          <Card className="overflow-hidden border-0 shadow-lg">
-            <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-600" />
-            <CardHeader className="bg-gradient-to-br from-purple-50 to-pink-50">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-purple-500 flex items-center justify-center">
-                  <Receipt className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl font-bold text-gray-900">Contract Invoices</CardTitle>
-                  <CardDescription className="text-gray-600">
-                    {contract._count?.invoices || 0} invoice(s) generated from this contract
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="text-center py-12">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-200 flex items-center justify-center">
-                  <Receipt className="h-10 w-10 text-purple-400" />
-                </div>
-                <p className="text-lg font-semibold text-gray-900 mb-2">No Invoices Yet</p>
-                <p className="text-sm text-gray-600 mb-6">
-                  Invoices will appear here once generated from this contract
-                </p>
-                <Link to="/billing/generate">
-                  <Button className="hover:scale-105 active:scale-95 transition-transform duration-200">
-                    Generate Invoice
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+          <ContractInvoicesTab contractId={contractId} />
         </TabsContent>
 
         <TabsContent value="products">
