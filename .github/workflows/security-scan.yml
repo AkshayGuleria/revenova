@@ -188,7 +188,7 @@ jobs:
       - name: Generate SBOM
         run: |
           echo "📋 Generating Software Bill of Materials..."
-          npx @cyclonedx/cyclonedx-npm --output-file sbom.json
+          npx @cyclonedx/cyclonedx-npm --ignore-npm-errors --output-file sbom.json
           echo "✅ SBOM generated successfully"
 
       - name: Upload SBOM
