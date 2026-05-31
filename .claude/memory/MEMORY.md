@@ -23,9 +23,9 @@
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-05-31 13:38
+- **Last stop:** 2026-05-31 13:51
 - **Branch:** feature/tax-calculation
-- **Last commit:** 15ea93d feat: add tax rates and jurisdiction-based tax calculation
+- **Last commit:** 14e626f chore: sync session memory
 - **Modified files:**
 ```
 M .claude/memory/MEMORY.md
@@ -40,4 +40,9 @@ M .claude/memory/MEMORY.md
 - 2026-05-31 13:22 [8936b6aa] branch:feature/tax-calculation
 - 2026-05-31 13:28 [8936b6aa] branch:feature/tax-calculation
 - 2026-05-31 13:38 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:40 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:46 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:47 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:48 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:51 [8936b6aa] branch:feature/tax-calculation
 <!-- Appended by .claude/hooks/session-end.js on Stop -->
