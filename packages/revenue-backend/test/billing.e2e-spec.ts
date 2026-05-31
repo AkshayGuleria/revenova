@@ -356,6 +356,93 @@ describe('Billing API (e2e)', () => {
     });
   });
 
+  describe('Dry Run', () => {
+    describe('POST /billing/dry-run', () => {
+      it('should return 200 with correct dry-run shape', () => {
+        return request(app.getHttpServer())
+          .post('/api/billing/dry-run')
+          .send({ contractId: testContractId })
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('data');
+            expect(res.body.data.isDryRun).toBe(true);
+            expect(res.body.data.invoiceId).toBeNull();
+            expect(Array.isArray(res.body.data.lineItems)).toBe(true);
+            expect(res.body.data.lineItems.length).toBeGreaterThanOrEqual(1);
+            // Decimal serialises as string via JSON
+            expect(typeof res.body.data.total).toBe('string');
+            expect(res.body.data.total).toBe('30000');
+            expect(res.body).toHaveProperty('paging');
+          });
+      });
+
+      it('should NOT create an invoice in the database', async () => {
+        const beforeCount = await prisma.invoice.count({
+          where: { contractId: testContractId },
+        });
+
+        await request(app.getHttpServer())
+          .post('/api/billing/dry-run')
+          .send({
+            contractId: testContractId,
+            periodStart: '2027-01-01',
+            periodEnd: '2027-03-31',
+          })
+          .expect(200);
+
+        const afterCount = await prisma.invoice.count({
+          where: { contractId: testContractId },
+        });
+
+        expect(afterCount).toBe(beforeCount);
+      });
+
+      it('should return 400 for an invalid (non-UUID) contractId', () => {
+        return request(app.getHttpServer())
+          .post('/api/billing/dry-run')
+          .send({ contractId: 'not-a-valid-uuid' })
+          .expect(400);
+      });
+
+      it('should return 404 for a non-existent contractId', () => {
+        return request(app.getHttpServer())
+          .post('/api/billing/dry-run')
+          .send({ contractId: '00000000-0000-0000-0000-000000000000' })
+          .expect(404);
+      });
+    });
+
+    describe('POST /billing/consolidated/dry-run', () => {
+      it('should return 200 with isDryRun true for a known parent account', () => {
+        return request(app.getHttpServer())
+          .post('/api/billing/consolidated/dry-run')
+          .send({
+            parentAccountId: testAccountId,
+            periodStart: '2026-01-01',
+            periodEnd: '2026-01-31',
+          })
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('data');
+            expect(res.body.data.isDryRun).toBe(true);
+            expect(res.body.data.invoiceId).toBeNull();
+            expect(res.body).toHaveProperty('paging');
+          });
+      });
+
+      it('should return 400 for invalid (non-UUID) parentAccountId', () => {
+        return request(app.getHttpServer())
+          .post('/api/billing/consolidated/dry-run')
+          .send({
+            parentAccountId: 'bad-id',
+            periodStart: '2026-01-01',
+            periodEnd: '2026-01-31',
+          })
+          .expect(400);
+      });
+    });
+  });
+
   describe('Invoice Generation Verification', () => {
     it('should create invoice in database when generating synchronously', async () => {
       const response = await request(app.getHttpServer())

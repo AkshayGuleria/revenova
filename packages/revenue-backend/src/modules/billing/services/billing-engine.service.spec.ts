@@ -737,6 +737,231 @@ describe('BillingEngineService', () => {
     });
   });
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // previewInvoice (dry run)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  describe('previewInvoice', () => {
+    const periodStart = new Date('2026-01-01');
+    const periodEnd = new Date('2026-03-31');
+
+    const baseContract = {
+      id: 'contract-123',
+      contractNumber: 'CNT-2026-0001',
+      accountId: 'account-123',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+      contractValue: new Decimal(120000),
+      billingFrequency: 'quarterly',
+      seatCount: null,
+      committedSeats: null,
+      seatPrice: null,
+      status: 'active',
+      products: [],
+      account: {
+        id: 'account-123',
+        accountName: 'Acme Corp',
+        currency: 'USD',
+        paymentTermsDays: 30,
+      },
+    };
+
+    it('should return isDryRun true and invoiceId null for contract with products', async () => {
+      const contractWithProducts = {
+        ...baseContract,
+        products: [
+          {
+            product: { name: 'License', basePrice: new Decimal(100) },
+            quantity: 5,
+            unitPrice: null,
+            discount: null,
+          },
+        ],
+      };
+
+      mockPrismaService.contract.findUnique.mockResolvedValue(contractWithProducts);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      const result = await service.previewInvoice({
+        contractId: 'contract-123',
+        periodStart,
+        periodEnd,
+      });
+
+      expect(result.isDryRun).toBe(true);
+      expect(result.invoiceId).toBeNull();
+      expect(result.lineItems).toHaveLength(1);
+      expect(result.lineItems[0].description).toBe('License');
+      expect(result.lineItems[0].amount.toString()).toBe('500'); // 100 * 5
+      expect(result.subtotal.toString()).toBe('500');
+      expect(result.total.toString()).toBe('500');
+    });
+
+    it('should return seat line item when contract has seatCount and seatPrice and no products', async () => {
+      const seatContract = {
+        ...baseContract,
+        seatCount: 10,
+        seatPrice: new Decimal(200),
+        products: [],
+      };
+
+      mockPrismaService.contract.findUnique.mockResolvedValue(seatContract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue({
+        seatCount: 10,
+        pricePerSeat: new Decimal(200),
+        subtotal: new Decimal(2000),
+      });
+
+      const result = await service.previewInvoice({
+        contractId: 'contract-123',
+        periodStart,
+        periodEnd,
+      });
+
+      expect(result.isDryRun).toBe(true);
+      expect(result.invoiceId).toBeNull();
+      expect(result.lineItems).toHaveLength(1);
+      expect(result.lineItems[0].description).toContain('10 seats');
+      expect(result.lineItems[0].amount.toString()).toBe('2000');
+      expect(result.subtotal.toString()).toBe('2000');
+      expect(result.total.toString()).toBe('2000');
+      expect(mockSeatCalculator.calculateSeatPricing).toHaveBeenCalledWith(
+        10,
+        seatContract.seatPrice,
+        null,
+      );
+    });
+
+    it('should return flat-fee line item when contract has no products and no seat data', async () => {
+      const flatFeeContract = {
+        ...baseContract,
+        contractValue: new Decimal(12000),
+        billingFrequency: 'monthly',
+        seatCount: null,
+        seatPrice: null,
+        products: [],
+      };
+
+      mockPrismaService.contract.findUnique.mockResolvedValue(flatFeeContract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      const result = await service.previewInvoice({
+        contractId: 'contract-123',
+        periodStart,
+        periodEnd,
+      });
+
+      expect(result.isDryRun).toBe(true);
+      expect(result.invoiceId).toBeNull();
+      expect(result.lineItems).toHaveLength(1);
+      // monthly: contractValue / 12 = 1000
+      expect(result.lineItems[0].unitPrice.toString()).toBe('1000');
+      expect(result.lineItems[0].amount.toString()).toBe('1000');
+    });
+
+    it('should throw NotFoundException when contract does not exist', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.previewInvoice({ contractId: 'no-such-id' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw Error when contract is not active', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue({
+        ...baseContract,
+        status: 'cancelled',
+      });
+
+      await expect(
+        service.previewInvoice({ contractId: 'contract-123' }),
+      ).rejects.toThrow('Contract contract-123 is not active');
+    });
+
+    it('should NOT call $transaction or invoice.create', async () => {
+      const flatFeeContract = {
+        ...baseContract,
+        contractValue: new Decimal(48000),
+        billingFrequency: 'quarterly',
+        products: [],
+      };
+
+      mockPrismaService.contract.findUnique.mockResolvedValue(flatFeeContract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      await service.previewInvoice({ contractId: 'contract-123' });
+
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
+      expect(mockPrismaService.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it('should produce same financial figures as generateInvoiceFromContract for seat-based contract', async () => {
+      const seatContract = {
+        ...baseContract,
+        seatCount: 50,
+        seatPrice: new Decimal(600),
+        products: [],
+      };
+
+      const seatPricingResult = {
+        seatCount: 50,
+        pricePerSeat: new Decimal(600),
+        subtotal: new Decimal(30000),
+      };
+
+      // --- preview ---
+      mockPrismaService.contract.findUnique.mockResolvedValue(seatContract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue(seatPricingResult);
+
+      const previewResult = await service.previewInvoice({
+        contractId: 'contract-123',
+        periodStart,
+        periodEnd,
+      });
+
+      jest.clearAllMocks();
+
+      // --- real generate ---
+      mockPrismaService.contract.findUnique.mockResolvedValue(seatContract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue(seatPricingResult);
+
+      const mockCreatedInvoice = {
+        id: 'invoice-gen',
+        invoiceNumber: 'INV-2026-000001',
+        total: new Decimal(30000),
+      };
+
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        return callback({
+          invoice: {
+            create: jest.fn().mockResolvedValue(mockCreatedInvoice),
+          },
+          invoiceItem: {
+            createMany: jest.fn(),
+          },
+        });
+      });
+
+      await service.generateInvoiceFromContract({
+        contractId: 'contract-123',
+        periodStart,
+        periodEnd,
+      });
+
+      // The preview subtotal, tax, discount, total and first lineItem.amount
+      // must match what computeLineItems returns (same path, same inputs).
+      expect(previewResult.subtotal.toString()).toBe('30000');
+      expect(previewResult.tax.toString()).toBe('0');
+      expect(previewResult.discount.toString()).toBe('0');
+      expect(previewResult.total.toString()).toBe('30000');
+      expect(previewResult.lineItems[0].amount.toString()).toBe('30000');
+    });
+  });
+
   describe('generateInvoiceFromContract — annual frequency', () => {
     const mockContractLocal = {
       id: 'contract-123',

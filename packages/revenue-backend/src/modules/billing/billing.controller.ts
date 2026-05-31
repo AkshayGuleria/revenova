@@ -201,6 +201,83 @@ export class BillingController {
     };
   }
 
+  @Post('dry-run')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Preview invoice from contract (dry run — no DB writes)',
+    description:
+      'Runs the full billing calculation pipeline for a contract and returns a preview. ' +
+      'Nothing is written to the database. Returns 200 OK.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice preview computed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Contract not found',
+  })
+  async previewInvoice(@Body() dto: GenerateInvoiceDto) {
+    const periodStart = dto.periodStart ? new Date(dto.periodStart) : undefined;
+    const periodEnd = dto.periodEnd ? new Date(dto.periodEnd) : undefined;
+    const result = await this.billingEngine.previewInvoice({
+      contractId: dto.contractId,
+      periodStart,
+      periodEnd,
+    });
+    return {
+      data: result,
+      paging: {
+        offset: null,
+        limit: null,
+        total: null,
+        totalPages: null,
+        hasNext: null,
+        hasPrev: null,
+      },
+    };
+  }
+
+  @Post('consolidated/dry-run')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Preview consolidated invoice (dry run — no DB writes)',
+    description:
+      'Runs the full consolidated billing calculation for a parent account and returns a preview. ' +
+      'Nothing is written to the database. Credit hold is not enforced. Returns 200 OK.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Consolidated invoice preview computed successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'No billable items found',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Parent account not found',
+  })
+  async previewConsolidatedInvoice(@Body() dto: GenerateConsolidatedInvoiceDto) {
+    const result = await this.consolidatedBilling.previewConsolidatedInvoice({
+      parentAccountId: dto.parentAccountId,
+      periodStart: new Date(dto.periodStart),
+      periodEnd: new Date(dto.periodEnd),
+      includeChildren: dto.includeChildren ?? true,
+    });
+    return {
+      data: result,
+      paging: {
+        offset: null,
+        limit: null,
+        total: null,
+        totalPages: null,
+        hasNext: null,
+        hasPrev: null,
+      },
+    };
+  }
+
   @Post('consolidated')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
