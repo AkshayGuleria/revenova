@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsPositive, IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsIn,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CalculateTaxDto {
@@ -13,13 +20,19 @@ export class CalculateTaxDto {
   @IsString()
   jurisdiction: string;
 
-  @ApiPropertyOptional({ enum: ['VAT', 'GST', 'SALES_TAX', 'WHT'], example: 'VAT' })
+  @ApiPropertyOptional({
+    enum: ['VAT', 'GST', 'SALES_TAX', 'WHT'],
+    example: 'VAT',
+  })
   @IsOptional()
   @IsString()
   @IsIn(['VAT', 'GST', 'SALES_TAX', 'WHT'])
   taxType?: string;
 
-  @ApiPropertyOptional({ example: '2026-05-30', description: 'Look up rate effective on this date (defaults to today)' })
+  @ApiPropertyOptional({
+    example: '2026-05-30',
+    description: 'Look up rate effective on this date (defaults to today)',
+  })
   @IsOptional()
   @IsDateString()
   date?: string;

@@ -66,8 +66,7 @@ describe('AuditLogService', () => {
         action: 'updated',
       });
 
-      const callData =
-        mockPrismaService.auditLog.create.mock.calls[0][0].data;
+      const callData = mockPrismaService.auditLog.create.mock.calls[0][0].data;
       expect(callData.actorType).toBe('system');
       expect(callData.actorId).toBeNull();
       expect(callData.changes).toBeNull();
@@ -79,8 +78,18 @@ describe('AuditLogService', () => {
   describe('findAll', () => {
     it('should return a paginated list with correct paging metadata', async () => {
       const fakeLogs = [
-        { id: 'log-1', entityType: 'invoice', entityId: 'inv-1', action: 'created' },
-        { id: 'log-2', entityType: 'invoice', entityId: 'inv-2', action: 'paid' },
+        {
+          id: 'log-1',
+          entityType: 'invoice',
+          entityId: 'inv-1',
+          action: 'created',
+        },
+        {
+          id: 'log-2',
+          entityType: 'invoice',
+          entityId: 'inv-2',
+          action: 'paid',
+        },
       ];
       mockPrismaService.auditLog.findMany.mockResolvedValue(fakeLogs);
       mockPrismaService.auditLog.count.mockResolvedValue(2);

@@ -52,7 +52,11 @@ describe('ExchangeRatesService', () => {
         effectiveDate: '2026-05-31',
       });
 
-      expect(result.data).toMatchObject({ fromCurrency: 'USD', toCurrency: 'EUR', rate: 0.921543 });
+      expect(result.data).toMatchObject({
+        fromCurrency: 'USD',
+        toCurrency: 'EUR',
+        rate: 0.921543,
+      });
       expect(result.paging.offset).toBeNull();
     });
 
@@ -66,7 +70,13 @@ describe('ExchangeRatesService', () => {
         source: 'ecb',
       });
 
-      await service.upsert({ fromCurrency: 'GBP', toCurrency: 'USD', rate: 1.27, effectiveDate: '2026-05-31', source: 'ecb' });
+      await service.upsert({
+        fromCurrency: 'GBP',
+        toCurrency: 'USD',
+        rate: 1.27,
+        effectiveDate: '2026-05-31',
+        source: 'ecb',
+      });
 
       expect(mockPrismaService.exchangeRate.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -81,9 +91,17 @@ describe('ExchangeRatesService', () => {
     });
 
     it('should default source to "manual" when not provided', async () => {
-      mockPrismaService.exchangeRate.upsert.mockResolvedValue({ id: 'er-3', source: 'manual' });
+      mockPrismaService.exchangeRate.upsert.mockResolvedValue({
+        id: 'er-3',
+        source: 'manual',
+      });
 
-      await service.upsert({ fromCurrency: 'USD', toCurrency: 'JPY', rate: 155.0, effectiveDate: '2026-05-31' });
+      await service.upsert({
+        fromCurrency: 'USD',
+        toCurrency: 'JPY',
+        rate: 155.0,
+        effectiveDate: '2026-05-31',
+      });
 
       expect(mockPrismaService.exchangeRate.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -95,7 +113,12 @@ describe('ExchangeRatesService', () => {
 
     it('should throw BadRequestException when fromCurrency === toCurrency', async () => {
       await expect(
-        service.upsert({ fromCurrency: 'USD', toCurrency: 'USD', rate: 1, effectiveDate: '2026-05-31' }),
+        service.upsert({
+          fromCurrency: 'USD',
+          toCurrency: 'USD',
+          rate: 1,
+          effectiveDate: '2026-05-31',
+        }),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockPrismaService.exchangeRate.upsert).not.toHaveBeenCalled();
@@ -137,7 +160,12 @@ describe('ExchangeRatesService', () => {
   // ---------------------------------------------------------------------------
   describe('findOne', () => {
     it('should return a single exchange rate by id', async () => {
-      const rate = { id: 'er-1', fromCurrency: 'USD', toCurrency: 'EUR', rate: 0.92 };
+      const rate = {
+        id: 'er-1',
+        fromCurrency: 'USD',
+        toCurrency: 'EUR',
+        rate: 0.92,
+      };
       mockPrismaService.exchangeRate.findUnique.mockResolvedValue(rate);
 
       const result = await service.findOne('er-1');
@@ -149,7 +177,9 @@ describe('ExchangeRatesService', () => {
     it('should throw NotFoundException for an unknown id', async () => {
       mockPrismaService.exchangeRate.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -158,7 +188,12 @@ describe('ExchangeRatesService', () => {
   // ---------------------------------------------------------------------------
   describe('update', () => {
     it('should update the rate of an existing record', async () => {
-      const existing = { id: 'er-1', fromCurrency: 'USD', toCurrency: 'EUR', rate: 0.92 };
+      const existing = {
+        id: 'er-1',
+        fromCurrency: 'USD',
+        toCurrency: 'EUR',
+        rate: 0.92,
+      };
       const updated = { ...existing, rate: 0.935 };
       mockPrismaService.exchangeRate.findUnique.mockResolvedValue(existing);
       mockPrismaService.exchangeRate.update.mockResolvedValue(updated);
@@ -167,14 +202,19 @@ describe('ExchangeRatesService', () => {
 
       expect(result.data).toMatchObject({ rate: 0.935 });
       expect(mockPrismaService.exchangeRate.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'er-1' }, data: { rate: 0.935 } }),
+        expect.objectContaining({
+          where: { id: 'er-1' },
+          data: { rate: 0.935 },
+        }),
       );
     });
 
     it('should throw NotFoundException when record does not exist', async () => {
       mockPrismaService.exchangeRate.findUnique.mockResolvedValue(null);
 
-      await expect(service.update('bad-id', { rate: 1.0 })).rejects.toThrow(NotFoundException);
+      await expect(service.update('bad-id', { rate: 1.0 })).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockPrismaService.exchangeRate.update).not.toHaveBeenCalled();
     });
   });
@@ -184,13 +224,17 @@ describe('ExchangeRatesService', () => {
   // ---------------------------------------------------------------------------
   describe('remove', () => {
     it('should delete an existing exchange rate and return confirmation', async () => {
-      mockPrismaService.exchangeRate.findUnique.mockResolvedValue({ id: 'er-1' });
+      mockPrismaService.exchangeRate.findUnique.mockResolvedValue({
+        id: 'er-1',
+      });
       mockPrismaService.exchangeRate.delete.mockResolvedValue({ id: 'er-1' });
 
       const result = await service.remove('er-1');
 
       expect(result.data).toMatchObject({ deleted: true, id: 'er-1' });
-      expect(mockPrismaService.exchangeRate.delete).toHaveBeenCalledWith({ where: { id: 'er-1' } });
+      expect(mockPrismaService.exchangeRate.delete).toHaveBeenCalledWith({
+        where: { id: 'er-1' },
+      });
     });
 
     it('should throw NotFoundException when record does not exist', async () => {
@@ -213,7 +257,11 @@ describe('ExchangeRatesService', () => {
         effectiveDate: new Date('2026-05-31'),
       });
 
-      const result = await service.convert({ amount: 1000, from: 'USD', to: 'EUR' });
+      const result = await service.convert({
+        amount: 1000,
+        from: 'USD',
+        to: 'EUR',
+      });
 
       expect((result.data as any).convertedAmount).toBeCloseTo(921.54, 1);
       expect((result.data as any).rate).toBe(0.921543);
@@ -222,7 +270,11 @@ describe('ExchangeRatesService', () => {
     });
 
     it('should return the original amount with rate=1 when from === to (no DB hit)', async () => {
-      const result = await service.convert({ amount: 500, from: 'EUR', to: 'EUR' });
+      const result = await service.convert({
+        amount: 500,
+        from: 'EUR',
+        to: 'EUR',
+      });
 
       expect((result.data as any).convertedAmount).toBe(500);
       expect((result.data as any).rate).toBe(1);
@@ -241,7 +293,10 @@ describe('ExchangeRatesService', () => {
 
       expect(mockPrismaService.exchangeRate.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ fromCurrency: 'USD', toCurrency: 'EUR' }),
+          where: expect.objectContaining({
+            fromCurrency: 'USD',
+            toCurrency: 'EUR',
+          }),
         }),
       );
     });
@@ -250,11 +305,16 @@ describe('ExchangeRatesService', () => {
       mockPrismaService.exchangeRate.findFirst.mockResolvedValue({
         fromCurrency: 'USD',
         toCurrency: 'EUR',
-        rate: 0.90,
+        rate: 0.9,
         effectiveDate: new Date('2026-01-01'),
       });
 
-      await service.convert({ amount: 1000, from: 'USD', to: 'EUR', date: '2026-01-15' });
+      await service.convert({
+        amount: 1000,
+        from: 'USD',
+        to: 'EUR',
+        date: '2026-01-15',
+      });
 
       expect(mockPrismaService.exchangeRate.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -268,9 +328,9 @@ describe('ExchangeRatesService', () => {
     it('should throw NotFoundException when no rate exists for the pair', async () => {
       mockPrismaService.exchangeRate.findFirst.mockResolvedValue(null);
 
-      await expect(service.convert({ amount: 1000, from: 'USD', to: 'JPY' })).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.convert({ amount: 1000, from: 'USD', to: 'JPY' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should round convertedAmount to 2 decimal places', async () => {
@@ -281,7 +341,11 @@ describe('ExchangeRatesService', () => {
         effectiveDate: new Date('2026-05-31'),
       });
 
-      const result = await service.convert({ amount: 100, from: 'USD', to: 'EUR' });
+      const result = await service.convert({
+        amount: 100,
+        from: 'USD',
+        to: 'EUR',
+      });
 
       const converted = (result.data as any).convertedAmount;
       expect(String(converted)).toMatch(/^\d+\.\d{1,2}$/);

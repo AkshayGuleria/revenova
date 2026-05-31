@@ -65,10 +65,7 @@ export class PurchaseOrdersService {
       });
       return buildSingleResponse(po);
     } catch (e) {
-      if (
-        e instanceof PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
+      if (e instanceof PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException(
           `Purchase order number ${dto.poNumber} already exists`,
         );

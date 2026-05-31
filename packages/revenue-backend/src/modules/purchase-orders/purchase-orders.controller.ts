@@ -10,12 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import {
   CreatePurchaseOrderDto,
@@ -26,9 +21,7 @@ import {
 @ApiTags('Purchase Orders')
 @Controller('api/purchase-orders')
 export class PurchaseOrdersController {
-  constructor(
-    private readonly purchaseOrdersService: PurchaseOrdersService,
-  ) {}
+  constructor(private readonly purchaseOrdersService: PurchaseOrdersService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -40,7 +33,10 @@ export class PurchaseOrdersController {
 
   @Get()
   @ApiOperation({ summary: 'List purchase orders' })
-  @ApiResponse({ status: 200, description: 'Paginated list of purchase orders' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of purchase orders',
+  })
   findAll(@Query() query: Record<string, any>) {
     return this.purchaseOrdersService.findAll(query);
   }

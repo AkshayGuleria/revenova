@@ -54,9 +54,11 @@ describe('PaymentsService', () => {
             }),
           },
           invoice: {
-            findUnique: jest
-              .fn()
-              .mockResolvedValue({ total: 5000, paidAmount: 0, status: 'sent' }),
+            findUnique: jest.fn().mockResolvedValue({
+              total: 5000,
+              paidAmount: 0,
+              status: 'sent',
+            }),
             update: jest.fn(),
           },
         };
@@ -124,9 +126,11 @@ describe('PaymentsService', () => {
             }),
           },
           invoice: {
-            findUnique: jest
-              .fn()
-              .mockResolvedValue({ total: 5000, paidAmount: 0, status: 'sent' }),
+            findUnique: jest.fn().mockResolvedValue({
+              total: 5000,
+              paidAmount: 0,
+              status: 'sent',
+            }),
             update: jest.fn().mockImplementation(({ data }) => {
               invoiceUpdateData = data;
             }),
@@ -271,13 +275,17 @@ describe('PaymentsService', () => {
         const txMock = {
           invoice: { update: jest.fn() },
           payment: {
-            update: jest.fn().mockResolvedValue({ id: 'pay-1', invoiceId: 'inv-1' }),
+            update: jest
+              .fn()
+              .mockResolvedValue({ id: 'pay-1', invoiceId: 'inv-1' }),
           },
         };
         return fn(txMock);
       });
 
-      const result = await service.applyToInvoice('pay-1', { invoiceId: 'inv-1' });
+      const result = await service.applyToInvoice('pay-1', {
+        invoiceId: 'inv-1',
+      });
       expect(result.data).toBeDefined();
     });
 
@@ -367,7 +375,9 @@ describe('PaymentsService', () => {
             update: jest.fn(),
           },
           payment: {
-            update: jest.fn().mockResolvedValue({ id: 'pay-1', status: 'voided' }),
+            update: jest
+              .fn()
+              .mockResolvedValue({ id: 'pay-1', status: 'voided' }),
           },
         };
         return fn(txMock);
@@ -389,7 +399,9 @@ describe('PaymentsService', () => {
         const txMock = {
           invoice: { findUnique: jest.fn(), update: jest.fn() },
           payment: {
-            update: jest.fn().mockResolvedValue({ id: 'pay-1', status: 'voided' }),
+            update: jest
+              .fn()
+              .mockResolvedValue({ id: 'pay-1', status: 'voided' }),
           },
         };
         return fn(txMock);

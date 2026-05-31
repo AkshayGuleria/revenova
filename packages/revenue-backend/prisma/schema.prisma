@@ -58,6 +58,7 @@ model Account {
   sharedContracts       ContractShare[]  @relation("SharedContracts")
   purchaseOrders        PurchaseOrder[]
   payments              Payment[]
+  webhooks              WebhookEndpoint[]
 
   @@index([parentAccountId])
   @@index([status])
@@ -439,4 +440,46 @@ model Payment {
   @@index([status])
   @@index([paymentDate])
   @@map("payments")
+}
+
+// Phase 5: Webhooks
+model WebhookEndpoint {
+  id          String    @id @default(uuid())
+  accountId   String    @map("account_id")
+  url         String
+  secret      String
+  events      String[]
+  active      Boolean   @default(true)
+  description String?
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  account     Account              @relation(fields: [accountId], references: [id])
+  deliveries  WebhookDelivery[]
+
+  @@index([accountId])
+  @@index([active])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id              String    @id @default(uuid())
+  webhookId       String    @map("webhook_id")
+  event           String
+  payload         Json
+  status          String    @default("pending")
+  responseStatus  Int?      @map("response_status")
+  responseBody    String?   @map("response_body")
+  attemptCount    Int       @default(0) @map("attempt_count")
+  lastAttemptAt   DateTime? @map("last_attempt_at")
+  deliveredAt     DateTime? @map("delivered_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  webhook         WebhookEndpoint @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([status])
+  @@index([event])
+  @@map("webhook_deliveries")
 }

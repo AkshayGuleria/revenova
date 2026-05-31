@@ -1,9 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsPositive, IsString, IsOptional, IsDateString, Length, IsUppercase } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  IsString,
+  IsOptional,
+  IsDateString,
+  Length,
+  IsUppercase,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ConvertCurrencyDto {
-  @ApiProperty({ example: 1000, description: 'Amount to convert (must be positive)' })
+  @ApiProperty({
+    example: 1000,
+    description: 'Amount to convert (must be positive)',
+  })
   @IsNumber()
   @IsPositive()
   @Type(() => Number)
@@ -23,7 +34,8 @@ export class ConvertCurrencyDto {
 
   @ApiPropertyOptional({
     example: '2026-05-31',
-    description: 'Use the most-recent rate on or before this date (defaults to today)',
+    description:
+      'Use the most-recent rate on or before this date (defaults to today)',
   })
   @IsOptional()
   @IsDateString()

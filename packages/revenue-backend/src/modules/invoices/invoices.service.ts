@@ -589,7 +589,8 @@ export class InvoicesService {
 
       // Determine the appropriate audit action
       const statusChanged =
-        updateData.status !== undefined && updateData.status !== existing.status;
+        updateData.status !== undefined &&
+        updateData.status !== existing.status;
       const action =
         updateData.status === 'paid'
           ? 'paid'

@@ -73,7 +73,9 @@ describe('CreditHoldGuard', () => {
 
   it('should allow when account not found (validation handled elsewhere)', async () => {
     mockPrismaService.account.findUnique.mockResolvedValue(null);
-    const result = await guard.canActivate(mockContext({ accountId: 'unknown-id' }));
+    const result = await guard.canActivate(
+      mockContext({ accountId: 'unknown-id' }),
+    );
     expect(result).toBe(true);
   });
 

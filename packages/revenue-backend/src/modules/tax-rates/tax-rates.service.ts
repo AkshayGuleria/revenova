@@ -62,8 +62,12 @@ export class TaxRatesService {
         ...(dto.rate !== undefined && { rate: dto.rate }),
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.effectiveFrom !== undefined && { effectiveFrom: new Date(dto.effectiveFrom) }),
-        ...(dto.effectiveTo !== undefined && { effectiveTo: new Date(dto.effectiveTo) }),
+        ...(dto.effectiveFrom !== undefined && {
+          effectiveFrom: new Date(dto.effectiveFrom),
+        }),
+        ...(dto.effectiveTo !== undefined && {
+          effectiveTo: new Date(dto.effectiveTo),
+        }),
       },
     });
     return buildSingleResponse(updated);
