@@ -244,10 +244,11 @@ test.describe('Invoice Groups List Page', () => {
   });
 
   test('displays group type badges: Department, Location, Cost Center, Custom', async ({ page }) => {
-    await expect(page.getByText('Department')).toBeVisible();
-    await expect(page.getByText('Location')).toBeVisible();
-    await expect(page.getByText('Cost Center')).toBeVisible();
-    await expect(page.getByText('Custom')).toBeVisible();
+    // Use exact:true to avoid matching description text that also contains these words
+    await expect(page.getByText('Department', { exact: true })).toBeVisible();
+    await expect(page.getByText('Location', { exact: true })).toBeVisible();
+    await expect(page.getByText('Cost Center', { exact: true })).toBeVisible();
+    await expect(page.getByText('Custom', { exact: true })).toBeVisible();
   });
 
   test('shows invoice counts in the Invoices column', async ({ page }) => {
@@ -371,7 +372,9 @@ test.describe('Invoice Groups List Page', () => {
       .locator('input[placeholder*="Search groups"]')
       .or(page.locator('input[type="search"]'));
     await searchInput.fill('eng');
-    // SearchInput component debounces — wait for the request to fire
+    // SearchInput component debounces 500ms — wait for the debounce to fire
+    // then wait for the resulting request to complete
+    await page.waitForTimeout(600);
     await page.waitForLoadState('networkidle');
 
     expect(capturedUrl).toContain('eng');
@@ -397,7 +400,8 @@ test.describe('Invoice Groups List Page', () => {
     await page.waitForLoadState('networkidle');
 
     await expect(page.getByText(/no invoice groups/i)).toBeVisible();
-    await expect(page.getByText(/create group/i)).toBeVisible();
+    // Use role-based selector to avoid matching description text that also contains "create group"
+    await expect(page.getByRole('button', { name: /create group/i })).toBeVisible();
   });
 
   test('shows "No groups found" empty state when filters return nothing', async ({ page }) => {
@@ -486,8 +490,12 @@ test.describe('Invoice Groups List Page', () => {
 
     const operationsRow = page.locator('tbody tr').filter({ hasText: 'Operations' });
     await operationsRow.locator('button[title="Delete group"]').click();
+    // Wait for the DELETE response explicitly — waitForLoadState alone fires before the async mutation
+    const deleteResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/invoice-groups/ig-003') && resp.request().method() === 'DELETE'
+    );
     await page.getByRole('button', { name: /^delete$/i }).click();
-    await page.waitForLoadState('networkidle');
+    await deleteResponsePromise;
 
     expect(deleteRequested).toBe(true);
     await expect(page.getByText(/group "Operations" deleted/i)).toBeVisible({ timeout: 5000 });
@@ -500,7 +508,7 @@ test.describe('Invoice Groups List Page', () => {
           status: 500,
           contentType: 'application/json',
           body: JSON.stringify({
-            error: { message: 'Internal server error', statusCode: 500 },
+            error: { message: 'Failed to delete group', statusCode: 500 },
           }),
         });
       } else {
@@ -510,8 +518,12 @@ test.describe('Invoice Groups List Page', () => {
 
     const operationsRow = page.locator('tbody tr').filter({ hasText: 'Operations' });
     await operationsRow.locator('button[title="Delete group"]').click();
+    // Wait for the DELETE response explicitly before asserting the toast
+    const deleteResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/invoice-groups/ig-003') && resp.request().method() === 'DELETE'
+    );
     await page.getByRole('button', { name: /^delete$/i }).click();
-    await page.waitForLoadState('networkidle');
+    await deleteResponsePromise;
 
     await expect(
       page.getByText(/failed to delete group/i)
@@ -529,8 +541,11 @@ test.describe('Invoice Groups List Page', () => {
 
     const operationsRow = page.locator('tbody tr').filter({ hasText: 'Operations' });
     await operationsRow.locator('button[title="Delete group"]').click();
+    const deleteResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/invoice-groups/ig-003') && resp.request().method() === 'DELETE'
+    );
     await page.getByRole('button', { name: /^delete$/i }).click();
-    await page.waitForLoadState('networkidle');
+    await deleteResponsePromise;
 
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
   });
@@ -554,7 +569,8 @@ test.describe('Invoice Groups List Page', () => {
     await mockSingleGroupApi(page, MOCK_GROUPS[0]);
 
     const engineeringRow = page.locator('tbody tr').filter({ hasText: 'Engineering' });
-    await engineeringRow.getByRole('link').first().click({ force: true });
+    // Target the edit link specifically by its href pattern (not the account name link)
+    await engineeringRow.locator('a[href*="/edit"]').click({ force: true });
     await expect(page).toHaveURL(`${BASE_URL}/invoice-groups/ig-001/edit`);
   });
 });
@@ -853,9 +869,8 @@ test.describe('Invoice Groups Create Form', () => {
     );
 
     await page.goto(`${BASE_URL}/invoice-groups/new`);
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.getByText(/failed to load accounts/i)).toBeVisible();
+    // React Query retries 3 times (1s, 2s, 4s) before entering error state — wait up to 15s
+    await expect(page.getByText(/failed to load accounts/i)).toBeVisible({ timeout: 15000 });
   });
 });
 
@@ -868,8 +883,10 @@ test.describe('Invoice Groups Edit Form', () => {
 
   test.beforeEach(async ({ page }) => {
     await mockAccountsApi(page);
-    await mockSingleGroupApi(page, GROUP);
+    // Register list mock BEFORE single-group mock so the single-group mock
+    // has higher priority (Playwright uses LIFO — last-registered wins)
     await mockInvoiceGroupsListApi(page);
+    await mockSingleGroupApi(page, GROUP);
 
     await page.goto(`${BASE_URL}/invoice-groups/${GROUP.id}/edit`);
     await page.waitForLoadState('networkidle');
