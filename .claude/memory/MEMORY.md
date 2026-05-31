@@ -23,13 +23,12 @@
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-05-31 12:54
-- **Branch:** master
-- **Last commit:** 3d36bb2 Autonomous workflow (#19)
+- **Last stop:** 2026-05-31 13:38
+- **Branch:** feature/tax-calculation
+- **Last commit:** 15ea93d feat: add tax rates and jurisdiction-based tax calculation
 - **Modified files:**
 ```
-?? .claude/settings.json
-?? .claude/worktrees/
+M .claude/memory/MEMORY.md
 ```
 - **In progress:** _(update this manually before closing session)_
 
@@ -37,4 +36,8 @@
 - 2026-05-31 07:25 [8936b6aa] branch:main
 - 2026-05-31 09:45 [8936b6aa] branch:test/billing-dry-run-unit-e2e
 - 2026-05-31 12:54 [8936b6aa] branch:master
+- 2026-05-31 13:10 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:22 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:28 [8936b6aa] branch:feature/tax-calculation
+- 2026-05-31 13:38 [8936b6aa] branch:feature/tax-calculation
 <!-- Appended by .claude/hooks/session-end.js on Stop -->
