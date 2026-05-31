@@ -56,6 +56,7 @@ model Account {
   invoices              Invoice[]
   invoiceGroups         InvoiceGroup[]
   sharedContracts       ContractShare[]  @relation("SharedContracts")
+  purchaseOrders        PurchaseOrder[]
 
   @@index([parentAccountId])
   @@index([status])
@@ -101,6 +102,7 @@ model Contract {
   invoices            Invoice[]
   shares              ContractShare[]
   products            ContractProduct[]
+  purchaseOrders      PurchaseOrder[]
 
   @@index([accountId])
   @@index([status])
@@ -312,4 +314,34 @@ model InvoiceItem {
 
   @@index([invoiceId])
   @@map("invoice_items")
+}
+
+// Phase 4: Purchase Orders
+model PurchaseOrder {
+  id              String    @id @default(uuid())
+  poNumber        String    @unique @map("po_number")
+  accountId       String    @map("account_id")
+  contractId      String?   @map("contract_id")
+  description     String?
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("EUR")
+  issueDate       DateTime  @map("issue_date") @db.Date
+  expiryDate      DateTime? @map("expiry_date") @db.Date
+  status          String    @default("pending_approval")
+  approvedById    String?   @map("approved_by_id")
+  approvedAt      DateTime? @map("approved_at")
+  rejectedById    String?   @map("rejected_by_id")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectionReason String?   @map("rejection_reason")
+  notes           String?
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  account         Account   @relation(fields: [accountId], references: [id])
+  contract        Contract? @relation(fields: [contractId], references: [id])
+
+  @@index([accountId])
+  @@index([contractId])
+  @@index([status])
+  @@map("purchase_orders")
 }
