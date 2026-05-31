@@ -17,12 +17,14 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /** Serialize line items for stable snapshots (Decimal → string). */
-function serializeLineItems(items: Array<{
-  description: string;
-  quantity: Decimal;
-  unitPrice: Decimal;
-  amount: Decimal;
-}>) {
+function serializeLineItems(
+  items: Array<{
+    description: string;
+    quantity: Decimal;
+    unitPrice: Decimal;
+    amount: Decimal;
+  }>,
+) {
   return items.map((item) => ({
     description: item.description,
     quantity: item.quantity.toString(),
@@ -95,12 +97,19 @@ describe('BillingEngineService — snapshots', () => {
               quantity: 5,
               unitPrice: new Decimal('200.00'),
               discount: null,
-              product: { name: 'Enterprise License', basePrice: new Decimal('200.00') },
+              product: {
+                name: 'Enterprise License',
+                basePrice: new Decimal('200.00'),
+              },
             },
           ],
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -116,7 +125,11 @@ describe('BillingEngineService — snapshots', () => {
           ],
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -132,7 +145,11 @@ describe('BillingEngineService — snapshots', () => {
           ],
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -149,18 +166,28 @@ describe('BillingEngineService — snapshots', () => {
               quantity: 1,
               unitPrice: new Decimal('5000.00'),
               discount: null,
-              product: { name: 'Platform Fee', basePrice: new Decimal('5000.00') },
+              product: {
+                name: 'Platform Fee',
+                basePrice: new Decimal('5000.00'),
+              },
             },
             {
               quantity: 5,
               unitPrice: new Decimal('200.00'),
               discount: new Decimal('0.15'),
-              product: { name: 'Admin Add-on', basePrice: new Decimal('200.00') },
+              product: {
+                name: 'Admin Add-on',
+                basePrice: new Decimal('200.00'),
+              },
             },
           ],
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -171,18 +198,28 @@ describe('BillingEngineService — snapshots', () => {
               quantity: 10,
               unitPrice: new Decimal('100.00'),
               discount: new Decimal('1.00'),
-              product: { name: 'Waived Seat', basePrice: new Decimal('100.00') },
+              product: {
+                name: 'Waived Seat',
+                basePrice: new Decimal('100.00'),
+              },
             },
             {
               quantity: 1,
               unitPrice: new Decimal('500.00'),
               discount: null,
-              product: { name: 'Support Package', basePrice: new Decimal('500.00') },
+              product: {
+                name: 'Support Package',
+                basePrice: new Decimal('500.00'),
+              },
             },
           ],
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
     });
@@ -195,7 +232,11 @@ describe('BillingEngineService — snapshots', () => {
           seatPrice: new Decimal('100.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -206,7 +247,11 @@ describe('BillingEngineService — snapshots', () => {
           seatPrice: new Decimal('90.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -217,7 +262,11 @@ describe('BillingEngineService — snapshots', () => {
           seatPrice: new Decimal('80.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
     });
@@ -229,7 +278,11 @@ describe('BillingEngineService — snapshots', () => {
           contractValue: new Decimal('12000.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -239,7 +292,11 @@ describe('BillingEngineService — snapshots', () => {
           contractValue: new Decimal('12000.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -249,7 +306,11 @@ describe('BillingEngineService — snapshots', () => {
           contractValue: new Decimal('120000.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -259,7 +320,11 @@ describe('BillingEngineService — snapshots', () => {
           contractValue: new Decimal('12000.00'),
         });
 
-        const result = await service.computeLineItems(contract, null, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          null,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
     });
@@ -278,7 +343,11 @@ describe('BillingEngineService — snapshots', () => {
         });
 
         // periodStart is same month as contract start → first period
-        const result = await service.computeLineItems(contract, product, BASE_DATE);
+        const result = await service.computeLineItems(
+          contract,
+          product,
+          BASE_DATE,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
 
@@ -296,7 +365,11 @@ describe('BillingEngineService — snapshots', () => {
 
         // periodStart is next month → not first period
         const nextMonth = new Date('2024-02-01T00:00:00.000Z');
-        const result = await service.computeLineItems(contract, product, nextMonth);
+        const result = await service.computeLineItems(
+          contract,
+          product,
+          nextMonth,
+        );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
     });
@@ -306,34 +379,60 @@ describe('BillingEngineService — snapshots', () => {
 
   describe('shouldBillProduct', () => {
     it('null product → always bill (backward compat)', () => {
-      expect(service.shouldBillProduct(null, BASE_DATE, BASE_DATE)).toMatchSnapshot();
+      expect(
+        service.shouldBillProduct(null, BASE_DATE, BASE_DATE),
+      ).toMatchSnapshot();
     });
 
     it('recurring product → always bill', () => {
-      const product = { chargeType: 'recurring', setupFee: null, trialPeriodDays: null };
-      expect(service.shouldBillProduct(product, BASE_DATE, BASE_DATE)).toMatchSnapshot();
+      const product = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
+      expect(
+        service.shouldBillProduct(product, BASE_DATE, BASE_DATE),
+      ).toMatchSnapshot();
     });
 
     it('usage_based product → never bill (Phase 6)', () => {
-      const product = { chargeType: 'usage_based', setupFee: null, trialPeriodDays: null };
-      expect(service.shouldBillProduct(product, BASE_DATE, BASE_DATE)).toMatchSnapshot();
+      const product = {
+        chargeType: 'usage_based',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
+      expect(
+        service.shouldBillProduct(product, BASE_DATE, BASE_DATE),
+      ).toMatchSnapshot();
     });
 
     it('one_time product → bill on first period only', () => {
-      const product = { chargeType: 'one_time', setupFee: null, trialPeriodDays: null };
+      const product = {
+        chargeType: 'one_time',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
       const firstPeriod = new Date('2024-01-15T00:00:00.000Z');
       const secondPeriod = new Date('2024-02-01T00:00:00.000Z');
 
       expect({
         firstPeriod: service.shouldBillProduct(product, BASE_DATE, firstPeriod),
-        secondPeriod: service.shouldBillProduct(product, BASE_DATE, secondPeriod),
+        secondPeriod: service.shouldBillProduct(
+          product,
+          BASE_DATE,
+          secondPeriod,
+        ),
       }).toMatchSnapshot();
     });
 
     it('trial period active → skip billing', () => {
-      const product = { chargeType: 'recurring', setupFee: null, trialPeriodDays: 30 };
+      const product = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: 30,
+      };
       const duringTrial = new Date('2024-01-15T00:00:00.000Z'); // 14 days in
-      const afterTrial = new Date('2024-02-05T00:00:00.000Z');  // 35 days in
+      const afterTrial = new Date('2024-02-05T00:00:00.000Z'); // 35 days in
 
       expect({
         duringTrial: service.shouldBillProduct(product, BASE_DATE, duringTrial),
@@ -342,13 +441,25 @@ describe('BillingEngineService — snapshots', () => {
     });
 
     it('trial period exact boundary (last trial day vs first post-trial day)', () => {
-      const product = { chargeType: 'recurring', setupFee: null, trialPeriodDays: 14 };
-      const lastTrialDay = new Date('2024-01-14T00:00:00.000Z');  // day 13 (0-indexed start)
-      const firstBillDay = new Date('2024-01-15T00:00:00.000Z');  // day 14 — trial ends
+      const product = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: 14,
+      };
+      const lastTrialDay = new Date('2024-01-14T00:00:00.000Z'); // day 13 (0-indexed start)
+      const firstBillDay = new Date('2024-01-15T00:00:00.000Z'); // day 14 — trial ends
 
       expect({
-        lastTrialDay: service.shouldBillProduct(product, BASE_DATE, lastTrialDay),
-        firstBillDay: service.shouldBillProduct(product, BASE_DATE, firstBillDay),
+        lastTrialDay: service.shouldBillProduct(
+          product,
+          BASE_DATE,
+          lastTrialDay,
+        ),
+        firstBillDay: service.shouldBillProduct(
+          product,
+          BASE_DATE,
+          firstBillDay,
+        ),
       }).toMatchSnapshot();
     });
   });
@@ -362,19 +473,31 @@ describe('BillingEngineService — snapshots', () => {
     });
 
     it('product with no setupFee → $0', () => {
-      const product = { chargeType: 'recurring', setupFee: null, trialPeriodDays: null };
+      const product = {
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: null,
+      };
       const result = service.getSetupFee(product, BASE_DATE, BASE_DATE);
       expect(result.toString()).toMatchSnapshot();
     });
 
     it('product with $2500 setup fee — first period', () => {
-      const product = { chargeType: 'recurring', setupFee: new Decimal('2500.00'), trialPeriodDays: null };
+      const product = {
+        chargeType: 'recurring',
+        setupFee: new Decimal('2500.00'),
+        trialPeriodDays: null,
+      };
       const result = service.getSetupFee(product, BASE_DATE, BASE_DATE);
       expect(result.toString()).toMatchSnapshot();
     });
 
     it('product with $2500 setup fee — subsequent period → $0', () => {
-      const product = { chargeType: 'recurring', setupFee: new Decimal('2500.00'), trialPeriodDays: null };
+      const product = {
+        chargeType: 'recurring',
+        setupFee: new Decimal('2500.00'),
+        trialPeriodDays: null,
+      };
       const nextMonth = new Date('2024-02-01T00:00:00.000Z');
       const result = service.getSetupFee(product, BASE_DATE, nextMonth);
       expect(result.toString()).toMatchSnapshot();

@@ -18,7 +18,9 @@ const ENTERPRISE_TIERS = [
 ];
 
 /** Serialize SeatPricingResult to plain strings for stable snapshots. */
-function serializeSeatResult(result: ReturnType<SeatCalculatorService['calculateSeatPricing']>) {
+function serializeSeatResult(
+  result: ReturnType<SeatCalculatorService['calculateSeatPricing']>,
+) {
   return {
     seatCount: result.seatCount,
     pricePerSeat: result.pricePerSeat.toString(),
@@ -51,42 +53,74 @@ describe('SeatCalculatorService — snapshots', () => {
     });
 
     it('volume tier — 1 seat (tier 1 lower bound)', () => {
-      const result = service.calculateSeatPricing(1, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        1,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 10 seats (tier 1 upper bound)', () => {
-      const result = service.calculateSeatPricing(10, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        10,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 11 seats (tier 2 lower bound)', () => {
-      const result = service.calculateSeatPricing(11, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        11,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 50 seats (tier 2 upper bound)', () => {
-      const result = service.calculateSeatPricing(50, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        50,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 51 seats (tier 3 lower bound)', () => {
-      const result = service.calculateSeatPricing(51, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        51,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 200 seats (tier 3 upper bound)', () => {
-      const result = service.calculateSeatPricing(200, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        200,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 201 seats (unlimited tier lower bound)', () => {
-      const result = service.calculateSeatPricing(201, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        201,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
     it('volume tier — 500 seats (deep in unlimited tier)', () => {
-      const result = service.calculateSeatPricing(500, new Decimal('100'), ENTERPRISE_TIERS);
+      const result = service.calculateSeatPricing(
+        500,
+        new Decimal('100'),
+        ENTERPRISE_TIERS,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
@@ -96,7 +130,11 @@ describe('SeatCalculatorService — snapshots', () => {
         { minSeats: 10, maxSeats: 50, pricePerSeat: 90 },
         { minSeats: 51, maxSeats: null, pricePerSeat: 80 },
       ];
-      const result = service.calculateSeatPricing(5, new Decimal('100'), gappedTiers);
+      const result = service.calculateSeatPricing(
+        5,
+        new Decimal('100'),
+        gappedTiers,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
 
@@ -105,7 +143,11 @@ describe('SeatCalculatorService — snapshots', () => {
         { minSeats: 1, maxSeats: 100, pricePerSeat: 49.99 },
         { minSeats: 101, maxSeats: null, pricePerSeat: 39.99 },
       ];
-      const result = service.calculateSeatPricing(75, new Decimal('50.00'), tiers);
+      const result = service.calculateSeatPricing(
+        75,
+        new Decimal('50.00'),
+        tiers,
+      );
       expect(serializeSeatResult(result)).toMatchSnapshot();
     });
   });
@@ -114,12 +156,20 @@ describe('SeatCalculatorService — snapshots', () => {
 
   describe('calculateProration', () => {
     it('full year proration (365/365)', () => {
-      const result = service.calculateProration(new Decimal('12000.00'), 365, 365);
+      const result = service.calculateProration(
+        new Decimal('12000.00'),
+        365,
+        365,
+      );
       expect(result.toString()).toMatchSnapshot();
     });
 
     it('mid-year join — 182 of 365 days', () => {
-      const result = service.calculateProration(new Decimal('12000.00'), 365, 182);
+      const result = service.calculateProration(
+        new Decimal('12000.00'),
+        365,
+        182,
+      );
       expect(result.toString()).toMatchSnapshot();
     });
 
