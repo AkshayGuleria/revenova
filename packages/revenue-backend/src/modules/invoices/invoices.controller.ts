@@ -9,7 +9,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { CreditHoldGuard } from '../credit-management/credit-hold.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import {
@@ -26,6 +28,7 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Post()
+  @UseGuards(CreditHoldGuard)
   @ApiOperation({
     summary: 'Create new invoice',
     description:

@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateAccountDto, UpdateAccountDto, QueryAccountsDto } from './dto';
+import {
+  CreateAccountDto,
+  UpdateAccountDto,
+  QueryAccountsDto,
+  UpdateCreditDto,
+} from './dto';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { parseQuery } from '../../common/utils/query-parser';
@@ -448,6 +453,63 @@ export class AccountsService {
         maxDepth,
       );
     }
+  }
+
+  async getCreditStatus(id: string): Promise<ApiResponse<any>> {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        accountName: true,
+        creditLimit: true,
+        creditHold: true,
+        currency: true,
+      },
+    });
+    if (!account) throw new NotFoundException(`Account ${id} not found`);
+
+    const outstanding = await this.prisma.invoice.aggregate({
+      where: { accountId: id, status: { in: ['sent', 'overdue'] } },
+      _sum: { total: true },
+    });
+
+    const totalOutstanding = Number(outstanding._sum.total ?? 0);
+    const creditLimit =
+      account.creditLimit ? Number(account.creditLimit) : null;
+    const availableCredit =
+      creditLimit !== null ? creditLimit - totalOutstanding : null;
+    const utilizationPercent =
+      creditLimit !== null && creditLimit > 0
+        ? parseFloat(((totalOutstanding / creditLimit) * 100).toFixed(2))
+        : null;
+
+    return buildSingleResponse({
+      accountId: account.id,
+      accountName: account.accountName,
+      currency: account.currency,
+      creditLimit,
+      creditHold: account.creditHold,
+      totalOutstanding,
+      availableCredit,
+      utilizationPercent,
+    });
+  }
+
+  async updateCredit(
+    id: string,
+    dto: UpdateCreditDto,
+  ): Promise<ApiResponse<any>> {
+    const account = await this.prisma.account.findUnique({ where: { id } });
+    if (!account) throw new NotFoundException(`Account ${id} not found`);
+
+    const updated = await this.prisma.account.update({
+      where: { id },
+      data: {
+        ...(dto.creditLimit !== undefined && { creditLimit: dto.creditLimit }),
+        ...(dto.creditHold !== undefined && { creditHold: dto.creditHold }),
+      },
+    });
+    return buildSingleResponse(updated);
   }
 
   /**
