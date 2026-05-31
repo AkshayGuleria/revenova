@@ -195,7 +195,7 @@ export class WebhooksService {
       .update(body)
       .digest('hex');
 
-    let status = 'failed';
+    let status: 'delivered' | 'failed';
     let responseStatus: number | null = null;
     let responseBody: string | null = null;
 
