@@ -14,6 +14,10 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  ShoppingCart,
+  Banknote,
+  BarChart3,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { useUIStore } from "~/lib/stores/ui-store";
@@ -28,6 +32,10 @@ const navigation = [
   { name: "Invoices", href: "/invoices", icon: Receipt },
   { name: "Invoice Groups", href: "/invoice-groups", icon: Layers },
   { name: "Billing", href: "/billing", icon: CreditCard },
+  { name: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
+  { name: "Payments", href: "/payments", icon: Banknote },
+  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  { name: "Renewals", href: "/renewals", icon: RefreshCw },
 ];
 
 export function Sidebar() {
@@ -71,7 +79,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2 py-4">
+      <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
         {navigation.map((item) => {
           const isActive =
             location.pathname === item.href ||
