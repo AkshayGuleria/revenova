@@ -49,6 +49,7 @@ import { getQueueConfig } from './common/queues';
     ExchangeRatesModule,
     CreditManagementModule,
     PaymentsModule,
+    WebhooksModule,
     AnalyticsModule,
     RenewalsModule,
     AuditLogModule,
