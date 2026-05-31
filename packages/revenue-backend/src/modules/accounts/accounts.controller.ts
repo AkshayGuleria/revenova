@@ -12,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AccountsService } from './accounts.service';
-import { CreateAccountDto, UpdateAccountDto, QueryAccountsDto } from './dto';
+import {
+  CreateAccountDto,
+  UpdateAccountDto,
+  QueryAccountsDto,
+  UpdateCreditDto,
+} from './dto';
 
 @ApiTags('Accounts')
 @Controller('api/accounts')
@@ -430,5 +435,33 @@ export class AccountsController {
   })
   getDescendants(@Param('id') id: string) {
     return this.accountsService.getDescendants(id);
+  }
+
+  @Get(':id/credit-status')
+  @ApiOperation({
+    summary: 'Get credit utilization and hold status for an account',
+    description:
+      'Returns current credit limit, outstanding invoice total (sent + overdue), ' +
+      'available credit, utilization percentage, and credit hold status.',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Credit status returned' })
+  @ApiResponse({ status: 404, description: 'Account not found' })
+  getCreditStatus(@Param('id') id: string) {
+    return this.accountsService.getCreditStatus(id);
+  }
+
+  @Patch(':id/credit')
+  @ApiOperation({
+    summary: 'Update credit limit and/or hold status for an account',
+    description:
+      'Partially update creditLimit (in account currency) and/or creditHold flag. ' +
+      'Pass only the fields you want to change.',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Credit settings updated' })
+  @ApiResponse({ status: 404, description: 'Account not found' })
+  updateCredit(@Param('id') id: string, @Body() dto: UpdateCreditDto) {
+    return this.accountsService.updateCredit(id, dto);
   }
 }

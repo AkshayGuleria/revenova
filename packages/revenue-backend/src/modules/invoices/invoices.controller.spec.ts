@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
+import { CreditHoldGuard } from '../credit-management/credit-hold.guard';
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -34,7 +35,10 @@ describe('InvoicesController', () => {
           useValue: mockInvoicesService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(CreditHoldGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<InvoicesController>(InvoicesController);
     service = module.get<InvoicesService>(InvoicesService);

@@ -24,6 +24,9 @@ describe('AccountsService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
+    invoice: {
+      aggregate: jest.fn(),
+    },
   };
 
   const mockConfigService = {
@@ -976,6 +979,214 @@ describe('AccountsService', () => {
       expect(result.data).toBeDefined();
       // At maxDepth=0, buildAccountTree returns { ...account, children: [] }
       expect(result.data.children).toHaveLength(0);
+    });
+  });
+
+  describe('getCreditStatus', () => {
+    const mockAccountWithCredit = {
+      id: 'acc-credit-1',
+      accountName: 'Acme Corp',
+      creditLimit: '100000',
+      creditHold: false,
+      currency: 'EUR',
+    };
+
+    it('should return credit status with utilization percentage', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(
+        mockAccountWithCredit,
+      );
+      mockPrismaService.invoice.aggregate.mockResolvedValue({
+        _sum: { total: '25000' },
+      });
+
+      const result = await service.getCreditStatus('acc-credit-1');
+
+      expect(result.data).toMatchObject({
+        accountId: 'acc-credit-1',
+        accountName: 'Acme Corp',
+        currency: 'EUR',
+        creditLimit: 100000,
+        creditHold: false,
+        totalOutstanding: 25000,
+        availableCredit: 75000,
+        utilizationPercent: 25,
+      });
+      expect(result.paging.offset).toBeNull();
+    });
+
+    it('should return null availableCredit and utilizationPercent when no credit limit set', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        ...mockAccountWithCredit,
+        creditLimit: null,
+      });
+      mockPrismaService.invoice.aggregate.mockResolvedValue({
+        _sum: { total: '5000' },
+      });
+
+      const result = await service.getCreditStatus('acc-credit-1');
+
+      expect(result.data.creditLimit).toBeNull();
+      expect(result.data.availableCredit).toBeNull();
+      expect(result.data.utilizationPercent).toBeNull();
+      expect(result.data.totalOutstanding).toBe(5000);
+    });
+
+    it('should return zero outstanding when no invoices exist', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(
+        mockAccountWithCredit,
+      );
+      mockPrismaService.invoice.aggregate.mockResolvedValue({
+        _sum: { total: null },
+      });
+
+      const result = await service.getCreditStatus('acc-credit-1');
+
+      expect(result.data.totalOutstanding).toBe(0);
+      expect(result.data.availableCredit).toBe(100000);
+      expect(result.data.utilizationPercent).toBe(0);
+    });
+
+    it('should query aggregate with correct status filter', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(
+        mockAccountWithCredit,
+      );
+      mockPrismaService.invoice.aggregate.mockResolvedValue({
+        _sum: { total: null },
+      });
+
+      await service.getCreditStatus('acc-credit-1');
+
+      expect(mockPrismaService.invoice.aggregate).toHaveBeenCalledWith({
+        where: { accountId: 'acc-credit-1', status: { in: ['sent', 'overdue'] } },
+        _sum: { total: true },
+      });
+    });
+
+    it('should throw NotFoundException for unknown account', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(null);
+
+      await expect(service.getCreditStatus('unknown-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.getCreditStatus('unknown-id')).rejects.toThrow(
+        'Account unknown-id not found',
+      );
+    });
+
+    it('should return null utilizationPercent when creditLimit is zero', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        ...mockAccountWithCredit,
+        creditLimit: '0',
+      });
+      mockPrismaService.invoice.aggregate.mockResolvedValue({
+        _sum: { total: '1000' },
+      });
+
+      const result = await service.getCreditStatus('acc-credit-1');
+
+      expect(result.data.utilizationPercent).toBeNull();
+    });
+  });
+
+  describe('updateCredit', () => {
+    const mockAccount = {
+      id: 'acc-update-1',
+      accountName: 'Test Corp',
+      creditLimit: '50000',
+      creditHold: false,
+    };
+
+    it('should update creditLimit successfully', async () => {
+      const updatedAccount = { ...mockAccount, creditLimit: '200000' };
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.account.update.mockResolvedValue(updatedAccount);
+
+      const result = await service.updateCredit('acc-update-1', {
+        creditLimit: 200000,
+      });
+
+      expect(mockPrismaService.account.update).toHaveBeenCalledWith({
+        where: { id: 'acc-update-1' },
+        data: { creditLimit: 200000 },
+      });
+      expect(result.data).toEqual(updatedAccount);
+      expect(result.paging.offset).toBeNull();
+    });
+
+    it('should set creditHold to true', async () => {
+      const updatedAccount = { ...mockAccount, creditHold: true };
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.account.update.mockResolvedValue(updatedAccount);
+
+      const result = await service.updateCredit('acc-update-1', {
+        creditHold: true,
+      });
+
+      expect(mockPrismaService.account.update).toHaveBeenCalledWith({
+        where: { id: 'acc-update-1' },
+        data: { creditHold: true },
+      });
+      expect(result.data.creditHold).toBe(true);
+    });
+
+    it('should set creditHold to false (release hold)', async () => {
+      const accountOnHold = { ...mockAccount, creditHold: true };
+      const updatedAccount = { ...mockAccount, creditHold: false };
+      mockPrismaService.account.findUnique.mockResolvedValue(accountOnHold);
+      mockPrismaService.account.update.mockResolvedValue(updatedAccount);
+
+      const result = await service.updateCredit('acc-update-1', {
+        creditHold: false,
+      });
+
+      expect(mockPrismaService.account.update).toHaveBeenCalledWith({
+        where: { id: 'acc-update-1' },
+        data: { creditHold: false },
+      });
+      expect(result.data.creditHold).toBe(false);
+    });
+
+    it('should update both creditLimit and creditHold simultaneously', async () => {
+      const updatedAccount = {
+        ...mockAccount,
+        creditLimit: '150000',
+        creditHold: true,
+      };
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.account.update.mockResolvedValue(updatedAccount);
+
+      await service.updateCredit('acc-update-1', {
+        creditLimit: 150000,
+        creditHold: true,
+      });
+
+      expect(mockPrismaService.account.update).toHaveBeenCalledWith({
+        where: { id: 'acc-update-1' },
+        data: { creditLimit: 150000, creditHold: true },
+      });
+    });
+
+    it('should not include undefined fields in update data', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
+      mockPrismaService.account.update.mockResolvedValue(mockAccount);
+
+      await service.updateCredit('acc-update-1', {});
+
+      expect(mockPrismaService.account.update).toHaveBeenCalledWith({
+        where: { id: 'acc-update-1' },
+        data: {},
+      });
+    });
+
+    it('should throw NotFoundException for unknown account', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateCredit('unknown-id', { creditHold: true }),
+      ).rejects.toThrow(NotFoundException);
+      await expect(
+        service.updateCredit('unknown-id', { creditHold: true }),
+      ).rejects.toThrow('Account unknown-id not found');
     });
   });
 });
