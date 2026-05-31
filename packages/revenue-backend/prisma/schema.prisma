@@ -345,3 +345,24 @@ model PurchaseOrder {
   @@index([status])
   @@map("purchase_orders")
 }
+
+// Phase 4: Tax Rates by Jurisdiction
+model TaxRate {
+  id            String    @id @default(uuid())
+  jurisdiction  String
+  taxType       String    @map("tax_type")
+  rate          Decimal   @db.Decimal(8, 4)
+  name          String
+  description   String?
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([jurisdiction])
+  @@index([taxType])
+  @@index([active])
+  @@index([effectiveFrom])
+  @@map("tax_rates")
+}

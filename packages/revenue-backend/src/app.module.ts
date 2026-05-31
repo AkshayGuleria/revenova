@@ -13,6 +13,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { InvoiceGroupsModule } from './modules/invoice-groups/invoice-groups.module';
 import { AppConfigModule } from './modules/app-config/app-config.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { getQueueConfig } from './common/queues';
 
 @Module({
@@ -37,6 +38,7 @@ import { getQueueConfig } from './common/queues';
     InvoiceGroupsModule,
     AppConfigModule,
     PurchaseOrdersModule,
+    TaxRatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
