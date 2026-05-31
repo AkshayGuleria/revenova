@@ -22,6 +22,7 @@ import {
   buildPaginatedListResponse,
 } from '../../common/utils/response-builder';
 import { ApiResponse } from '../../common/interfaces';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 export { PaymentMode };
 
@@ -32,6 +33,7 @@ export class InvoicesService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private auditLogService: AuditLogService,
   ) {}
 
   async create(createInvoiceDto: CreateInvoiceDto): Promise<ApiResponse<any>> {
@@ -165,6 +167,18 @@ export class InvoicesService {
             items: true,
           },
         });
+      });
+
+      // Audit trail — fire-and-forget (non-blocking)
+      void this.auditLogService.log({
+        entityType: 'invoice',
+        entityId: invoice.id,
+        action: 'created',
+        actorType: 'system',
+        metadata: {
+          invoiceNumber: invoice.invoiceNumber,
+          accountId: invoice.accountId,
+        },
       });
 
       return buildSingleResponse(invoice);
@@ -491,8 +505,8 @@ export class InvoicesService {
     id: string,
     updateInvoiceDto: UpdateInvoiceDto,
   ): Promise<ApiResponse<any>> {
-    // Check if invoice exists
-    await this.findOne(id);
+    // Check if invoice exists — also capture current state for audit diff
+    const existing = await this.getInvoiceById(id);
 
     const {
       accountId,
@@ -571,6 +585,31 @@ export class InvoicesService {
       const invoice = await this.prisma.invoice.update({
         where: { id },
         data: updateData,
+      });
+
+      // Determine the appropriate audit action
+      const statusChanged =
+        updateData.status !== undefined && updateData.status !== existing.status;
+      const action =
+        updateData.status === 'paid'
+          ? 'paid'
+          : statusChanged
+            ? 'status_changed'
+            : 'updated';
+
+      const changes: Record<string, { from: any; to: any }> = {};
+      if (statusChanged) {
+        changes['status'] = { from: existing.status, to: invoice.status };
+      }
+
+      // Audit trail — fire-and-forget (non-blocking)
+      void this.auditLogService.log({
+        entityType: 'invoice',
+        entityId: invoice.id,
+        action,
+        actorType: 'system',
+        changes: Object.keys(changes).length > 0 ? changes : undefined,
+        metadata: { invoiceNumber: invoice.invoiceNumber },
       });
 
       return buildSingleResponse(invoice);
