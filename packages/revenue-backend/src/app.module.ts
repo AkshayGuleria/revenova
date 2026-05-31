@@ -18,6 +18,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.mod
 import { CreditManagementModule } from './modules/credit-management/credit-management.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { RenewalsModule } from './modules/renewals/renewals.module';
 import { getQueueConfig } from './common/queues';
 
 @Module({
@@ -47,6 +48,7 @@ import { getQueueConfig } from './common/queues';
     CreditManagementModule,
     PaymentsModule,
     AnalyticsModule,
+    RenewalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
