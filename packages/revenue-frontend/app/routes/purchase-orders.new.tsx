@@ -61,7 +61,7 @@ export default function NewPurchaseOrderRoute() {
     setValue,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       currency: "USD",
       issueDate: new Date().toISOString().split("T")[0],
