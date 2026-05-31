@@ -115,10 +115,13 @@ describe('InvoiceGroupsService', () => {
       mockPrismaService.account.findUnique.mockResolvedValue({
         id: 'account-id-1',
       });
-      const dbError = new PrismaClientKnownRequestError('Foreign key violation', {
-        code: 'P2003',
-        clientVersion: '5.0',
-      });
+      const dbError = new PrismaClientKnownRequestError(
+        'Foreign key violation',
+        {
+          code: 'P2003',
+          clientVersion: '5.0',
+        },
+      );
       mockPrismaService.invoiceGroup.create.mockRejectedValue(dbError);
 
       await expect(service.create(createDto)).rejects.toThrow(dbError);
@@ -235,9 +238,9 @@ describe('InvoiceGroupsService', () => {
         }),
       );
 
-      await expect(service.update('group-1', { code: 'TAKEN' })).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.update('group-1', { code: 'TAKEN' }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('re-throws non-P2002 Prisma errors from update without wrapping', async () => {

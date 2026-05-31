@@ -54,7 +54,9 @@ export class InvoicesService {
 
     // contractId is required — guard at service layer as well
     if (!contractId) {
-      throw new BadRequestException('contractId is required to create an invoice');
+      throw new BadRequestException(
+        'contractId is required to create an invoice',
+      );
     }
 
     // Validate account exists
@@ -116,7 +118,10 @@ export class InvoicesService {
 
     // Auto-generate invoice items from contract products
     const items = contract.products.map((cp) => {
-      const unitPrice = cp.unitPrice != null ? Number(cp.unitPrice) : Number(cp.product.basePrice ?? 0);
+      const unitPrice =
+        cp.unitPrice != null
+          ? Number(cp.unitPrice)
+          : Number(cp.product.basePrice ?? 0);
       const discountFraction = cp.discount != null ? cp.discount.toNumber() : 0;
       const amount = unitPrice * cp.quantity * (1 - discountFraction);
       return {

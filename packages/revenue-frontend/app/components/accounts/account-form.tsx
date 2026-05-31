@@ -63,7 +63,7 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface AccountFormProps {
   account?: Account;
-  onSubmit: (data: CreateAccountDto | UpdateAccountDto) => void;
+  onSubmit: (data: CreateAccountDto | UpdateAccountDto) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   mode: "create" | "edit";

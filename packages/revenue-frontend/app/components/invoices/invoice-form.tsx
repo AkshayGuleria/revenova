@@ -60,7 +60,7 @@ type InvoiceFormData = z.infer<typeof invoiceFormSchema>;
 
 interface InvoiceFormProps {
   invoice?: Invoice;
-  onSubmit: (data: CreateInvoiceDto | UpdateInvoiceDto) => void;
+  onSubmit: (data: CreateInvoiceDto | UpdateInvoiceDto) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }

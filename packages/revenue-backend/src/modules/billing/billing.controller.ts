@@ -258,7 +258,9 @@ export class BillingController {
     status: 404,
     description: 'Parent account not found',
   })
-  async previewConsolidatedInvoice(@Body() dto: GenerateConsolidatedInvoiceDto) {
+  async previewConsolidatedInvoice(
+    @Body() dto: GenerateConsolidatedInvoiceDto,
+  ) {
     const result = await this.consolidatedBilling.previewConsolidatedInvoice({
       parentAccountId: dto.parentAccountId,
       periodStart: new Date(dto.periodStart),

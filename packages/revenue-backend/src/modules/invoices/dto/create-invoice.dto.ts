@@ -44,7 +44,8 @@ export class CreateInvoiceDto {
   accountId: string;
 
   @ApiProperty({
-    description: 'Contract ID (required — items are auto-generated from contract products)',
+    description:
+      'Contract ID (required — items are auto-generated from contract products)',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsString()

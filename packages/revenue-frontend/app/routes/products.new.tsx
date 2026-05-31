@@ -9,15 +9,15 @@ import { PageHeader } from "~/components/layout/page-header";
 import { Card, CardContent } from "~/components/ui/card";
 import { ProductForm } from "~/components/products/product-form";
 import { useCreateProduct } from "~/lib/api/hooks/use-products";
-import type { CreateProductDto } from "~/types/models";
+import type { CreateProductDto, UpdateProductDto } from "~/types/models";
 
 export default function CreateProductRoute() {
   const navigate = useNavigate();
   const createMutation = useCreateProduct();
 
-  const handleSubmit = async (data: CreateProductDto) => {
+  const handleSubmit = async (data: CreateProductDto | UpdateProductDto) => {
     try {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync(data as CreateProductDto);
       toast.success("Product created successfully");
       navigate("/products");
     } catch (error: any) {

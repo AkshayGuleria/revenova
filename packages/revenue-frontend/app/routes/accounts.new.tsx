@@ -10,15 +10,15 @@ import { PageHeader } from "~/components/layout/page-header";
 import { Card, CardContent } from "~/components/ui/card";
 import { AccountForm } from "~/components/accounts/account-form";
 import { useCreateAccount } from "~/lib/api/hooks/use-accounts";
-import type { CreateAccountDto } from "~/types/models";
+import type { CreateAccountDto, UpdateAccountDto } from "~/types/models";
 
 export default function CreateAccountRoute() {
   const navigate = useNavigate();
   const createMutation = useCreateAccount();
 
-  const handleSubmit = async (data: CreateAccountDto) => {
+  const handleSubmit = async (data: CreateAccountDto | UpdateAccountDto) => {
     try {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync(data as CreateAccountDto);
       toast.success("Account created successfully");
       navigate("/accounts");
     } catch (error: any) {

@@ -270,10 +270,7 @@ export class ContractsController {
   @ApiResponse({ status: 400, description: 'Invalid request' })
   @ApiResponse({ status: 404, description: 'Contract or product not found' })
   @ApiResponse({ status: 409, description: 'Product already on this contract' })
-  addProduct(
-    @Param('id') id: string,
-    @Body() dto: CreateContractProductDto,
-  ) {
+  addProduct(@Param('id') id: string, @Body() dto: CreateContractProductDto) {
     return this.contractsService.addProduct(id, dto);
   }
 
@@ -283,7 +280,10 @@ export class ContractsController {
   @ApiParam({ name: 'id', description: 'Contract UUID' })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
   @ApiResponse({ status: 204, description: 'Product removed from contract' })
-  @ApiResponse({ status: 404, description: 'Contract or product binding not found' })
+  @ApiResponse({
+    status: 404,
+    description: 'Contract or product binding not found',
+  })
   async removeProduct(
     @Param('id') id: string,
     @Param('productId') productId: string,

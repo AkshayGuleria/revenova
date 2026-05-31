@@ -57,7 +57,7 @@ type ContractFormValues = z.infer<typeof contractFormSchema>;
 
 interface ContractFormProps {
   contract?: Contract;
-  onSubmit: (data: CreateContractDto | UpdateContractDto) => void;
+  onSubmit: (data: CreateContractDto | UpdateContractDto) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   mode: "create" | "edit";

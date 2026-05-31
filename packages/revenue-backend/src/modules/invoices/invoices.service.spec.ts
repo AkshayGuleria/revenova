@@ -248,7 +248,9 @@ describe('InvoicesService', () => {
       const mockInvoice = { id: 'invoice-free', items: [] };
 
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
-      mockPrismaService.contract.findUnique.mockResolvedValue(contractWithNullBasePrice);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithNullBasePrice,
+      );
       mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
 
       await service.create(createDto);
@@ -279,7 +281,9 @@ describe('InvoicesService', () => {
       const mockInvoice = { id: 'invoice-discounted', items: [] };
 
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
-      mockPrismaService.contract.findUnique.mockResolvedValue(contractWithDiscount);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithDiscount,
+      );
       mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
 
       await service.create(createDto);
@@ -1328,7 +1332,9 @@ describe('InvoicesService', () => {
     it('throws ConflictException on P2002 when sub-invoice number already exists', async () => {
       const { PrismaClientKnownRequestError } = jest.requireActual(
         '@prisma/client/runtime/library',
-      ) as { PrismaClientKnownRequestError: typeof import('@prisma/client/runtime/library').PrismaClientKnownRequestError };
+      ) as {
+        PrismaClientKnownRequestError: typeof import('@prisma/client/runtime/library').PrismaClientKnownRequestError;
+      };
       const prismaError = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         { code: 'P2002', clientVersion: '5.0.0' },
@@ -1373,7 +1379,9 @@ describe('InvoicesService', () => {
         invoiceGroup: null,
       };
 
-      mockPrismaService.invoice.findUnique.mockResolvedValue(parentWithNoPeriod);
+      mockPrismaService.invoice.findUnique.mockResolvedValue(
+        parentWithNoPeriod,
+      );
       mockPrismaService.invoice.count.mockResolvedValue(0);
       mockPrismaService.invoice.create.mockResolvedValue(createdSub);
 
@@ -1484,14 +1492,27 @@ describe('InvoicesService', () => {
       const dtoWithItems = {
         ...subDto,
         items: [
-          { description: 'Support fee', quantity: 1, unitPrice: 500, amount: 500 },
+          {
+            description: 'Support fee',
+            quantity: 1,
+            unitPrice: 500,
+            amount: 500,
+          },
         ],
       };
       const createdSub = {
         id: 'sub-with-items',
         invoiceNumber: 'INV-2026-000001-A',
         parentInvoiceId: 'parent-id',
-        items: [{ id: 'item-1', description: 'Support fee', quantity: 1, unitPrice: 500, amount: 500 }],
+        items: [
+          {
+            id: 'item-1',
+            description: 'Support fee',
+            quantity: 1,
+            unitPrice: 500,
+            amount: 500,
+          },
+        ],
         invoiceGroup: null,
       };
 

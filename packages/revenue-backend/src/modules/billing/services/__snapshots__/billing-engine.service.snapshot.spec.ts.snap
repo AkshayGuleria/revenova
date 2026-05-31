@@ -1,0 +1,306 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`BillingEngineService — snapshots computeLineItems contract value fallback billing (no products, no seats) annual — $120,000 billed as full annual 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "120000",
+      "description": "Annual Subscription",
+      "quantity": "1",
+      "unitPrice": "120000",
+    },
+  ],
+  "subtotal": "120000",
+  "tax": "0",
+  "total": "120000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems contract value fallback billing (no products, no seats) monthly — $12,000 annual value → $1,000/month 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "1000",
+      "description": "Monthly Subscription",
+      "quantity": "1",
+      "unitPrice": "1000",
+    },
+  ],
+  "subtotal": "1000",
+  "tax": "0",
+  "total": "1000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems contract value fallback billing (no products, no seats) quarterly — $12,000 annual value → $3,000/quarter 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "3000",
+      "description": "Quarterly Subscription",
+      "quantity": "1",
+      "unitPrice": "3000",
+    },
+  ],
+  "subtotal": "3000",
+  "tax": "0",
+  "total": "3000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems contract value fallback billing (no products, no seats) unknown frequency — falls back to monthly (÷12) 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "1000",
+      "description": "Semi_annual Subscription",
+      "quantity": "1",
+      "unitPrice": "1000",
+    },
+  ],
+  "subtotal": "1000",
+  "tax": "0",
+  "total": "1000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems product-based billing multiple products — full 100% discount on one item 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "0",
+      "description": "Waived Seat",
+      "quantity": "10",
+      "unitPrice": "100",
+    },
+    {
+      "amount": "500",
+      "description": "Support Package",
+      "quantity": "1",
+      "unitPrice": "500",
+    },
+  ],
+  "subtotal": "500",
+  "tax": "0",
+  "total": "500",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems product-based billing multiple products — mixed discounts 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "3600",
+      "description": "Core Seats",
+      "quantity": "50",
+      "unitPrice": "80",
+    },
+    {
+      "amount": "5000",
+      "description": "Platform Fee",
+      "quantity": "1",
+      "unitPrice": "5000",
+    },
+    {
+      "amount": "850",
+      "description": "Admin Add-on",
+      "quantity": "5",
+      "unitPrice": "200",
+    },
+  ],
+  "subtotal": "9450",
+  "tax": "0",
+  "total": "9450",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems product-based billing single product — 20% discount applied 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "800",
+      "description": "Pro Seat",
+      "quantity": "10",
+      "unitPrice": "100",
+    },
+  ],
+  "subtotal": "800",
+  "tax": "0",
+  "total": "800",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems product-based billing single product — full price, no discount 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "1000",
+      "description": "Enterprise License",
+      "quantity": "5",
+      "unitPrice": "200",
+    },
+  ],
+  "subtotal": "1000",
+  "tax": "0",
+  "total": "1000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems product-based billing single product — uses product basePrice when unitPrice is null 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "500",
+      "description": "Basic Seat",
+      "quantity": "10",
+      "unitPrice": "50",
+    },
+  ],
+  "subtotal": "500",
+  "tax": "0",
+  "total": "500",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems seat-based billing (no products) annual — 500 seats at $80/seat 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "40000",
+      "description": "Annual Subscription - 500 seats",
+      "quantity": "500",
+      "unitPrice": "80",
+    },
+  ],
+  "subtotal": "40000",
+  "tax": "0",
+  "total": "40000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems seat-based billing (no products) monthly — 25 seats at $100/seat 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "2500",
+      "description": "Monthly Subscription - 25 seats",
+      "quantity": "25",
+      "unitPrice": "100",
+    },
+  ],
+  "subtotal": "2500",
+  "tax": "0",
+  "total": "2500",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems seat-based billing (no products) quarterly — 100 seats at $90/seat 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "9000",
+      "description": "Quarterly Subscription - 100 seats",
+      "quantity": "100",
+      "unitPrice": "90",
+    },
+  ],
+  "subtotal": "9000",
+  "tax": "0",
+  "total": "9000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems setup fee line item setup fee NOT added on subsequent billing period 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "1000",
+      "description": "Monthly Subscription",
+      "quantity": "1",
+      "unitPrice": "1000",
+    },
+  ],
+  "subtotal": "1000",
+  "tax": "0",
+  "total": "1000",
+}
+`;
+
+exports[`BillingEngineService — snapshots computeLineItems setup fee line item setup fee added on first billing period 1`] = `
+{
+  "discount": "0",
+  "lineItems": [
+    {
+      "amount": "1000",
+      "description": "Monthly Subscription",
+      "quantity": "1",
+      "unitPrice": "1000",
+    },
+    {
+      "amount": "500",
+      "description": "Setup Fee (one-time)",
+      "quantity": "1",
+      "unitPrice": "500",
+    },
+  ],
+  "subtotal": "1500",
+  "tax": "0",
+  "total": "1500",
+}
+`;
+
+exports[`BillingEngineService — snapshots getSetupFee no product → $0 setup fee 1`] = `"0"`;
+
+exports[`BillingEngineService — snapshots getSetupFee product with $2500 setup fee — first period 1`] = `"2500"`;
+
+exports[`BillingEngineService — snapshots getSetupFee product with $2500 setup fee — subsequent period → $0 1`] = `"0"`;
+
+exports[`BillingEngineService — snapshots getSetupFee product with no setupFee → $0 1`] = `"0"`;
+
+exports[`BillingEngineService — snapshots isFirstBillingPeriod different year, same month → false 1`] = `false`;
+
+exports[`BillingEngineService — snapshots isFirstBillingPeriod same year, next month → false 1`] = `false`;
+
+exports[`BillingEngineService — snapshots isFirstBillingPeriod same year, same month → true 1`] = `true`;
+
+exports[`BillingEngineService — snapshots isFirstBillingPeriod year-end rollover (Dec → Jan) 1`] = `false`;
+
+exports[`BillingEngineService — snapshots shouldBillProduct null product → always bill (backward compat) 1`] = `true`;
+
+exports[`BillingEngineService — snapshots shouldBillProduct one_time product → bill on first period only 1`] = `
+{
+  "firstPeriod": true,
+  "secondPeriod": false,
+}
+`;
+
+exports[`BillingEngineService — snapshots shouldBillProduct recurring product → always bill 1`] = `true`;
+
+exports[`BillingEngineService — snapshots shouldBillProduct trial period active → skip billing 1`] = `
+{
+  "afterTrial": true,
+  "duringTrial": false,
+}
+`;
+
+exports[`BillingEngineService — snapshots shouldBillProduct trial period exact boundary (last trial day vs first post-trial day) 1`] = `
+{
+  "firstBillDay": true,
+  "lastTrialDay": false,
+}
+`;
+
+exports[`BillingEngineService — snapshots shouldBillProduct usage_based product → never bill (Phase 6) 1`] = `false`;

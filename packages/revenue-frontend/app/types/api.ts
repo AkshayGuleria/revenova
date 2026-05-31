@@ -19,7 +19,7 @@ export interface PagingObject {
  * Standard API response wrapper
  */
 export interface ApiResponse<T> {
-  data: T | T[];
+  data: T;
   paging: PagingObject;
 }
 

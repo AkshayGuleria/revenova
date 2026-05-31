@@ -81,7 +81,10 @@ describe('getQueueConfig', () => {
 
     it('sets initial delay of 1000ms', () => {
       const config = getQueueConfig(makeConfigService());
-      const backoff = config.defaultJobOptions?.backoff as { type: string; delay: number };
+      const backoff = config.defaultJobOptions?.backoff as {
+        type: string;
+        delay: number;
+      };
 
       expect(backoff.delay).toBe(1000);
     });
@@ -138,8 +141,12 @@ describe('getQueueConfig', () => {
 
     it('failed jobs are kept significantly longer than completed jobs', () => {
       const config = getQueueConfig(makeConfigService());
-      const removeOnComplete = config.defaultJobOptions?.removeOnComplete as { age: number };
-      const removeOnFail = config.defaultJobOptions?.removeOnFail as { age: number };
+      const removeOnComplete = config.defaultJobOptions?.removeOnComplete as {
+        age: number;
+      };
+      const removeOnFail = config.defaultJobOptions?.removeOnFail as {
+        age: number;
+      };
 
       expect(removeOnFail.age).toBeGreaterThan(removeOnComplete.age);
     });

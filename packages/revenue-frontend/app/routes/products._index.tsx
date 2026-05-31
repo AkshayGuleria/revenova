@@ -17,8 +17,8 @@ import type { Product } from "~/types/models";
 import { PAGINATION } from "~/lib/constants";
 
 export default function ProductsListRoute() {
-  const [offset, setOffset] = useState(PAGINATION.DEFAULT_OFFSET);
-  const [limit] = useState(PAGINATION.DEFAULT_LIMIT);
+  const [offset, setOffset] = useState<number>(PAGINATION.DEFAULT_OFFSET);
+  const [limit] = useState<number>(PAGINATION.DEFAULT_LIMIT);
 
   const { data, isLoading } = useProducts({
     "offset[eq]": offset,

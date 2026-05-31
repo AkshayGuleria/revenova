@@ -2,7 +2,7 @@
  * TanStack Query (React Query) Configuration
  */
 
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ApiError } from "./client";
 
@@ -10,67 +10,52 @@ import { ApiError } from "./client";
  * Create and configure the QueryClient instance
  */
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof ApiError) {
+        console.error("[React Query - Query Error]", {
+          statusCode: error.statusCode,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        if (error.statusCode === 401) {
+          toast.error("Your session has expired. Please log in again.");
+        } else if (error.statusCode === 403) {
+          toast.error("You don't have permission to access this resource.");
+        }
+      } else {
+        console.error("[React Query - Unexpected Query Error]", error);
+      }
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof ApiError) {
+        console.error("[React Query - Mutation Error]", {
+          statusCode: error.statusCode,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+      } else {
+        console.error("[React Query - Unexpected Mutation Error]", error);
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
-      // Data is considered fresh for 1 minute
       staleTime: 60 * 1000,
-
-      // Cache data for 5 minutes
       gcTime: 5 * 60 * 1000,
-
-      // Retry failed queries 3 times with exponential backoff
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-
-      // Refetch on window focus for real-time data
       refetchOnWindowFocus: true,
-
-      // Don't refetch on mount if data is fresh
       refetchOnMount: true,
-
-      // Refetch on reconnect
       refetchOnReconnect: true,
-
-      // Global error handler for queries
-      onError: (error) => {
-        // Log all query errors for debugging
-        if (error instanceof ApiError) {
-          console.error("[React Query - Query Error]", {
-            statusCode: error.statusCode,
-            code: error.code,
-            message: error.message,
-            details: error.details,
-          });
-
-          // Show user-friendly errors for auth failures
-          if (error.statusCode === 401) {
-            toast.error("Your session has expired. Please log in again.");
-          } else if (error.statusCode === 403) {
-            toast.error("You don't have permission to access this resource.");
-          }
-        } else {
-          console.error("[React Query - Unexpected Query Error]", error);
-        }
-      },
     },
     mutations: {
-      // Retry mutations once on failure
       retry: 1,
       retryDelay: 1000,
-
-      // Global error handler for mutations
-      onError: (error) => {
-        if (error instanceof ApiError) {
-          console.error("[React Query - Mutation Error]", {
-            statusCode: error.statusCode,
-            code: error.code,
-            message: error.message,
-            details: error.details,
-          });
-        } else {
-          console.error("[React Query - Unexpected Mutation Error]", error);
-        }
-      },
     },
   },
 });

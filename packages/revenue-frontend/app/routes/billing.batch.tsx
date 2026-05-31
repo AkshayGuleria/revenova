@@ -29,13 +29,12 @@ import {
 import { Input } from "~/components/ui/input";
 import { toast } from "sonner";
 import { useBatchBilling } from "~/lib/api/hooks/use-billing";
+import { BillingFrequency } from "~/types/models";
 import { AlertCircle } from "lucide-react";
 
 const batchFormSchema = z.object({
   billingDate: z.string().optional(),
-  billingPeriod: z
-    .enum(["monthly", "quarterly", "annual"])
-    .optional(),
+  billingPeriod: z.nativeEnum(BillingFrequency).optional(),
 });
 
 type BatchFormData = z.infer<typeof batchFormSchema>;

@@ -153,9 +153,20 @@ describe('InvoicesController', () => {
       const query: QueryInvoicesDto = {};
       const result = {
         data: [
-          { id: 'sub-1', invoiceNumber: 'INV-001-A', parentInvoiceId: parentId },
+          {
+            id: 'sub-1',
+            invoiceNumber: 'INV-001-A',
+            parentInvoiceId: parentId,
+          },
         ],
-        paging: { offset: 0, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
+        paging: {
+          offset: 0,
+          limit: 20,
+          total: 1,
+          totalPages: 1,
+          hasNext: false,
+          hasPrev: false,
+        },
       };
       mockInvoicesService.getSubInvoices.mockResolvedValue(result);
 
@@ -175,8 +186,20 @@ describe('InvoicesController', () => {
         total: 5400,
       };
       const result = {
-        data: { id: 'sub-1', invoiceNumber: 'INV-001-A', parentInvoiceId: parentId, ...dto },
-        paging: { offset: null, limit: null, total: null, totalPages: null, hasNext: null, hasPrev: null },
+        data: {
+          id: 'sub-1',
+          invoiceNumber: 'INV-001-A',
+          parentInvoiceId: parentId,
+          ...dto,
+        },
+        paging: {
+          offset: null,
+          limit: null,
+          total: null,
+          totalPages: null,
+          hasNext: null,
+          hasPrev: null,
+        },
       };
       mockInvoicesService.createSubInvoice.mockResolvedValue(result);
 
