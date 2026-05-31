@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InvoicesService } from './invoices.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import {
   NotFoundException,
@@ -59,6 +60,10 @@ describe('InvoicesService', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: AuditLogService,
+          useValue: { log: jest.fn() },
         },
       ],
     }).compile();
