@@ -23,28 +23,18 @@
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-05-31 09:45
-- **Branch:** test/billing-dry-run-unit-e2e
-- **Last commit:** a10006b feat: add invoice dry run (preview without DB writes)
+- **Last stop:** 2026-05-31 12:54
+- **Branch:** master
+- **Last commit:** 3d36bb2 Autonomous workflow (#19)
 - **Modified files:**
 ```
-M .claude/CLAUDE.md
- M packages/revenue-frontend/app/routes/contracts.$id.tsx
-?? .claude/hooks/
-?? .claude/memory/
-?? .claude/skills/api-design.md
-?? .claude/skills/backend-patterns.md
-?? .claude/skills/database-migrations.md
-?? .claude/skills/e2e-testing.md
-?? .claude/skills/nestjs-patterns.md
-?? .claude/skills/prisma-patterns.md
-?? .claude/skills/tdd-workflow.md
-?? docs/WORKFLOW.md
-?? docs/reference/
+?? .claude/settings.json
+?? .claude/worktrees/
 ```
 - **In progress:** _(update this manually before closing session)_
 
 ## Session Log
 - 2026-05-31 07:25 [8936b6aa] branch:main
 - 2026-05-31 09:45 [8936b6aa] branch:test/billing-dry-run-unit-e2e
+- 2026-05-31 12:54 [8936b6aa] branch:master
 <!-- Appended by .claude/hooks/session-end.js on Stop -->

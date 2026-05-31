@@ -36,3 +36,6 @@ dump.rdb
 # Logs
 logs/
 *.log
+
+# Dev workflow
+.claude/worktrees/*
