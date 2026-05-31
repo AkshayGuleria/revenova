@@ -40,4 +40,7 @@ export default [
   route("billing/batch", "routes/billing.batch.tsx"),
   route("billing/consolidated", "routes/billing.consolidated.tsx"),
   route("billing/jobs/:jobId", "routes/billing.jobs.$jobId.tsx"),
+
+  // Renewals (Phase 5)
+  route("renewals", "routes/renewals._index.tsx"),
 ] satisfies RouteConfig;
