@@ -14,6 +14,7 @@ import { InvoiceGroupsModule } from './modules/invoice-groups/invoice-groups.mod
 import { AppConfigModule } from './modules/app-config/app-config.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
+import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
 import { getQueueConfig } from './common/queues';
 
 @Module({
@@ -39,6 +40,7 @@ import { getQueueConfig } from './common/queues';
     AppConfigModule,
     PurchaseOrdersModule,
     TaxRatesModule,
+    ExchangeRatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
