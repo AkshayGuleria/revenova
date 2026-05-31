@@ -83,7 +83,11 @@ describe('ContractsService', () => {
       accountName: 'Test Account',
     };
 
-    const mockProduct = { id: 'product-123', name: 'Enterprise Plan', basePrice: 99.99 };
+    const mockProduct = {
+      id: 'product-123',
+      name: 'Enterprise Plan',
+      basePrice: 99.99,
+    };
 
     const createContractDto: CreateContractDto = {
       contractNumber: 'CNT-2024-0001',
@@ -120,9 +124,15 @@ describe('ContractsService', () => {
     it('should create a contract successfully', async () => {
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
       mockPrismaService.product.findMany.mockResolvedValue([mockProduct]);
-      mockPrismaService.contract.create.mockResolvedValue({ id: 'contract-123' });
-      mockPrismaService.contractProduct.createMany.mockResolvedValue({ count: 1 });
-      mockPrismaService.contract.findUnique.mockResolvedValue(mockCreatedContract);
+      mockPrismaService.contract.create.mockResolvedValue({
+        id: 'contract-123',
+      });
+      mockPrismaService.contractProduct.createMany.mockResolvedValue({
+        count: 1,
+      });
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        mockCreatedContract,
+      );
 
       const result = await service.create(createContractDto);
 
@@ -226,21 +236,29 @@ describe('ContractsService', () => {
     it('should create contractProduct records in transaction', async () => {
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
       mockPrismaService.product.findMany.mockResolvedValue([mockProduct]);
-      mockPrismaService.contract.create.mockResolvedValue({ id: 'contract-123' });
-      mockPrismaService.contractProduct.createMany.mockResolvedValue({ count: 1 });
-      mockPrismaService.contract.findUnique.mockResolvedValue(mockCreatedContract);
+      mockPrismaService.contract.create.mockResolvedValue({
+        id: 'contract-123',
+      });
+      mockPrismaService.contractProduct.createMany.mockResolvedValue({
+        count: 1,
+      });
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        mockCreatedContract,
+      );
 
       await service.create(createContractDto);
 
-      expect(mockPrismaService.contractProduct.createMany).toHaveBeenCalledWith({
-        data: [
-          expect.objectContaining({
-            contractId: 'contract-123',
-            productId: 'product-123',
-            quantity: 50,
-          }),
-        ],
-      });
+      expect(mockPrismaService.contractProduct.createMany).toHaveBeenCalledWith(
+        {
+          data: [
+            expect.objectContaining({
+              contractId: 'contract-123',
+              productId: 'product-123',
+              quantity: 50,
+            }),
+          ],
+        },
+      );
     });
   });
 
@@ -258,7 +276,9 @@ describe('ContractsService', () => {
       ];
 
       mockPrismaService.contract.findUnique.mockResolvedValue(contract);
-      mockPrismaService.contractProduct.findMany.mockResolvedValue(contractProducts);
+      mockPrismaService.contractProduct.findMany.mockResolvedValue(
+        contractProducts,
+      );
 
       const result = await service.findProducts('contract-1');
 
@@ -267,7 +287,9 @@ describe('ContractsService', () => {
     });
 
     it('should return empty array when contract has no products', async () => {
-      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
+      mockPrismaService.contract.findUnique.mockResolvedValue({
+        id: 'contract-1',
+      });
       mockPrismaService.contractProduct.findMany.mockResolvedValue([]);
 
       const result = await service.findProducts('contract-1');
@@ -299,7 +321,9 @@ describe('ContractsService', () => {
 
       mockPrismaService.contract.findUnique.mockResolvedValue(contract);
       mockPrismaService.product.findUnique.mockResolvedValue(product);
-      mockPrismaService.contractProduct.create.mockResolvedValue(contractProduct);
+      mockPrismaService.contractProduct.create.mockResolvedValue(
+        contractProduct,
+      );
 
       const result = await service.addProduct('contract-1', {
         productId: 'product-1',
@@ -327,7 +351,9 @@ describe('ContractsService', () => {
     });
 
     it('should throw NotFoundException when product not found', async () => {
-      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
+      mockPrismaService.contract.findUnique.mockResolvedValue({
+        id: 'contract-1',
+      });
       mockPrismaService.product.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -341,8 +367,12 @@ describe('ContractsService', () => {
         { code: 'P2002', clientVersion: '5.0.0' },
       );
 
-      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
-      mockPrismaService.product.findUnique.mockResolvedValue({ id: 'product-1' });
+      mockPrismaService.contract.findUnique.mockResolvedValue({
+        id: 'contract-1',
+      });
+      mockPrismaService.product.findUnique.mockResolvedValue({
+        id: 'product-1',
+      });
       mockPrismaService.contractProduct.create.mockRejectedValue(prismaError);
 
       await expect(
@@ -352,8 +382,12 @@ describe('ContractsService', () => {
 
     it('should rethrow non-P2002 errors from addProduct', async () => {
       const genericError = new Error('Unexpected DB error in addProduct');
-      mockPrismaService.contract.findUnique.mockResolvedValue({ id: 'contract-1' });
-      mockPrismaService.product.findUnique.mockResolvedValue({ id: 'product-1' });
+      mockPrismaService.contract.findUnique.mockResolvedValue({
+        id: 'contract-1',
+      });
+      mockPrismaService.product.findUnique.mockResolvedValue({
+        id: 'product-1',
+      });
       mockPrismaService.contractProduct.create.mockRejectedValue(genericError);
 
       await expect(

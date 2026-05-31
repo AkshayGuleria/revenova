@@ -779,7 +779,9 @@ describe('BillingEngineService', () => {
         ],
       };
 
-      mockPrismaService.contract.findUnique.mockResolvedValue(contractWithProducts);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithProducts,
+      );
       mockPrismaService.invoice.count.mockResolvedValue(0);
 
       const result = await service.previewInvoice({
@@ -914,7 +916,9 @@ describe('BillingEngineService', () => {
       // --- preview ---
       mockPrismaService.contract.findUnique.mockResolvedValue(seatContract);
       mockPrismaService.invoice.count.mockResolvedValue(0);
-      mockSeatCalculator.calculateSeatPricing.mockReturnValue(seatPricingResult);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue(
+        seatPricingResult,
+      );
 
       const previewResult = await service.previewInvoice({
         contractId: 'contract-123',
@@ -927,7 +931,9 @@ describe('BillingEngineService', () => {
       // --- real generate ---
       mockPrismaService.contract.findUnique.mockResolvedValue(seatContract);
       mockPrismaService.invoice.count.mockResolvedValue(0);
-      mockSeatCalculator.calculateSeatPricing.mockReturnValue(seatPricingResult);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue(
+        seatPricingResult,
+      );
 
       const mockCreatedInvoice = {
         id: 'invoice-gen',

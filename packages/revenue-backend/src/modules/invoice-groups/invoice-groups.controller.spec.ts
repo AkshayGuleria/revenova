@@ -107,7 +107,10 @@ describe('InvoiceGroupsController', () => {
         name: 'Custom Group',
         groupType: InvoiceGroupType.CUSTOM,
       };
-      mockService.create.mockResolvedValue({ data: { id: 'g-2', ...minimalDto }, paging: singleResponse.paging });
+      mockService.create.mockResolvedValue({
+        data: { id: 'g-2', ...minimalDto },
+        paging: singleResponse.paging,
+      });
 
       const result = await controller.create(minimalDto);
 
@@ -219,7 +222,14 @@ describe('InvoiceGroupsController', () => {
     it('returns empty list when no groups exist', async () => {
       mockService.findAll.mockResolvedValue({
         data: [],
-        paging: { offset: 0, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
+        paging: {
+          offset: 0,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
       });
 
       const result = await controller.findAll({});

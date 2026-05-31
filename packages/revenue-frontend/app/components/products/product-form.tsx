@@ -57,7 +57,7 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: Product;
-  onSubmit: (data: CreateProductDto | UpdateProductDto) => void;
+  onSubmit: (data: CreateProductDto | UpdateProductDto) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   mode: "create" | "edit";

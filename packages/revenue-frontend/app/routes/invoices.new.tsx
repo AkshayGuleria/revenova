@@ -9,15 +9,15 @@ import { InvoiceForm } from "~/components/invoices/invoice-form";
 import { useCreateInvoice } from "~/lib/api/hooks/use-invoices";
 import { ApiError } from "~/lib/api/client";
 import { toast } from "sonner";
-import type { CreateInvoiceDto } from "~/types/models";
+import type { CreateInvoiceDto, UpdateInvoiceDto } from "~/types/models";
 
 export default function NewInvoiceRoute() {
   const navigate = useNavigate();
   const createInvoice = useCreateInvoice();
 
-  const handleSubmit = async (data: CreateInvoiceDto) => {
+  const handleSubmit = async (data: CreateInvoiceDto | UpdateInvoiceDto) => {
     try {
-      const response = await createInvoice.mutateAsync(data);
+      const response = await createInvoice.mutateAsync(data as CreateInvoiceDto);
       toast.success("Invoice created successfully");
       navigate(`/invoices/${response.data.id}`);
     } catch (error) {

@@ -18,8 +18,8 @@ import type { Account } from "~/types/models";
 import { PAGINATION } from "~/lib/constants";
 
 export default function AccountsListRoute() {
-  const [offset, setOffset] = useState(PAGINATION.DEFAULT_OFFSET);
-  const [limit] = useState(PAGINATION.DEFAULT_LIMIT);
+  const [offset, setOffset] = useState<number>(PAGINATION.DEFAULT_OFFSET);
+  const [limit] = useState<number>(PAGINATION.DEFAULT_LIMIT);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch accounts with pagination and search

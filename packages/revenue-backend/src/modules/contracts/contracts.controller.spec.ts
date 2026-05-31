@@ -192,7 +192,14 @@ describe('ContractsController', () => {
       const contractId = 'contract-123';
       const result = {
         data: [{ id: 'cp-1', productId: 'product-1', quantity: 10 }],
-        paging: { total: 1, offset: null, limit: null, totalPages: null, hasNext: null, hasPrev: null },
+        paging: {
+          total: 1,
+          offset: null,
+          limit: null,
+          totalPages: null,
+          hasNext: null,
+          hasPrev: null,
+        },
       };
       mockContractsService.findProducts.mockResolvedValue(result);
 
@@ -205,10 +212,20 @@ describe('ContractsController', () => {
   describe('addProduct', () => {
     it('should call service.addProduct with contract id and dto', async () => {
       const contractId = 'contract-123';
-      const dto: CreateContractProductDto = { productId: 'product-456', quantity: 5 };
+      const dto: CreateContractProductDto = {
+        productId: 'product-456',
+        quantity: 5,
+      };
       const result = {
         data: { id: 'cp-1', contractId, productId: 'product-456', quantity: 5 },
-        paging: { offset: null, limit: null, total: null, totalPages: null, hasNext: null, hasPrev: null },
+        paging: {
+          offset: null,
+          limit: null,
+          total: null,
+          totalPages: null,
+          hasNext: null,
+          hasPrev: null,
+        },
       };
       mockContractsService.addProduct.mockResolvedValue(result);
 

@@ -48,8 +48,7 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: "auth-storage", // localStorage key
-      partiallyInStorage: true, // Allow partial hydration
+      name: "auth-storage",
     }
   )
 );

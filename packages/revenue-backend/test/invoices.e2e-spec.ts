@@ -155,9 +155,13 @@ describe('InvoicesController (e2e)', () => {
         .expect(HttpStatus.CREATED);
 
       expect(response.body.data.items).toHaveLength(1);
-      expect(response.body.data.items[0].description).toBe('E2E Invoice Test Product');
+      expect(response.body.data.items[0].description).toBe(
+        'E2E Invoice Test Product',
+      );
       expect(parseFloat(response.body.data.items[0].quantity)).toBeCloseTo(1);
-      expect(parseFloat(response.body.data.items[0].unitPrice)).toBeCloseTo(500);
+      expect(parseFloat(response.body.data.items[0].unitPrice)).toBeCloseTo(
+        500,
+      );
       expect(parseFloat(response.body.data.items[0].amount)).toBeCloseTo(500);
     });
 
@@ -257,7 +261,9 @@ describe('InvoicesController (e2e)', () => {
         .query({ 'status[eq]': 'draft' })
         .expect(HttpStatus.OK);
 
-      expect(response.body.data.every((inv) => inv.status === 'draft')).toBe(true);
+      expect(response.body.data.every((inv) => inv.status === 'draft')).toBe(
+        true,
+      );
     });
 
     it('should filter by account', async () => {
@@ -292,7 +298,9 @@ describe('InvoicesController (e2e)', () => {
         .expect(HttpStatus.OK);
 
       expect(
-        response.body.data.every((inv) => inv.invoiceNumber.includes('INV-E2E')),
+        response.body.data.every((inv) =>
+          inv.invoiceNumber.includes('INV-E2E'),
+        ),
       ).toBe(true);
     });
   });
@@ -533,7 +541,9 @@ describe('InvoicesController (e2e)', () => {
         .query({ 'status[eq]': 'paid' })
         .expect(HttpStatus.OK);
 
-      expect(eqResponse.body.data.every((inv) => inv.status === 'paid')).toBe(true);
+      expect(eqResponse.body.data.every((inv) => inv.status === 'paid')).toBe(
+        true,
+      );
 
       const gteResponse = await request(app.getHttpServer())
         .get('/api/invoices')
@@ -550,7 +560,9 @@ describe('InvoicesController (e2e)', () => {
         .expect(HttpStatus.OK);
 
       expect(
-        likeResponse.body.data.every((inv) => inv.invoiceNumber.includes('E2E')),
+        likeResponse.body.data.every((inv) =>
+          inv.invoiceNumber.includes('E2E'),
+        ),
       ).toBe(true);
     });
   });

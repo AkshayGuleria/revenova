@@ -117,7 +117,7 @@ export default function GenerateInvoiceRoute() {
                       <SelectContent>
                         {contracts.map((contract) => (
                           <SelectItem key={contract.id} value={contract.id}>
-                            {contract.contractName} -{" "}
+                            {contract.contractNumber} -{" "}
                             {contract.account?.accountName}
                           </SelectItem>
                         ))}

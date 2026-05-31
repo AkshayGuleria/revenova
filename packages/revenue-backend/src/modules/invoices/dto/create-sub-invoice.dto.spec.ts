@@ -56,111 +56,165 @@ describe('CreateSubInvoiceDto', () => {
   });
 
   it('should fail when subtotal is negative', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { subtotal: -1, total: 0 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      subtotal: -1,
+      total: 0,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'subtotal')).toBe(true);
   });
 
   it('should fail when total is negative', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { subtotal: 0, total: -1 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      subtotal: 0,
+      total: -1,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'total')).toBe(true);
   });
 
   it('should fail when tax is negative', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, tax: -1 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      tax: -1,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'tax')).toBe(true);
   });
 
   it('should fail when discount is negative', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, discount: -5 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      discount: -5,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'discount')).toBe(true);
   });
 
   it('should fail when subtotal is not a number', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { subtotal: 'abc', total: 100 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      subtotal: 'abc',
+      total: 100,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'subtotal')).toBe(true);
   });
 
   it('should fail when total is not a number', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { subtotal: 100, total: 'xyz' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      subtotal: 100,
+      total: 'xyz',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'total')).toBe(true);
   });
 
   it('should fail when issueDate is not a valid date string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, issueDate: 'not-a-date' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      issueDate: 'not-a-date',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'issueDate')).toBe(true);
   });
 
   it('should fail when dueDate is not a valid date string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, dueDate: 'invalid' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      dueDate: 'invalid',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'dueDate')).toBe(true);
   });
 
   it('should fail when periodStart is not a valid date string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, periodStart: 'bad' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      periodStart: 'bad',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'periodStart')).toBe(true);
   });
 
   it('should fail when periodEnd is not a valid date string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, periodEnd: 'bad' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      periodEnd: 'bad',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'periodEnd')).toBe(true);
   });
 
   it('should fail when contractId is not a string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, contractId: 123 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      contractId: 123,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'contractId')).toBe(true);
   });
 
   it('should fail when invoiceGroupId is not a string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, invoiceGroupId: 999 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      invoiceGroupId: 999,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'invoiceGroupId')).toBe(true);
   });
 
   it('should fail when currency is not a string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, currency: 42 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      currency: 42,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'currency')).toBe(true);
   });
 
   it('should fail when notes is not a string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, notes: 123 });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      notes: 123,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'notes')).toBe(true);
   });
 
   it('should fail when internalNotes is not a string', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, internalNotes: true });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      internalNotes: true,
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'internalNotes')).toBe(true);
   });
 
   it('should fail when status is an invalid enum value', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, status: 'invalid-status' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      status: 'invalid-status',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'status')).toBe(true);
   });
 
   it('should accept all valid InvoiceStatus enum values', async () => {
     for (const status of Object.values(InvoiceStatus)) {
-      const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, status });
+      const dto = plainToInstance(CreateSubInvoiceDto, {
+        ...validMinimal,
+        status,
+      });
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'status')).toBe(false);
     }
   });
 
   it('should fail when items is not an array', async () => {
-    const dto = plainToInstance(CreateSubInvoiceDto, { ...validMinimal, items: 'not-an-array' });
+    const dto = plainToInstance(CreateSubInvoiceDto, {
+      ...validMinimal,
+      items: 'not-an-array',
+    });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'items')).toBe(true);
   });
@@ -168,7 +222,9 @@ describe('CreateSubInvoiceDto', () => {
   it('should validate nested items using CreateInvoiceItemDto', async () => {
     const plain = {
       ...validMinimal,
-      items: [{ description: 'Service', quantity: 1, unitPrice: 5000, amount: 5000 }],
+      items: [
+        { description: 'Service', quantity: 1, unitPrice: 5000, amount: 5000 },
+      ],
     };
     const dto = plainToInstance(CreateSubInvoiceDto, plain);
     const errors = await validate(dto);
@@ -178,7 +234,9 @@ describe('CreateSubInvoiceDto', () => {
   it('should fail on invalid nested item', async () => {
     const plain = {
       ...validMinimal,
-      items: [{ description: 123, quantity: 'bad', unitPrice: -1, amount: 5000 }],
+      items: [
+        { description: 123, quantity: 'bad', unitPrice: -1, amount: 5000 },
+      ],
     };
     const dto = plainToInstance(CreateSubInvoiceDto, plain);
     const errors = await validate(dto);

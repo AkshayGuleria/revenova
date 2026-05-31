@@ -40,7 +40,7 @@ const consolidatedFormSchema = z.object({
   parentAccountId: z.string().min(1, "Parent account is required"),
   periodStart: z.string().min(1, "Billing period start is required"),
   periodEnd: z.string().min(1, "Billing period end is required"),
-  includeChildren: z.boolean().default(true),
+  includeChildren: z.boolean(),
 });
 
 type ConsolidatedFormData = z.infer<typeof consolidatedFormSchema>;

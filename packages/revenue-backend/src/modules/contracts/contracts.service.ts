@@ -5,11 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import {
-  CreateContractDto,
-  UpdateContractDto,
-  QueryContractsDto,
-} from './dto';
+import { CreateContractDto, UpdateContractDto, QueryContractsDto } from './dto';
 import { CreateContractProductDto } from './dto/contract-product.dto';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';

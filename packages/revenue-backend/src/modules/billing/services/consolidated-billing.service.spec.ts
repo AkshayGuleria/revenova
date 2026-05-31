@@ -240,7 +240,7 @@ describe('ConsolidatedBillingService', () => {
           account: { id: 'parent-id', accountName: 'Parent Corp' },
           shares: [],
           products: [],
-},
+        },
       ];
 
       jest
@@ -285,7 +285,7 @@ describe('ConsolidatedBillingService', () => {
           account: { id: 'parent-id', accountName: 'Parent Corp' },
           shares: [],
           products: [],
-},
+        },
       ];
 
       const createdInvoice = {
@@ -394,7 +394,7 @@ describe('ConsolidatedBillingService', () => {
           account: { id: 'parent-id', accountName: 'Root Corp' },
           shares: [],
           products: [],
-},
+        },
       ];
 
       const createdInvoice = {
@@ -485,13 +485,19 @@ describe('ConsolidatedBillingService', () => {
         // Call 0 → subsidiaries (for parent-id), Call 1 → [] (for sub-1's children)
         const accountFindManyResults: any[][] = [subsidiaries, []];
 
-        mockPrismaService.account.findUnique = jest.fn().mockResolvedValue(parentAccount);
-        mockPrismaService.account.findMany = jest.fn().mockImplementation(() => {
-          const r = accountFindManyResults[accountFindManyCallCount] ?? [];
-          accountFindManyCallCount++;
-          return Promise.resolve(r);
-        });
-        mockPrismaService.contract.findMany = jest.fn().mockResolvedValue(contracts);
+        mockPrismaService.account.findUnique = jest
+          .fn()
+          .mockResolvedValue(parentAccount);
+        mockPrismaService.account.findMany = jest
+          .fn()
+          .mockImplementation(() => {
+            const r = accountFindManyResults[accountFindManyCallCount] ?? [];
+            accountFindManyCallCount++;
+            return Promise.resolve(r);
+          });
+        mockPrismaService.contract.findMany = jest
+          .fn()
+          .mockResolvedValue(contracts);
         mockPrismaService.invoice.count = jest.fn().mockResolvedValue(0);
 
         const result = await service.previewConsolidatedInvoice({
@@ -516,9 +522,13 @@ describe('ConsolidatedBillingService', () => {
       it('should NOT throw for an account on credit hold (dry run skips credit check)', async () => {
         const creditHoldAccount = { ...parentAccount, creditHold: true };
 
-        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(creditHoldAccount as any);
+        jest
+          .spyOn(prisma.account, 'findUnique')
+          .mockResolvedValueOnce(creditHoldAccount as any);
         jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]); // no descendants
-        jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(contracts as any);
+        jest
+          .spyOn(prisma.contract, 'findMany')
+          .mockResolvedValueOnce(contracts as any);
         jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
 
         // Must NOT reject — credit hold is intentionally skipped for dry run
@@ -533,9 +543,13 @@ describe('ConsolidatedBillingService', () => {
       });
 
       it('should NOT call $transaction (no DB writes)', async () => {
-        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(parentAccount as any);
+        jest
+          .spyOn(prisma.account, 'findUnique')
+          .mockResolvedValueOnce(parentAccount as any);
         jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
-        jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(contracts as any);
+        jest
+          .spyOn(prisma.contract, 'findMany')
+          .mockResolvedValueOnce(contracts as any);
         jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
 
         await service.previewConsolidatedInvoice({
@@ -549,9 +563,13 @@ describe('ConsolidatedBillingService', () => {
       });
 
       it('should NOT call invoice.findFirst (no dedup check)', async () => {
-        jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce(parentAccount as any);
+        jest
+          .spyOn(prisma.account, 'findUnique')
+          .mockResolvedValueOnce(parentAccount as any);
         jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
-        jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce(contracts as any);
+        jest
+          .spyOn(prisma.contract, 'findMany')
+          .mockResolvedValueOnce(contracts as any);
         jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
 
         // Reset call count from beforeEach defaults
@@ -596,13 +614,19 @@ describe('ConsolidatedBillingService', () => {
         // Call 2 → [] (children of sub-2)
         const accountFindManyResults: any[][] = [twoSubs, [], []];
 
-        mockPrismaService.account.findUnique = jest.fn().mockResolvedValue(parentAccount);
-        mockPrismaService.account.findMany = jest.fn().mockImplementation(() => {
-          const r = accountFindManyResults[callCount] ?? [];
-          callCount++;
-          return Promise.resolve(r);
-        });
-        mockPrismaService.contract.findMany = jest.fn().mockResolvedValue(contracts);
+        mockPrismaService.account.findUnique = jest
+          .fn()
+          .mockResolvedValue(parentAccount);
+        mockPrismaService.account.findMany = jest
+          .fn()
+          .mockImplementation(() => {
+            const r = accountFindManyResults[callCount] ?? [];
+            callCount++;
+            return Promise.resolve(r);
+          });
+        mockPrismaService.contract.findMany = jest
+          .fn()
+          .mockResolvedValue(contracts);
         mockPrismaService.invoice.count = jest.fn().mockResolvedValue(0);
 
         const result = await service.previewConsolidatedInvoice({
@@ -649,7 +673,7 @@ describe('ConsolidatedBillingService', () => {
           account: { id: 'parent-id', accountName: 'Parent Corp' },
           shares: [],
           products: [],
-},
+        },
       ];
 
       const createdInvoice = {

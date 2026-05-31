@@ -1,0 +1,159 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SeatCalculatorService — snapshots calculateProration full year proration (365/365) 1`] = `"12000"`;
+
+exports[`SeatCalculatorService — snapshots calculateProration mid-year join — 182 of 365 days 1`] = `"5983.5616438356164384"`;
+
+exports[`SeatCalculatorService — snapshots calculateProration monthly proration — 15 of 31 days 1`] = `"483.87096774193548387"`;
+
+exports[`SeatCalculatorService — snapshots calculateProration precise decimal amount — 99.99 for 15 of 30 days 1`] = `"49.995"`;
+
+exports[`SeatCalculatorService — snapshots calculateProration quarterly proration — 45 of 91 days 1`] = `"1483.5164835164835165"`;
+
+exports[`SeatCalculatorService — snapshots calculateProration single day of monthly period 1`] = `"20"`;
+
+exports[`SeatCalculatorService — snapshots calculateProration zero total days returns 0 1`] = `"0"`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing decimal seat price with volume discount — precise Decimal arithmetic 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 100,
+    "minSeats": 1,
+    "pricePerSeat": 49.99,
+  },
+  "pricePerSeat": "49.99",
+  "seatCount": 75,
+  "subtotal": "3749.25",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing flat pricing — 1 seat at $99.99/seat (decimal base price) 1`] = `
+{
+  "appliedTier": null,
+  "pricePerSeat": "99.99",
+  "seatCount": 1,
+  "subtotal": "99.99",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing flat pricing — 50 seats at $120/seat 1`] = `
+{
+  "appliedTier": null,
+  "pricePerSeat": "120",
+  "seatCount": 50,
+  "subtotal": "6000",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing no tier match — falls back to base price 1`] = `
+{
+  "appliedTier": null,
+  "pricePerSeat": "100",
+  "seatCount": 5,
+  "subtotal": "500",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 1 seat (tier 1 lower bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 10,
+    "minSeats": 1,
+    "pricePerSeat": 100,
+  },
+  "pricePerSeat": "100",
+  "seatCount": 1,
+  "subtotal": "100",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 10 seats (tier 1 upper bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 10,
+    "minSeats": 1,
+    "pricePerSeat": 100,
+  },
+  "pricePerSeat": "100",
+  "seatCount": 10,
+  "subtotal": "1000",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 11 seats (tier 2 lower bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 50,
+    "minSeats": 11,
+    "pricePerSeat": 90,
+  },
+  "pricePerSeat": "90",
+  "seatCount": 11,
+  "subtotal": "990",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 50 seats (tier 2 upper bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 50,
+    "minSeats": 11,
+    "pricePerSeat": 90,
+  },
+  "pricePerSeat": "90",
+  "seatCount": 50,
+  "subtotal": "4500",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 51 seats (tier 3 lower bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 200,
+    "minSeats": 51,
+    "pricePerSeat": 80,
+  },
+  "pricePerSeat": "80",
+  "seatCount": 51,
+  "subtotal": "4080",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 200 seats (tier 3 upper bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": 200,
+    "minSeats": 51,
+    "pricePerSeat": 80,
+  },
+  "pricePerSeat": "80",
+  "seatCount": 200,
+  "subtotal": "16000",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 201 seats (unlimited tier lower bound) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": null,
+    "minSeats": 201,
+    "pricePerSeat": 70,
+  },
+  "pricePerSeat": "70",
+  "seatCount": 201,
+  "subtotal": "14070",
+}
+`;
+
+exports[`SeatCalculatorService — snapshots calculateSeatPricing volume tier — 500 seats (deep in unlimited tier) 1`] = `
+{
+  "appliedTier": {
+    "maxSeats": null,
+    "minSeats": 201,
+    "pricePerSeat": 70,
+  },
+  "pricePerSeat": "70",
+  "seatCount": 500,
+  "subtotal": "35000",
+}
+`;

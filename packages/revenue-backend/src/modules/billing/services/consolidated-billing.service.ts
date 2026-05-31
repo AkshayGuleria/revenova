@@ -426,7 +426,12 @@ export class ConsolidatedBillingService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     periodEnd: Date,
   ): Promise<
-    Array<{ description: string; quantity: Decimal; unitPrice: Decimal; amount: Decimal }>
+    Array<{
+      description: string;
+      quantity: Decimal;
+      unitPrice: Decimal;
+      amount: Decimal;
+    }>
   > {
     const startStr = periodStart.toISOString().split('T')[0];
     const endStr = periodEnd.toISOString().split('T')[0];

@@ -9,15 +9,15 @@ import { PageHeader } from "~/components/layout/page-header";
 import { Card, CardContent } from "~/components/ui/card";
 import { ContractForm } from "~/components/contracts/contract-form";
 import { useCreateContract } from "~/lib/api/hooks/use-contracts";
-import type { CreateContractDto } from "~/types/models";
+import type { CreateContractDto, UpdateContractDto } from "~/types/models";
 
 export default function CreateContractRoute() {
   const navigate = useNavigate();
   const createMutation = useCreateContract();
 
-  const handleSubmit = async (data: CreateContractDto) => {
+  const handleSubmit = async (data: CreateContractDto | UpdateContractDto) => {
     try {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync(data as CreateContractDto);
       toast.success("Contract created successfully");
       navigate("/contracts");
     } catch (error: any) {
