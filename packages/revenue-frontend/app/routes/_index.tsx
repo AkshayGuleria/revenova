@@ -15,7 +15,8 @@ import {
   Receipt,
   TrendingUp,
   Zap,
-  FileSpreadsheet
+  FileSpreadsheet,
+  BarChart3,
 } from "lucide-react";
 import {
   useDashboardStats,
@@ -34,7 +35,7 @@ export default function Dashboard() {
   const { data: activities, isLoading: activitiesLoading } = useRecentActivity();
   const { data: expiringContracts, isLoading: contractsLoading } = useExpiringContracts();
 
-  // Stats configuration with real data
+  // Stats configuration with real data — 5 cards (2+3 grid on large)
   const statsConfig = [
     {
       title: "Total Accounts",
@@ -58,11 +59,18 @@ export default function Dashboard() {
       icon: Receipt,
     },
     {
-      title: "Monthly Revenue",
-      value: formatCurrency(stats?.monthlyRevenue || 0),
-      description: "Revenue this month",
+      title: "MRR",
+      value: stats?.mrr != null ? formatCurrency(stats.mrr) : formatCurrency(stats?.monthlyRevenue || 0),
+      description: "Monthly recurring revenue",
       gradient: "from-purple-500 to-purple-600",
       icon: TrendingUp,
+    },
+    {
+      title: "ARR",
+      value: stats?.arr != null ? formatCurrency(stats.arr) : "—",
+      description: "Annual recurring revenue",
+      gradient: "from-indigo-500 to-violet-600",
+      icon: BarChart3,
     },
   ];
 
@@ -74,10 +82,10 @@ export default function Dashboard() {
       />
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mt-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
         {statsLoading ? (
           // Loading skeletons
-          Array.from({ length: 4 }).map((_, index) => (
+          Array.from({ length: 5 }).map((_, index) => (
             <Card key={index} className="overflow-hidden border-0 shadow-lg">
               <div className={`h-2 bg-gradient-to-r ${statsConfig[index].gradient}`} />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">

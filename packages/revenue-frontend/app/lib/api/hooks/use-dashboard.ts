@@ -8,6 +8,7 @@ import { queryKeys } from "../query-client";
 import { useAccounts } from "./use-accounts";
 import { useContracts } from "./use-contracts";
 import { useInvoices } from "./use-invoices";
+import { useAnalyticsSummary } from "./use-analytics";
 import { useConfigStore } from "~/lib/stores/config-store";
 
 interface DashboardStats {
@@ -18,6 +19,8 @@ interface DashboardStats {
     totalValue: number;
   };
   monthlyRevenue: number;
+  mrr?: number;
+  arr?: number;
 }
 
 /**
@@ -52,6 +55,9 @@ export function useDashboardStats() {
     "limit[eq]": 100, // Fetch recent paid invoices
   });
 
+  // Fetch analytics summary for real MRR/ARR
+  const { data: analyticsSummaryData } = useAnalyticsSummary();
+
   return useQuery({
     queryKey: queryKeys.dashboard.stats(),
     queryFn: async (): Promise<DashboardStats> => {
@@ -83,6 +89,11 @@ export function useDashboardStats() {
         })
         .reduce((sum, invoice) => sum + (parseFloat(invoice.total as unknown as string) || 0), 0);
 
+      // Use analytics API values if available
+      const analyticsData = analyticsSummaryData?.data as any;
+      const mrr = analyticsData?.mrr;
+      const arr = analyticsData?.arr;
+
       return {
         totalAccounts,
         activeContracts,
@@ -91,6 +102,8 @@ export function useDashboardStats() {
           totalValue: pendingInvoicesTotalValue,
         },
         monthlyRevenue,
+        mrr,
+        arr,
       };
     },
     enabled: !accountsLoading && !contractsLoading && !invoicesLoading && !paidInvoicesLoading,
