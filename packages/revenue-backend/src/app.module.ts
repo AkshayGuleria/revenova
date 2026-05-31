@@ -16,6 +16,7 @@ import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
 import { CreditManagementModule } from './modules/credit-management/credit-management.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { getQueueConfig } from './common/queues';
 
 @Module({
@@ -43,6 +44,7 @@ import { getQueueConfig } from './common/queues';
     TaxRatesModule,
     ExchangeRatesModule,
     CreditManagementModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

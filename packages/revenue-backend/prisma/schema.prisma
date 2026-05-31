@@ -57,6 +57,7 @@ model Account {
   invoiceGroups         InvoiceGroup[]
   sharedContracts       ContractShare[]  @relation("SharedContracts")
   purchaseOrders        PurchaseOrder[]
+  payments              Payment[]
 
   @@index([parentAccountId])
   @@index([status])
@@ -282,6 +283,7 @@ model Invoice {
   account               Account       @relation(fields: [accountId], references: [id])
   contract              Contract?     @relation(fields: [contractId], references: [id])
   items                 InvoiceItem[]
+  payments              Payment[]
 
   @@index([accountId])
   @@index([contractId])
@@ -382,4 +384,40 @@ model TaxRate {
   @@index([active])
   @@index([effectiveFrom])
   @@map("tax_rates")
+}
+
+// Phase 4: Payments & Reconciliation
+model Payment {
+  id              String    @id @default(uuid())
+  paymentNumber   String    @unique @map("payment_number")
+  accountId       String    @map("account_id")
+  invoiceId       String?   @map("invoice_id")
+
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("EUR")
+
+  // Payment method: bank_transfer | credit_card | ach | check | wire | other
+  method          String    @default("bank_transfer")
+
+  // External reference (bank ref, check number, transaction ID)
+  referenceNumber String?   @map("reference_number")
+
+  paymentDate     DateTime  @map("payment_date") @db.Date
+  notes           String?
+
+  // Status: pending | applied | partially_applied | refunded | voided
+  status          String    @default("applied")
+
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  account         Account   @relation(fields: [accountId], references: [id])
+  invoice         Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  @@index([accountId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([paymentDate])
+  @@map("payments")
 }
