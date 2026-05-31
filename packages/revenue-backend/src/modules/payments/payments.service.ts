@@ -22,13 +22,15 @@ export class PaymentsService {
     const account = await this.prisma.account.findUnique({
       where: { id: dto.accountId },
     });
-    if (!account) throw new NotFoundException(`Account ${dto.accountId} not found`);
+    if (!account)
+      throw new NotFoundException(`Account ${dto.accountId} not found`);
 
     if (dto.invoiceId) {
       const invoice = await this.prisma.invoice.findUnique({
         where: { id: dto.invoiceId },
       });
-      if (!invoice) throw new NotFoundException(`Invoice ${dto.invoiceId} not found`);
+      if (!invoice)
+        throw new NotFoundException(`Invoice ${dto.invoiceId} not found`);
       if (invoice.accountId !== dto.accountId) {
         throw new BadRequestException(
           'Invoice does not belong to the specified account',
@@ -69,7 +71,8 @@ export class PaymentsService {
           const invoice = await tx.invoice.findUnique({
             where: { id: dto.invoiceId },
           });
-          const newPaidAmount = Number(invoice!.paidAmount) + Number(dto.amount);
+          const newPaidAmount =
+            Number(invoice!.paidAmount) + Number(dto.amount);
           const newStatus =
             newPaidAmount >= Number(invoice!.total)
               ? 'paid'
@@ -160,7 +163,8 @@ export class PaymentsService {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: dto.invoiceId },
     });
-    if (!invoice) throw new NotFoundException(`Invoice ${dto.invoiceId} not found`);
+    if (!invoice)
+      throw new NotFoundException(`Invoice ${dto.invoiceId} not found`);
     if (invoice.accountId !== payment.accountId) {
       throw new BadRequestException(
         'Invoice does not belong to the same account as the payment',
@@ -232,7 +236,11 @@ export class PaymentsService {
 
           await tx.invoice.update({
             where: { id: payment.invoiceId },
-            data: { paidAmount: newPaidAmount, status: newStatus, paidDate: null },
+            data: {
+              paidAmount: newPaidAmount,
+              status: newStatus,
+              paidDate: null,
+            },
           });
         }
       }

@@ -39,7 +39,10 @@ export class ExchangeRatesController {
       'If a rate already exists for the same fromCurrency + toCurrency + effectiveDate, it is updated.',
   })
   @ApiResponse({ status: 201, description: 'Exchange rate created or updated' })
-  @ApiResponse({ status: 400, description: 'Validation error or same-currency pair' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or same-currency pair',
+  })
   upsert(@Body() dto: CreateExchangeRateDto) {
     return this.exchangeRatesService.upsert(dto);
   }
@@ -54,9 +57,18 @@ export class ExchangeRatesController {
   @ApiQuery({ name: 'amount', type: Number, example: 1000 })
   @ApiQuery({ name: 'from', type: String, example: 'USD' })
   @ApiQuery({ name: 'to', type: String, example: 'EUR' })
-  @ApiQuery({ name: 'date', type: String, required: false, example: '2026-05-31' })
+  @ApiQuery({
+    name: 'date',
+    type: String,
+    required: false,
+    example: '2026-05-31',
+  })
   @ApiResponse({ status: 200, description: 'Conversion result' })
-  @ApiResponse({ status: 404, description: 'No exchange rate found for the currency pair on or before the requested date' })
+  @ApiResponse({
+    status: 404,
+    description:
+      'No exchange rate found for the currency pair on or before the requested date',
+  })
   convert(@Query() dto: ConvertCurrencyDto) {
     return this.exchangeRatesService.convert(dto);
   }
@@ -86,7 +98,8 @@ export class ExchangeRatesController {
   @ApiParam({ name: 'id', type: 'string', description: 'Exchange rate UUID' })
   @ApiOperation({
     summary: 'Update exchange rate',
-    description: 'Updates the rate value and/or source. Currency pair and effectiveDate are immutable.',
+    description:
+      'Updates the rate value and/or source. Currency pair and effectiveDate are immutable.',
   })
   @ApiResponse({ status: 200, description: 'Exchange rate updated' })
   @ApiResponse({ status: 404, description: 'Exchange rate not found' })

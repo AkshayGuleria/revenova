@@ -49,10 +49,16 @@ describe('TaxRatesService', () => {
         effectiveFrom: '2026-01-01',
       });
 
-      expect(result.data).toMatchObject({ jurisdiction: 'EU-DE', active: true });
+      expect(result.data).toMatchObject({
+        jurisdiction: 'EU-DE',
+        active: true,
+      });
       expect(mockPrismaService.taxRate.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ active: true, jurisdiction: 'EU-DE' }),
+          data: expect.objectContaining({
+            active: true,
+            jurisdiction: 'EU-DE',
+          }),
         }),
       );
     });
@@ -80,7 +86,9 @@ describe('TaxRatesService', () => {
 
       expect(mockPrismaService.taxRate.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ effectiveTo: new Date('2026-12-31') }),
+          data: expect.objectContaining({
+            effectiveTo: new Date('2026-12-31'),
+          }),
         }),
       );
     });
@@ -111,7 +119,10 @@ describe('TaxRatesService', () => {
 
   describe('findOne', () => {
     it('should return tax rate by id', async () => {
-      mockPrismaService.taxRate.findUnique.mockResolvedValue({ id: 'tr-1', jurisdiction: 'EU-DE' });
+      mockPrismaService.taxRate.findUnique.mockResolvedValue({
+        id: 'tr-1',
+        jurisdiction: 'EU-DE',
+      });
 
       const result = await service.findOne('tr-1');
 
@@ -121,7 +132,9 @@ describe('TaxRatesService', () => {
     it('should throw NotFoundException for unknown id', async () => {
       mockPrismaService.taxRate.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -135,7 +148,11 @@ describe('TaxRatesService', () => {
         name: 'German VAT Standard Rate',
       });
 
-      const result = await service.calculateTax({ amount: 10000, jurisdiction: 'EU-DE', taxType: 'VAT' });
+      const result = await service.calculateTax({
+        amount: 10000,
+        jurisdiction: 'EU-DE',
+        taxType: 'VAT',
+      });
 
       expect(result.data.taxAmount).toBe(1900);
       expect(result.data.totalWithTax).toBe(11900);
@@ -145,8 +162,9 @@ describe('TaxRatesService', () => {
     it('should throw NotFoundException when no active rate found', async () => {
       mockPrismaService.taxRate.findFirst.mockResolvedValue(null);
 
-      await expect(service.calculateTax({ amount: 1000, jurisdiction: 'UNKNOWN' }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.calculateTax({ amount: 1000, jurisdiction: 'UNKNOWN' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should calculate 0 tax for 0% rate', async () => {
@@ -158,7 +176,10 @@ describe('TaxRatesService', () => {
         name: 'Oregon No Sales Tax',
       });
 
-      const result = await service.calculateTax({ amount: 5000, jurisdiction: 'US-OR' });
+      const result = await service.calculateTax({
+        amount: 5000,
+        jurisdiction: 'US-OR',
+      });
 
       expect(result.data.taxAmount).toBe(0);
       expect(result.data.totalWithTax).toBe(5000);
@@ -166,10 +187,18 @@ describe('TaxRatesService', () => {
 
     it('should query with taxType filter when provided', async () => {
       mockPrismaService.taxRate.findFirst.mockResolvedValue({
-        id: 'tr-1', jurisdiction: 'EU-DE', taxType: 'VAT', rate: 0.19, name: 'German VAT',
+        id: 'tr-1',
+        jurisdiction: 'EU-DE',
+        taxType: 'VAT',
+        rate: 0.19,
+        name: 'German VAT',
       });
 
-      await service.calculateTax({ amount: 1000, jurisdiction: 'EU-DE', taxType: 'VAT' });
+      await service.calculateTax({
+        amount: 1000,
+        jurisdiction: 'EU-DE',
+        taxType: 'VAT',
+      });
 
       expect(mockPrismaService.taxRate.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -180,7 +209,11 @@ describe('TaxRatesService', () => {
 
     it('should use today as default date when not provided', async () => {
       mockPrismaService.taxRate.findFirst.mockResolvedValue({
-        id: 'tr-1', jurisdiction: 'EU-FR', taxType: 'VAT', rate: 0.2, name: 'French VAT',
+        id: 'tr-1',
+        jurisdiction: 'EU-FR',
+        taxType: 'VAT',
+        rate: 0.2,
+        name: 'French VAT',
       });
 
       await service.calculateTax({ amount: 500, jurisdiction: 'EU-FR' });
@@ -197,8 +230,14 @@ describe('TaxRatesService', () => {
 
   describe('deactivate', () => {
     it('should set active=false on soft delete', async () => {
-      mockPrismaService.taxRate.findUnique.mockResolvedValue({ id: 'tr-1', active: true });
-      mockPrismaService.taxRate.update.mockResolvedValue({ id: 'tr-1', active: false });
+      mockPrismaService.taxRate.findUnique.mockResolvedValue({
+        id: 'tr-1',
+        active: true,
+      });
+      mockPrismaService.taxRate.update.mockResolvedValue({
+        id: 'tr-1',
+        active: false,
+      });
 
       await service.deactivate('tr-1');
 
@@ -212,7 +251,9 @@ describe('TaxRatesService', () => {
     it('should throw NotFoundException for unknown id', async () => {
       mockPrismaService.taxRate.findUnique.mockResolvedValue(null);
 
-      await expect(service.deactivate('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.deactivate('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

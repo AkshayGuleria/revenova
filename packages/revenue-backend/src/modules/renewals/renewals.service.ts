@@ -1,13 +1,24 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { buildSingleResponse, buildPaginatedListResponse } from '../../common/utils/response-builder';
+import {
+  buildSingleResponse,
+  buildPaginatedListResponse,
+} from '../../common/utils/response-builder';
 import { ApiResponse } from '../../common/interfaces';
 
 @Injectable()
 export class RenewalsService {
   constructor(private prisma: PrismaService) {}
 
-  async getUpcoming(days: number = 90, offset = 0, limit = 20): Promise<ApiResponse<any>> {
+  async getUpcoming(
+    days: number = 90,
+    offset = 0,
+    limit = 20,
+  ): Promise<ApiResponse<any>> {
     const today = new Date();
     const future = new Date();
     future.setDate(future.getDate() + days);
@@ -30,7 +41,9 @@ export class RenewalsService {
 
     const data = contracts.map((c) => ({
       ...c,
-      daysUntilExpiry: Math.ceil((c.endDate.getTime() - today.getTime()) / 86400000),
+      daysUntilExpiry: Math.ceil(
+        (c.endDate.getTime() - today.getTime()) / 86400000,
+      ),
     }));
 
     return buildPaginatedListResponse(data, offset, limit, total);
@@ -47,12 +60,16 @@ export class RenewalsService {
         skip: offset,
         take: limit,
       }),
-      this.prisma.contract.count({ where: { status: 'active', endDate: { lt: today } } }),
+      this.prisma.contract.count({
+        where: { status: 'active', endDate: { lt: today } },
+      }),
     ]);
 
     const data = contracts.map((c) => ({
       ...c,
-      daysOverdue: Math.ceil((today.getTime() - c.endDate.getTime()) / 86400000),
+      daysOverdue: Math.ceil(
+        (today.getTime() - c.endDate.getTime()) / 86400000,
+      ),
     }));
 
     return buildPaginatedListResponse(data, offset, limit, total);
@@ -63,7 +80,8 @@ export class RenewalsService {
       where: { id: contractId },
       include: { account: { select: { id: true, accountName: true } } },
     });
-    if (!contract) throw new NotFoundException(`Contract ${contractId} not found`);
+    if (!contract)
+      throw new NotFoundException(`Contract ${contractId} not found`);
 
     const today = new Date();
     const daysUntilExpiry = Math.ceil(
@@ -94,10 +112,15 @@ export class RenewalsService {
   }
 
   async renew(contractId: string): Promise<ApiResponse<any>> {
-    const contract = await this.prisma.contract.findUnique({ where: { id: contractId } });
-    if (!contract) throw new NotFoundException(`Contract ${contractId} not found`);
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
+    });
+    if (!contract)
+      throw new NotFoundException(`Contract ${contractId} not found`);
     if (contract.status !== 'active') {
-      throw new BadRequestException(`Cannot renew contract with status: ${contract.status}`);
+      throw new BadRequestException(
+        `Cannot renew contract with status: ${contract.status}`,
+      );
     }
 
     const newEndDate = new Date(contract.endDate);

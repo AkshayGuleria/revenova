@@ -82,9 +82,9 @@ describe('AnalyticsService', () => {
 
     it('should aggregate contracts with mixed billing frequencies', async () => {
       mockPrismaService.contract.findMany.mockResolvedValue([
-        { contractValue: 12000, billingFrequency: 'annual' },   // → 1000 / month
-        { contractValue: 9000, billingFrequency: 'quarterly' },  // → 3000 / month
-        { contractValue: 500, billingFrequency: 'monthly' },     // → 500 / month
+        { contractValue: 12000, billingFrequency: 'annual' }, // → 1000 / month
+        { contractValue: 9000, billingFrequency: 'quarterly' }, // → 3000 / month
+        { contractValue: 500, billingFrequency: 'monthly' }, // → 500 / month
       ]);
 
       const result = await service.getMrr('2026-05-31');

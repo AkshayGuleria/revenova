@@ -158,10 +158,15 @@ describe('PurchaseOrdersService', () => {
     });
 
     it('should apply offset and limit from query params', async () => {
-      mockPrismaService.purchaseOrder.findMany.mockResolvedValue([{ id: 'po-3' }]);
+      mockPrismaService.purchaseOrder.findMany.mockResolvedValue([
+        { id: 'po-3' },
+      ]);
       mockPrismaService.purchaseOrder.count.mockResolvedValue(10);
 
-      const result = await service.findAll({ 'offset[eq]': '20', 'limit[eq]': '5' });
+      const result = await service.findAll({
+        'offset[eq]': '20',
+        'limit[eq]': '5',
+      });
 
       expect(result.paging.offset).toBe(20);
       expect(result.paging.limit).toBe(5);
@@ -201,7 +206,9 @@ describe('PurchaseOrdersService', () => {
     it('should throw NotFoundException for unknown id', async () => {
       mockPrismaService.purchaseOrder.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -270,7 +277,9 @@ describe('PurchaseOrdersService', () => {
     it('should throw NotFoundException if PO not found', async () => {
       mockPrismaService.purchaseOrder.findUnique.mockResolvedValue(null);
 
-      await expect(service.approve('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.approve('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException if PO is not pending', async () => {
@@ -279,7 +288,9 @@ describe('PurchaseOrdersService', () => {
         status: 'approved',
       });
 
-      await expect(service.approve('po-1')).rejects.toThrow(BadRequestException);
+      await expect(service.approve('po-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

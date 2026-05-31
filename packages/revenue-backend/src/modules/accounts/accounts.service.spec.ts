@@ -1057,7 +1057,10 @@ describe('AccountsService', () => {
       await service.getCreditStatus('acc-credit-1');
 
       expect(mockPrismaService.invoice.aggregate).toHaveBeenCalledWith({
-        where: { accountId: 'acc-credit-1', status: { in: ['sent', 'overdue'] } },
+        where: {
+          accountId: 'acc-credit-1',
+          status: { in: ['sent', 'overdue'] },
+        },
         _sum: { total: true },
       });
     });

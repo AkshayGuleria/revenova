@@ -77,7 +77,12 @@ export class ExchangeRatesService {
       this.prisma.exchangeRate.count({ where }),
     ]);
 
-    return buildPaginatedListResponse(data, pagination.offset, pagination.limit, total);
+    return buildPaginatedListResponse(
+      data,
+      pagination.offset,
+      pagination.limit,
+      total,
+    );
   }
 
   /**
@@ -95,8 +100,13 @@ export class ExchangeRatesService {
    * Update rate or source of an existing exchange rate record.
    * Currency pair and effectiveDate are immutable after creation.
    */
-  async update(id: string, dto: UpdateExchangeRateDto): Promise<ApiResponse<any>> {
-    const existing = await this.prisma.exchangeRate.findUnique({ where: { id } });
+  async update(
+    id: string,
+    dto: UpdateExchangeRateDto,
+  ): Promise<ApiResponse<any>> {
+    const existing = await this.prisma.exchangeRate.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException(`Exchange rate ${id} not found`);
     }
@@ -116,7 +126,9 @@ export class ExchangeRatesService {
    * Delete an exchange rate record by ID.
    */
   async remove(id: string): Promise<ApiResponse<any>> {
-    const existing = await this.prisma.exchangeRate.findUnique({ where: { id } });
+    const existing = await this.prisma.exchangeRate.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException(`Exchange rate ${id} not found`);
     }

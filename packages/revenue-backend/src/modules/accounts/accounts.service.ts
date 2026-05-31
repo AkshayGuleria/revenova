@@ -474,8 +474,9 @@ export class AccountsService {
     });
 
     const totalOutstanding = Number(outstanding._sum.total ?? 0);
-    const creditLimit =
-      account.creditLimit ? Number(account.creditLimit) : null;
+    const creditLimit = account.creditLimit
+      ? Number(account.creditLimit)
+      : null;
     const availableCredit =
       creditLimit !== null ? creditLimit - totalOutstanding : null;
     const utilizationPercent =

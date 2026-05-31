@@ -25,7 +25,8 @@ export class CreateTaxRateDto {
   @ApiProperty({
     enum: TAX_TYPES,
     example: 'VAT',
-    description: 'Tax type: VAT (Europe), GST (Australia/Canada), SALES_TAX (US states), WHT (withholding tax)',
+    description:
+      'Tax type: VAT (Europe), GST (Australia/Canada), SALES_TAX (US states), WHT (withholding tax)',
   })
   @IsString()
   @IsIn(TAX_TYPES)
@@ -33,7 +34,8 @@ export class CreateTaxRateDto {
 
   @ApiProperty({
     example: 0.19,
-    description: 'Rate as a decimal between 0 and 1. Example: 0.19 = 19%, 0.0 = tax-exempt.',
+    description:
+      'Rate as a decimal between 0 and 1. Example: 0.19 = 19%, 0.0 = tax-exempt.',
   })
   @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
@@ -61,7 +63,8 @@ export class CreateTaxRateDto {
 
   @ApiPropertyOptional({
     example: '2026-12-31',
-    description: 'ISO date string — last day this rate is effective. Omit for open-ended rates.',
+    description:
+      'ISO date string — last day this rate is effective. Omit for open-ended rates.',
   })
   @IsOptional()
   @IsDateString()

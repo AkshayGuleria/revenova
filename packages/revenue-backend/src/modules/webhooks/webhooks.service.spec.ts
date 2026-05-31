@@ -196,7 +196,9 @@ describe('WebhooksService', () => {
     it('should throw NotFoundException for unknown webhook id', async () => {
       mockPrismaService.webhookEndpoint.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -234,7 +236,9 @@ describe('WebhooksService', () => {
     it('should throw NotFoundException for unknown webhook id', async () => {
       mockPrismaService.webhookEndpoint.findUnique.mockResolvedValue(null);
 
-      await expect(service.deactivate('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.deactivate('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -243,7 +247,9 @@ describe('WebhooksService', () => {
   // -----------------------------------------------------------------------
   describe('getDeliveries', () => {
     it('should return delivery history for a known webhook', async () => {
-      mockPrismaService.webhookEndpoint.findUnique.mockResolvedValue({ id: 'wh-1' });
+      mockPrismaService.webhookEndpoint.findUnique.mockResolvedValue({
+        id: 'wh-1',
+      });
       const deliveries = [
         {
           id: 'del-1',
@@ -267,7 +273,9 @@ describe('WebhooksService', () => {
     it('should throw NotFoundException for unknown webhook id', async () => {
       mockPrismaService.webhookEndpoint.findUnique.mockResolvedValue(null);
 
-      await expect(service.getDeliveries('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.getDeliveries('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -293,9 +301,15 @@ describe('WebhooksService', () => {
         },
       ];
 
-      mockPrismaService.webhookEndpoint.findMany.mockResolvedValue(matchingWebhooks);
-      mockPrismaService.webhookDelivery.create.mockResolvedValue({ id: 'del-x' });
-      mockPrismaService.webhookDelivery.updateMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.webhookEndpoint.findMany.mockResolvedValue(
+        matchingWebhooks,
+      );
+      mockPrismaService.webhookDelivery.create.mockResolvedValue({
+        id: 'del-x',
+      });
+      mockPrismaService.webhookDelivery.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       // Spy on attemptDelivery via fetch — mock global fetch to avoid network calls
       const mockFetch = jest.fn().mockResolvedValue({
@@ -305,7 +319,9 @@ describe('WebhooksService', () => {
       });
       global.fetch = mockFetch;
 
-      await service.dispatch('acc-1', 'invoice.created', { invoiceId: 'inv-1' });
+      await service.dispatch('acc-1', 'invoice.created', {
+        invoiceId: 'inv-1',
+      });
 
       // One delivery record per matching webhook
       expect(mockPrismaService.webhookDelivery.create).toHaveBeenCalledTimes(2);
