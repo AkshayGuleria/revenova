@@ -58,6 +58,7 @@ model Account {
   sharedContracts       ContractShare[]  @relation("SharedContracts")
   purchaseOrders        PurchaseOrder[]
   payments              Payment[]
+  webhooks              WebhookEndpoint[]
 
   @@index([parentAccountId])
   @@index([status])

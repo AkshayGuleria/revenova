@@ -17,6 +17,7 @@ import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
 import { CreditManagementModule } from './modules/credit-management/credit-management.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RenewalsModule } from './modules/renewals/renewals.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
