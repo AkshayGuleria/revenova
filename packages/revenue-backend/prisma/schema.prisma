@@ -293,6 +293,23 @@ model Invoice {
   @@map("invoices")
 }
 
+// Phase 4: Exchange Rates for Multi-Currency Support
+model ExchangeRate {
+  id            String   @id @default(uuid())
+  fromCurrency  String   @map("from_currency")
+  toCurrency    String   @map("to_currency")
+  rate          Decimal  @db.Decimal(14, 6)
+  effectiveDate DateTime @map("effective_date") @db.Date
+  source        String   @default("manual")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([fromCurrency, toCurrency, effectiveDate])
+  @@index([fromCurrency, toCurrency])
+  @@index([effectiveDate])
+  @@map("exchange_rates")
+}
+
 model InvoiceItem {
   id                  String   @id @default(uuid())
   invoiceId           String   @map("invoice_id")
