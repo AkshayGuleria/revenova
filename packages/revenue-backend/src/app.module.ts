@@ -19,6 +19,7 @@ import { CreditManagementModule } from './modules/credit-management/credit-manag
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RenewalsModule } from './modules/renewals/renewals.module';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { getQueueConfig } from './common/queues';
 
 @Module({
@@ -49,6 +50,7 @@ import { getQueueConfig } from './common/queues';
     PaymentsModule,
     AnalyticsModule,
     RenewalsModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

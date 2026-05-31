@@ -386,6 +386,25 @@ model TaxRate {
   @@map("tax_rates")
 }
 
+// Phase 5: Audit Log for SOC2/GDPR compliance
+model AuditLog {
+  id           String   @id @default(uuid())
+  entityType   String   @map("entity_type")   // "invoice" | "contract" | "payment" | "account" | "purchase_order"
+  entityId     String   @map("entity_id")
+  action       String                          // "created" | "updated" | "deleted" | "status_changed" | "paid" | "voided" | "approved" | "rejected"
+  actorId      String?  @map("actor_id")       // user ID (from session, optional for system actions)
+  actorType    String   @default("system") @map("actor_type") // "user" | "system"
+  changes      Json?                           // { field: { from, to } } for updates
+  metadata     Json?                           // extra context (IP, user agent, etc.)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([entityType])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 // Phase 4: Payments & Reconciliation
 model Payment {
   id              String    @id @default(uuid())
