@@ -53,6 +53,13 @@ export default [
   // Analytics (Phase 5)
   route("analytics", "routes/analytics._index.tsx"),
 
+  // Audit Log (Phase 5)
+  route("audit-log", "routes/audit-log._index.tsx"),
+
+  // Webhooks (Phase 5)
+  route("webhooks", "routes/webhooks._index.tsx"),
+  route("webhooks/:id", "routes/webhooks.$id.tsx"),
+
   // Renewals (Phase 5)
   route("renewals", "routes/renewals._index.tsx"),
 ] satisfies RouteConfig;

@@ -18,6 +18,8 @@ import {
   Banknote,
   BarChart3,
   RefreshCw,
+  Shield,
+  Zap,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { useUIStore } from "~/lib/stores/ui-store";
@@ -36,6 +38,8 @@ const navigation = [
   { name: "Payments", href: "/payments", icon: Banknote },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Renewals", href: "/renewals", icon: RefreshCw },
+  { name: "Audit Log", href: "/audit-log", icon: Shield },
+  { name: "Webhooks", href: "/webhooks", icon: Zap },
 ];
 
 export function Sidebar() {
