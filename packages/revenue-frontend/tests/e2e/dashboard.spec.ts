@@ -255,11 +255,11 @@ test.describe('Dashboard — Stat Cards', () => {
   test('four stat card titles are all present', async ({ page }) => {
     // assert — the card titles (rendered as uppercase via CSS class)
     // Use exact: true to avoid strict mode violations from description text
-    // that partially matches the title (e.g. "Currently active contracts")
     await expect(page.getByText('Total Accounts', { exact: true })).toBeVisible();
     await expect(page.getByText('Active Contracts', { exact: true })).toBeVisible();
     await expect(page.getByText('Pending Invoices', { exact: true })).toBeVisible();
-    await expect(page.getByText('Monthly Revenue', { exact: true })).toBeVisible();
+    await expect(page.getByText('MRR', { exact: true })).toBeVisible();
+    await expect(page.getByText('ARR', { exact: true })).toBeVisible();
   });
 
   test('Total Accounts card shows value from API paging.total (42)', async ({ page }) => {
@@ -273,14 +273,11 @@ test.describe('Dashboard — Stat Cards', () => {
     await expect(page.getByText('17')).toBeVisible({ timeout: 5000 });
   });
 
-  test('Monthly Revenue card shows currency formatted with EUR (not USD)', async ({ page }) => {
-    // assert – EUR symbol or EUR code must appear in the stat card value area
-    // The formatCurrency call uses defaultCurrency=EUR from the config store
-    // Intl.NumberFormat with EUR produces "€10,000" or "EUR 10,000" depending on locale
-    const revenueCard = page.getByText('Monthly Revenue').locator('..').locator('..');
-    await expect(revenueCard).toBeVisible({ timeout: 5000 });
-    // The card value area should contain EUR indicator (€ or EUR)
-    const cardText = await revenueCard.textContent();
+  test('MRR card shows currency formatted with EUR (not USD)', async ({ page }) => {
+    // assert – EUR symbol or EUR code must appear in the MRR stat card value area
+    const mrrCard = page.getByText('MRR', { exact: true }).locator('..').locator('..');
+    await expect(mrrCard).toBeVisible({ timeout: 5000 });
+    const cardText = await mrrCard.textContent();
     const hasEurIndicator = cardText?.includes('€') || cardText?.includes('EUR') || cardText?.includes('10,000');
     expect(hasEurIndicator).toBeTruthy();
   });
@@ -530,18 +527,16 @@ test.describe('Dashboard — Error Handling', () => {
 // ===========================================================================
 
 test.describe('Dashboard — Currency from Config', () => {
-  test('Monthly Revenue stat card does not show USD symbol when config returns EUR', async ({ page }) => {
+  test('MRR stat card does not show USD symbol when config returns EUR', async ({ page }) => {
     // arrange
     await mountDashboardMocks(page);
     await page.goto(`${BASE_URL}/`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // assert – look specifically in the Monthly Revenue card area
-    const revenueCard = page.getByText('Monthly Revenue').locator('..').locator('..');
-    const cardContent = await revenueCard.textContent();
-    // Should NOT contain "$" when EUR is configured
-    // (Intl.NumberFormat with EUR outputs "€" not "$")
+    // assert – look specifically in the MRR card area
+    const mrrCard = page.getByText('MRR', { exact: true }).locator('..').locator('..');
+    const cardContent = await mrrCard.textContent();
     const hasUsdDollarSign = cardContent?.includes('$') && !cardContent?.includes('€');
     expect(hasUsdDollarSign).toBeFalsy();
   });
@@ -598,11 +593,12 @@ test.describe('Dashboard — Responsive Layout', () => {
     await page.goto(`${BASE_URL}/`);
     await page.waitForLoadState('networkidle');
 
-    // assert – all four stat titles visible at once on wide screen
+    // assert – all five stat titles visible at once on wide screen
     // Use exact: true to avoid strict mode violations from description text
     await expect(page.getByText('Total Accounts', { exact: true })).toBeVisible();
     await expect(page.getByText('Active Contracts', { exact: true })).toBeVisible();
     await expect(page.getByText('Pending Invoices', { exact: true })).toBeVisible();
-    await expect(page.getByText('Monthly Revenue', { exact: true })).toBeVisible();
+    await expect(page.getByText('MRR', { exact: true })).toBeVisible();
+    await expect(page.getByText('ARR', { exact: true })).toBeVisible();
   });
 });
