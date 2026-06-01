@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "~/components/ui/alert-dialog";
 import { useWebhook, useWebhookDeliveries, useDeactivateWebhook } from "~/lib/api/hooks/use-webhooks";
-import type { WebhookDelivery } from "~/types/models";
+import type { WebhookDelivery, WebhookEndpoint } from "~/types/models";
 
 export default function WebhookDetailRoute() {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +20,7 @@ export default function WebhookDetailRoute() {
   const { data: deliveriesData, isLoading: deliveriesLoading } = useWebhookDeliveries(id!);
   const deactivateWebhook = useDeactivateWebhook();
 
-  const webhook = webhookData?.data as any;
+  const webhook = webhookData?.data as WebhookEndpoint | undefined;
   const deliveries = (deliveriesData?.data as WebhookDelivery[]) ?? [];
 
   async function handleDeactivate() {
@@ -90,7 +90,7 @@ export default function WebhookDetailRoute() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {webhook.events.map((e: string) => (
+              {webhook.events.map((e) => (
                 <span key={e} className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5 text-xs">
                   {e}
                 </span>
