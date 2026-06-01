@@ -16,7 +16,7 @@ const BASE_URL = 'http://localhost:5173';
 const MOCK_CONTRACTS = [
   {
     id: 'contract-001',
-    contractName: 'Acme Enterprise Contract',
+    contractNumber: 'CON-2024-001',
     account: { accountName: 'Acme Corp' },
     status: 'active',
     startDate: '2024-01-01',
@@ -24,7 +24,7 @@ const MOCK_CONTRACTS = [
   },
   {
     id: 'contract-002',
-    contractName: 'Globex SaaS Agreement',
+    contractNumber: 'CON-2024-002',
     account: { accountName: 'Globex Inc' },
     status: 'active',
     startDate: '2024-06-01',
@@ -97,8 +97,8 @@ test.describe('Billing - Generate Invoice', () => {
   test('should load contracts in dropdown from mocked API', async ({ page }) => {
     const contractSelect = page.locator('[role="combobox"]').first();
     await contractSelect.click();
-    await expect(page.locator('[role="option"]:has-text("Acme Enterprise Contract")')).toBeVisible();
-    await expect(page.locator('[role="option"]:has-text("Globex SaaS Agreement")')).toBeVisible();
+    await expect(page.locator('[role="option"]:has-text("CON-2024-001 - Acme Corp")')).toBeVisible();
+    await expect(page.locator('[role="option"]:has-text("CON-2024-002 - Globex Inc")')).toBeVisible();
   });
 
   test('should show empty state when no contracts are available', async ({ page }) => {
