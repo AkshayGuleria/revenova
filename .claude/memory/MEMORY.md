@@ -32,17 +32,15 @@ renewals, tax-rates, webhooks
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-05-31 19:48
-- **Branch:** feature/frontend-phase4-5
-- **Last commit:** 00b819a Feature/webhooks (#30)
+- **Last stop:** 2026-06-01 21:00
+- **Branch:** feature/audit-log-webhooks-ui
+- **Last commit:** 2d9218d fix(frontend): type WebhookEndpoint properly in webhook detail route
 - **Modified files:**
 ```
 M .claude/memory/MEMORY.md
- M packages/revenue-frontend/app/routes.ts
- M packages/revenue-frontend/tests/e2e/billing-operations.spec.ts
-?? packages/revenue-frontend/app/lib/api/hooks/use-renewals.ts
-?? packages/revenue-frontend/app/routes/renewals._index.tsx
-?? packages/revenue-frontend/tests/e2e/renewals.spec.ts
+ M package-lock.json
+ M packages/revenue-frontend/package.json
+?? .superpowers/
 ```
 - **In progress:** _(update this manually before closing session)_
 
@@ -58,4 +56,20 @@ M .claude/memory/MEMORY.md
 - 2026-05-31 18:41 [8936b6aa] branch:feature/frontend-phase4-5
 - 2026-05-31 19:32 [bd1282eb] branch:feature/frontend-phase4-5
 - 2026-05-31 19:48 [bd1282eb] branch:feature/frontend-phase4-5
+- 2026-06-01 18:50 [bd1282eb] branch:master
+- 2026-06-01 19:11 [bd1282eb] branch:master
+- 2026-06-01 19:21 [bd1282eb] branch:master
+- 2026-06-01 19:24 [bd1282eb] branch:master
+- 2026-06-01 19:25 [bd1282eb] branch:master
+- 2026-06-01 19:26 [bd1282eb] branch:master
+- 2026-06-01 19:27 [bd1282eb] branch:master
+- 2026-06-01 19:29 [bd1282eb] branch:master
+- 2026-06-01 19:30 [bd1282eb] branch:master
+- 2026-06-01 19:32 [bd1282eb] branch:master
+- 2026-06-01 19:33 [bd1282eb] branch:master
+- 2026-06-01 19:34 [bd1282eb] branch:master
+- 2026-06-01 19:42 [bd1282eb] branch:master
+- 2026-06-01 19:44 [bd1282eb] branch:master
+- 2026-06-01 20:09 [bd1282eb] branch:master
+- 2026-06-01 21:00 [bd1282eb] branch:feature/audit-log-webhooks-ui
 <!-- Appended by .claude/hooks/session-end.js on Stop -->

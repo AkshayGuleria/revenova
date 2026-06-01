@@ -1,0 +1,130 @@
+<h2>Webhooks — List + Detail Pages</h2>
+<p class="subtitle">Two pages shown. Respond in terminal to approve or request changes.</p>
+
+<!-- LIST PAGE -->
+<div class="mockup" style="margin-bottom:24px">
+  <div class="mockup-header">http://localhost:5173/webhooks &nbsp;—&nbsp; Global list</div>
+  <div class="mockup-body" style="font-family:sans-serif;font-size:13px;padding:0">
+
+    <div style="padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#111">Webhooks</div>
+        <div style="font-size:12px;color:#6b7280">Register and manage webhook endpoints across all accounts</div>
+      </div>
+      <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">+ Register Webhook</button>
+    </div>
+
+    <!-- filters -->
+    <div style="display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid #e5e7eb;background:#fff">
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;min-width:160px">Account ▾ <span style="color:#9ca3af">All accounts</span></div>
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;min-width:120px">Status ▾ <span style="color:#9ca3af">Active / Inactive</span></div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:12px;padding:0 20px;display:table">
+      <thead>
+        <tr style="border-bottom:2px solid #e5e7eb;color:#6b7280;font-size:11px;text-transform:uppercase">
+          <th style="text-align:left;padding:10px 20px">URL</th>
+          <th style="text-align:left;padding:10px 8px">Account</th>
+          <th style="text-align:left;padding:10px 8px">Events</th>
+          <th style="text-align:left;padding:10px 8px">Status</th>
+          <th style="text-align:left;padding:10px 8px">Created</th>
+          <th style="text-align:left;padding:10px 8px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f3f4f6;cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+          <td style="padding:10px 20px;color:#1d4ed8;font-weight:500">https://acme.io/hooks/billing</td>
+          <td style="padding:10px 8px;color:#374151">Acme Corp</td>
+          <td style="padding:10px 8px"><span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 5px;font-size:10px">invoice.paid</span> <span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 5px;font-size:10px">+2</span></td>
+          <td style="padding:10px 8px"><span style="background:#f0fdf4;color:#15803d;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">● Active</span></td>
+          <td style="padding:10px 8px;color:#6b7280">2026-05-10</td>
+          <td style="padding:10px 8px"><span style="color:#6b7280;cursor:pointer;margin-right:10px">📋 History</span><span style="color:#dc2626;cursor:pointer">⏹ Deactivate</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:10px 20px;color:#1d4ed8;font-weight:500">https://globex.com/webhooks</td>
+          <td style="padding:10px 8px;color:#374151">Globex Inc</td>
+          <td style="padding:10px 8px"><span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 5px;font-size:10px">contract.renewed</span></td>
+          <td style="padding:10px 8px"><span style="background:#fef2f2;color:#dc2626;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">○ Inactive</span></td>
+          <td style="padding:10px 8px;color:#6b7280">2026-04-22</td>
+          <td style="padding:10px 8px"><span style="color:#6b7280;cursor:pointer;margin-right:10px">📋 History</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="padding:10px 20px;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb">Showing 2 of 2 webhooks</div>
+  </div>
+</div>
+
+<!-- DETAIL PAGE -->
+<div class="mockup">
+  <div class="mockup-header">http://localhost:5173/webhooks/wh-001 &nbsp;—&nbsp; Detail + delivery history</div>
+  <div class="mockup-body" style="font-family:sans-serif;font-size:13px;padding:0">
+
+    <!-- header -->
+    <div style="padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#111">https://acme.io/hooks/billing</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">Acme Corp · Created 2026-05-10 · <span style="color:#15803d;font-weight:600">Active</span></div>
+      </div>
+      <button style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600">Deactivate</button>
+    </div>
+
+    <!-- config cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 20px;border-bottom:1px solid #e5e7eb">
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px">
+        <div style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Subscribed Events</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          <span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 7px;font-size:11px">invoice.paid</span>
+          <span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 7px;font-size:11px">invoice.overdue</span>
+          <span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 7px;font-size:11px">payment.received</span>
+        </div>
+      </div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px">
+        <div style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Description</div>
+        <div style="font-size:12px;color:#374151">Production billing webhook for Acme ERP integration</div>
+      </div>
+    </div>
+
+    <!-- delivery history -->
+    <div style="padding:14px 20px">
+      <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:10px">Delivery History <span style="color:#6b7280;font-weight:400;font-size:12px">(last 50)</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:2px solid #e5e7eb;color:#6b7280;font-size:11px;text-transform:uppercase">
+            <th style="text-align:left;padding:8px">Event</th>
+            <th style="text-align:left;padding:8px">Status</th>
+            <th style="text-align:left;padding:8px">HTTP</th>
+            <th style="text-align:left;padding:8px">Attempts</th>
+            <th style="text-align:left;padding:8px">Delivered At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:8px;color:#374151">invoice.paid</td>
+            <td style="padding:8px"><span style="background:#f0fdf4;color:#15803d;border-radius:4px;padding:2px 7px;font-size:11px">delivered</span></td>
+            <td style="padding:8px;color:#15803d;font-weight:600">200</td>
+            <td style="padding:8px;color:#374151">1</td>
+            <td style="padding:8px;color:#6b7280">2026-06-01 09:42</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:8px;color:#374151">payment.received</td>
+            <td style="padding:8px"><span style="background:#fef2f2;color:#dc2626;border-radius:4px;padding:2px 7px;font-size:11px">failed</span></td>
+            <td style="padding:8px;color:#dc2626;font-weight:600">503</td>
+            <td style="padding:8px;color:#374151">3</td>
+            <td style="padding:8px;color:#6b7280">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:8px;color:#374151">invoice.overdue</td>
+            <td style="padding:8px"><span style="background:#f0fdf4;color:#15803d;border-radius:4px;padding:2px 7px;font-size:11px">delivered</span></td>
+            <td style="padding:8px;color:#15803d;font-weight:600">200</td>
+            <td style="padding:8px;color:#374151">1</td>
+            <td style="padding:8px;color:#6b7280">2026-05-31 14:10</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px">Account detail page also gets a "Webhooks" tab showing the scoped list (same as above but filtered by accountId, no account column). Respond in terminal.</p>

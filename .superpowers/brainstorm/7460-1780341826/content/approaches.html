@@ -1,0 +1,52 @@
+<h2>Audit Log + Webhook UI — Architecture Approaches</h2>
+<p class="subtitle">Which structure fits best for the revenue management system?</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Minimal — Two flat pages</h3>
+      <p><strong>/audit-log</strong> — filter table + inline row expand</p>
+      <p><strong>/webhooks</strong> — list with account filter dropdown + create form inline</p>
+      <p><strong>Account page</strong> — "Webhooks" link → /webhooks?accountId=xxx</p>
+      <p><em>Webhook deliveries</em> shown as inline expansion on the webhook row</p>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Fewest files to build</li><li>Fast to implement</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Delivery history cramped inline</li><li>No dedicated webhook detail</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B ⭐ Recommended</div>
+    <div class="content">
+      <h3>Standard — List + detail pages</h3>
+      <p><strong>/audit-log</strong> — filter table + inline row expand (changes diff)</p>
+      <p><strong>/webhooks</strong> — list all accounts' webhooks + create button</p>
+      <p><strong>/webhooks/:id</strong> — detail page with config + delivery history table</p>
+      <p><strong>Account page</strong> — new "Webhooks" tab showing scoped list</p>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Delivery history has room to breathe</li><li>Matches pattern of every other feature</li><li>Webhook detail URL shareable/linkable</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More route files (~5 new files)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Contextual — Everything in context</h3>
+      <p><strong>/audit-log</strong> — global list + inline expand</p>
+      <p><strong>No /webhooks top-level</strong> — webhooks fully embedded in account detail as a tab</p>
+      <p><strong>Entity pages</strong> (invoice, contract) get their own "Audit Trail" tab using <code>GET /api/audit-log/:entityType/:entityId</code></p>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Audit trail surfaced where users already work</li><li>Contextual — no need to filter</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Conflicts with user's choice (C) for webhooks having a top-level route</li><li>Many files across entity pages</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px">I recommend <strong>B</strong> — it matches the existing pattern (accounts, invoices, contracts all have list + detail pages) and gives delivery history the space it needs.</p>
