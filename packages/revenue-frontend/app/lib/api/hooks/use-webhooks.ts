@@ -4,6 +4,7 @@ import { queryKeys } from "../query-client";
 import type { WebhookEndpoint, WebhookDelivery, CreateWebhookDto } from "~/types/models";
 import type { QueryParams } from "~/types/api";
 
+/** Fetch webhook endpoints with optional filtering */
 export function useWebhooks(params?: QueryParams) {
   return useQuery({
     queryKey: queryKeys.webhooks.list(params),
@@ -14,6 +15,7 @@ export function useWebhooks(params?: QueryParams) {
   });
 }
 
+/** Fetch a single webhook endpoint by ID */
 export function useWebhook(id: string) {
   return useQuery({
     queryKey: queryKeys.webhooks.detail(id),
@@ -25,6 +27,7 @@ export function useWebhook(id: string) {
   });
 }
 
+/** Fetch last 50 delivery attempts for a webhook endpoint */
 export function useWebhookDeliveries(id: string) {
   return useQuery({
     queryKey: queryKeys.webhooks.deliveries(id),
@@ -38,6 +41,7 @@ export function useWebhookDeliveries(id: string) {
   });
 }
 
+/** Register a new webhook endpoint; returns signing secret in response (shown once) */
 export function useCreateWebhook() {
   const queryClient = useQueryClient();
 
@@ -55,6 +59,7 @@ export function useCreateWebhook() {
   });
 }
 
+/** Soft-deactivate a webhook endpoint (sets active=false, preserves delivery history) */
 export function useDeactivateWebhook() {
   const queryClient = useQueryClient();
 

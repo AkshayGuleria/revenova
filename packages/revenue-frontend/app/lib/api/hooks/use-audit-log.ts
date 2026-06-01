@@ -4,6 +4,7 @@ import { queryKeys } from "../query-client";
 import type { AuditLog } from "~/types/models";
 import type { QueryParams } from "~/types/api";
 
+/** Fetch audit log entries with optional filtering and pagination */
 export function useAuditLogs(params?: QueryParams) {
   return useQuery({
     queryKey: queryKeys.auditLog.list(params),
@@ -14,6 +15,7 @@ export function useAuditLogs(params?: QueryParams) {
   });
 }
 
+/** Fetch full audit trail for a specific entity */
 export function useEntityAuditTrail(entityType: string, entityId: string) {
   return useQuery({
     queryKey: queryKeys.auditLog.entityTrail(entityType, entityId),
