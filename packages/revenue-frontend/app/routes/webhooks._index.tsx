@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -21,7 +21,7 @@ import { Input } from "~/components/ui/input";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { useWebhooks, useCreateWebhook, useDeactivateWebhook } from "~/lib/api/hooks/use-webhooks";
 import { useAccounts } from "~/lib/api/hooks/use-accounts";
-import type { WebhookEndpoint } from "~/types/models";
+import type { WebhookEndpoint, Account } from "~/types/models";
 
 const VALID_EVENTS = [
   "invoice.created", "invoice.paid", "invoice.overdue",
@@ -40,13 +40,10 @@ const registerSchema = z.object({
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
-export default function WebhooksListRoute({
-  preselectedAccountId,
-  hideAccountColumn,
-}: {
-  preselectedAccountId?: string;
-  hideAccountColumn?: boolean;
-} = {}) {
+export default function WebhooksListRoute() {
+  const [searchParams] = useSearchParams();
+  const preselectedAccountId = searchParams.get("accountId") ?? undefined;
+
   const [accountFilter, setAccountFilter] = useState(preselectedAccountId ?? "");
   const [statusFilter, setStatusFilter] = useState("");
   const [showRegister, setShowRegister] = useState(false);
@@ -60,7 +57,7 @@ export default function WebhooksListRoute({
   const { data, isLoading } = useWebhooks(params);
   const { data: accountsData } = useAccounts({ "limit[eq]": 100 });
   const webhooks = (data?.data as WebhookEndpoint[]) ?? [];
-  const accounts = (accountsData?.data as any[]) ?? [];
+  const accounts = (accountsData?.data as Account[]) ?? [];
 
   const createWebhook = useCreateWebhook();
   const deactivateWebhook = useDeactivateWebhook();
@@ -78,7 +75,7 @@ export default function WebhooksListRoute({
   async function onSubmit(values: RegisterForm) {
     try {
       const result = await createWebhook.mutateAsync(values);
-      const secret = (result as any)?.data?.secret;
+      const secret = result.data?.secret;
       if (secret) {
         setRevealedSecret(secret);
       } else {
@@ -119,18 +116,16 @@ export default function WebhooksListRoute({
 
       {/* Filters + action */}
       <div className="flex flex-wrap gap-3 items-center mt-6 mb-4">
-        {!hideAccountColumn && (
-          <Select value={accountFilter} onValueChange={setAccountFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All accounts" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((a: any) => (
-                <SelectItem key={a.id} value={a.id}>{a.accountName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={accountFilter} onValueChange={setAccountFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="All accounts" />
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((a) => (
+              <SelectItem key={a.id} value={a.id}>{a.accountName}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36">
             <SelectValue placeholder="Any status" />
@@ -157,7 +152,7 @@ export default function WebhooksListRoute({
               <thead>
                 <tr className="border-b bg-gray-50 text-xs uppercase text-gray-500 tracking-wide">
                   <th className="text-left px-4 py-3">URL</th>
-                  {!hideAccountColumn && <th className="text-left px-3 py-3">Account</th>}
+                  <th className="text-left px-3 py-3">Account</th>
                   <th className="text-left px-3 py-3">Events</th>
                   <th className="text-left px-3 py-3">Status</th>
                   <th className="text-left px-3 py-3">Created</th>
@@ -167,7 +162,7 @@ export default function WebhooksListRoute({
               <tbody>
                 {webhooks.length === 0 && (
                   <tr>
-                    <td colSpan={hideAccountColumn ? 5 : 6} className="py-12 text-center text-gray-400">
+                    <td colSpan={6} className="py-12 text-center text-gray-400">
                       No webhooks found.
                     </td>
                   </tr>
@@ -182,16 +177,16 @@ export default function WebhooksListRoute({
                         {wh.url}
                       </Link>
                     </td>
-                    {!hideAccountColumn && (
-                      <td className="px-3 py-3 text-gray-700 text-xs">
-                        {wh.account?.accountName ?? wh.accountId}
-                      </td>
-                    )}
+                    <td className="px-3 py-3 text-gray-700 text-xs">
+                      {wh.account?.accountName ?? wh.accountId}
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-1">
-                        <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 text-xs">
-                          {wh.events[0]}
-                        </span>
+                        {wh.events.length > 0 && (
+                          <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 text-xs">
+                            {wh.events[0]}
+                          </span>
+                        )}
                         {wh.events.length > 1 && (
                           <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 text-xs">
                             +{wh.events.length - 1}
@@ -285,7 +280,7 @@ export default function WebhooksListRoute({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {accounts.map((a: any) => (
+                          {accounts.map((a) => (
                             <SelectItem key={a.id} value={a.id}>{a.accountName}</SelectItem>
                           ))}
                         </SelectContent>

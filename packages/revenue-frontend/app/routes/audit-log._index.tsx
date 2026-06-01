@@ -274,7 +274,7 @@ export default function AuditLogRoute() {
           )}
 
           {/* Pagination */}
-          {paging && paging.total !== null && (
+          {paging && paging.total !== null && paging.total > 0 && (
             <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-gray-500">
               <span>
                 Showing {offset + 1}–{Math.min(offset + limit, paging.total)} of {paging.total} entries
