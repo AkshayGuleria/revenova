@@ -41,6 +41,18 @@ export default [
   route("billing/consolidated", "routes/billing.consolidated.tsx"),
   route("billing/jobs/:jobId", "routes/billing.jobs.$jobId.tsx"),
 
+  // Purchase Orders (Phase 4)
+  route("purchase-orders", "routes/purchase-orders._index.tsx"),
+  route("purchase-orders/new", "routes/purchase-orders.new.tsx"),
+  route("purchase-orders/:id", "routes/purchase-orders.$id.tsx"),
+
+  // Payments (Phase 4)
+  route("payments", "routes/payments._index.tsx"),
+  route("payments/new", "routes/payments.new.tsx"),
+
+  // Analytics (Phase 5)
+  route("analytics", "routes/analytics._index.tsx"),
+
   // Renewals (Phase 5)
   route("renewals", "routes/renewals._index.tsx"),
 ] satisfies RouteConfig;
