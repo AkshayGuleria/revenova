@@ -572,3 +572,53 @@ export interface ShareContractDto {
   accountId: string;
   notes?: string;
 }
+
+// ── Audit Log ────────────────────────────────────────────────────────────────
+
+export interface AuditLog {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  actorId: string | null;
+  actorType: string;
+  changes: Record<string, { from: unknown; to: unknown }> | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+// ── Webhooks ─────────────────────────────────────────────────────────────────
+
+export interface WebhookEndpoint {
+  id: string;
+  accountId: string;
+  account?: { accountName: string };
+  url: string;
+  events: string[];
+  active: boolean;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  event: string;
+  payload: Record<string, unknown>;
+  status: string;
+  responseStatus: number | null;
+  responseBody: string | null;
+  attemptCount: number;
+  lastAttemptAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateWebhookDto {
+  accountId: string;
+  url: string;
+  events: string[];
+  description?: string;
+}

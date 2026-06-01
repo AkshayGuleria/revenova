@@ -151,4 +151,26 @@ export const queryKeys = {
   config: {
     all: ["app-config"] as const,
   },
+
+  // Audit Log
+  auditLog: {
+    all: ["audit-log"] as const,
+    lists: () => [...queryKeys.auditLog.all, "list"] as const,
+    list: (params?: Record<string, any>) =>
+      [...queryKeys.auditLog.lists(), params] as const,
+    entityTrail: (entityType: string, entityId: string) =>
+      [...queryKeys.auditLog.all, "entity", entityType, entityId] as const,
+  },
+
+  // Webhooks
+  webhooks: {
+    all: ["webhooks"] as const,
+    lists: () => [...queryKeys.webhooks.all, "list"] as const,
+    list: (params?: Record<string, any>) =>
+      [...queryKeys.webhooks.lists(), params] as const,
+    details: () => [...queryKeys.webhooks.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.webhooks.details(), id] as const,
+    deliveries: (id: string) =>
+      [...queryKeys.webhooks.detail(id), "deliveries"] as const,
+  },
 } as const;
