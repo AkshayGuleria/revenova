@@ -1,0 +1,118 @@
+<h2>Audit Log — Page Design</h2>
+<p class="subtitle">Does this layout work? Respond in terminal.</p>
+
+<div class="mockup">
+  <div class="mockup-header">http://localhost:5173/audit-log</div>
+  <div class="mockup-body" style="font-family:sans-serif;font-size:13px;padding:0">
+
+    <!-- Page header -->
+    <div style="padding:16px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb">
+      <div style="font-size:20px;font-weight:700;color:#111">Audit Log</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:2px">Read-only compliance trail for all financial mutations</div>
+    </div>
+
+    <!-- Filter bar -->
+    <div style="display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid #e5e7eb;background:#fff;flex-wrap:wrap">
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;background:#fff;min-width:130px">
+        Entity Type ▾ <span style="color:#9ca3af">(invoice, contract…)</span>
+      </div>
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;background:#fff;min-width:120px">
+        Action ▾ <span style="color:#9ca3af">(created, paid…)</span>
+      </div>
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;background:#fff;min-width:100px">
+        Actor Type ▾ <span style="color:#9ca3af">(user/system)</span>
+      </div>
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;background:#fff;min-width:90px">
+        📅 Date from
+      </div>
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;background:#fff;min-width:90px">
+        📅 Date to
+      </div>
+      <div style="border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;background:#f3f4f6;color:#6b7280;margin-left:auto">
+        Reset filters
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div style="padding:0 20px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:2px solid #e5e7eb;color:#6b7280;text-transform:uppercase;font-size:11px">
+            <th style="text-align:left;padding:10px 8px;width:16px"></th>
+            <th style="text-align:left;padding:10px 8px">Timestamp</th>
+            <th style="text-align:left;padding:10px 8px">Entity</th>
+            <th style="text-align:left;padding:10px 8px">Action</th>
+            <th style="text-align:left;padding:10px 8px">Actor</th>
+            <th style="text-align:left;padding:10px 8px">Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Normal row -->
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:10px 8px;color:#9ca3af;cursor:pointer">▶</td>
+            <td style="padding:10px 8px;color:#374151">2026-06-01 09:42:11</td>
+            <td style="padding:10px 8px"><span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 6px;font-size:11px">invoice</span> <span style="color:#6b7280">INV-2026-041</span></td>
+            <td style="padding:10px 8px"><span style="background:#f0fdf4;color:#15803d;border-radius:4px;padding:2px 6px;font-size:11px">status_changed</span></td>
+            <td style="padding:10px 8px;color:#374151">system</td>
+            <td style="padding:10px 8px;color:#6b7280;font-size:11px">status: draft → paid</td>
+          </tr>
+
+          <!-- Expanded row -->
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb">
+            <td style="padding:10px 8px;color:#6b7280;cursor:pointer">▼</td>
+            <td style="padding:10px 8px;color:#374151">2026-06-01 09:38:04</td>
+            <td style="padding:10px 8px"><span style="background:#fef3c7;color:#b45309;border-radius:4px;padding:2px 6px;font-size:11px">contract</span> <span style="color:#6b7280">CON-2026-012</span></td>
+            <td style="padding:10px 8px"><span style="background:#fdf2f8;color:#9d174d;border-radius:4px;padding:2px 6px;font-size:11px">updated</span></td>
+            <td style="padding:10px 8px;color:#374151">user <span style="color:#9ca3af">· akshay@acme.com</span></td>
+            <td style="padding:10px 8px;color:#6b7280;font-size:11px">3 fields changed</td>
+          </tr>
+          <!-- Inline expansion panel -->
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f0f9ff">
+            <td colspan="6" style="padding:12px 32px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div>
+                  <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Changes</div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px;font-size:11px;font-family:monospace">
+                    <div style="margin-bottom:4px"><span style="color:#6b7280">renewalNoticeDays:</span> <span style="color:#dc2626">30</span> → <span style="color:#16a34a">60</span></div>
+                    <div style="margin-bottom:4px"><span style="color:#6b7280">autoRenew:</span> <span style="color:#dc2626">false</span> → <span style="color:#16a34a">true</span></div>
+                    <div><span style="color:#6b7280">billingFrequency:</span> <span style="color:#dc2626">monthly</span> → <span style="color:#16a34a">annual</span></div>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Metadata</div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px;font-size:11px;font-family:monospace">
+                    <div style="margin-bottom:4px"><span style="color:#6b7280">ip:</span> 192.168.1.42</div>
+                    <div style="margin-bottom:4px"><span style="color:#6b7280">userAgent:</span> Mozilla/5.0…</div>
+                    <div><span style="color:#6b7280">actorId:</span> usr-88f2a1c</div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:10px 8px;color:#9ca3af;cursor:pointer">▶</td>
+            <td style="padding:10px 8px;color:#374151">2026-06-01 09:21:55</td>
+            <td style="padding:10px 8px"><span style="background:#f3f4f6;color:#374151;border-radius:4px;padding:2px 6px;font-size:11px">payment</span> <span style="color:#6b7280">PAY-2026-007</span></td>
+            <td style="padding:10px 8px"><span style="background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:2px 6px;font-size:11px">created</span></td>
+            <td style="padding:10px 8px;color:#374151">system</td>
+            <td style="padding:10px 8px;color:#6b7280;font-size:11px">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280">
+      <span>Showing 1–20 of 1,842 entries</span>
+      <div style="display:flex;gap:4px">
+        <span style="padding:4px 10px;border:1px solid #e5e7eb;border-radius:4px;background:#f9fafb">← Prev</span>
+        <span style="padding:4px 10px;border:1px solid #3b82f6;border-radius:4px;background:#eff6ff;color:#1d4ed8">1</span>
+        <span style="padding:4px 10px;border:1px solid #e5e7eb;border-radius:4px">2</span>
+        <span style="padding:4px 10px;border:1px solid #e5e7eb;border-radius:4px">Next →</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">Key decisions baked in: entity-type badges colour-coded, changes shown as <code style="background:#f3f4f6;padding:2px 4px;border-radius:3px">old → new</code> diff, metadata in side-by-side panel on expand. Respond in terminal to approve or request changes.</p>
