@@ -4,7 +4,7 @@
  */
 
 import { useParams, Link } from "react-router";
-import { Edit, Building, CreditCard, Mail, Phone, MapPin, DollarSign, Calendar, User, FileText } from "lucide-react";
+import { Edit, Building, CreditCard, Mail, Phone, MapPin, DollarSign, Calendar, User, FileText, Zap } from "lucide-react";
 import { AppShell } from "~/components/layout/app-shell";
 import { PageHeader } from "~/components/layout/page-header";
 import { Button } from "~/components/ui/button";
@@ -14,6 +14,8 @@ import { PageLoader } from "~/components/page-loader";
 import { StatusBadge } from "~/components/status-badge";
 import { useAccount } from "~/lib/api/hooks/use-accounts";
 import { useContracts } from "~/lib/api/hooks/use-contracts";
+import { useWebhooks } from "~/lib/api/hooks/use-webhooks";
+import type { WebhookEndpoint } from "~/types/models";
 import { Skeleton } from "~/components/ui/skeleton";
 import { CurrencyDisplay } from "~/components/currency-display";
 
@@ -28,6 +30,9 @@ export default function AccountDetailsRoute() {
   const { data: contractsData, isLoading: contractsLoading } = useContracts({
     "accountId[eq]": accountId,
   });
+
+  const { data: webhooksData } = useWebhooks({ "accountId[eq]": accountId });
+  const accountWebhooks = (webhooksData?.data as WebhookEndpoint[]) ?? [];
 
   if (isLoading) {
     return (
@@ -80,6 +85,9 @@ export default function AccountDetailsRoute() {
           <TabsTrigger value="hierarchy">Hierarchy</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="webhooks">
+            <Zap className="h-4 w-4 mr-1" />Webhooks
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="space-y-6">
@@ -482,6 +490,51 @@ export default function AccountDetailsRoute() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="webhooks">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                {accountWebhooks.length} webhook{accountWebhooks.length !== 1 ? "s" : ""} registered for this account
+              </p>
+              <Link to={`/webhooks?accountId=${accountId}`}>
+                <Button variant="outline" size="sm">
+                  <Zap className="h-4 w-4 mr-1" /> Manage Webhooks
+                </Button>
+              </Link>
+            </div>
+            {accountWebhooks.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">
+                No webhooks registered for this account.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {accountWebhooks.map((wh) => (
+                  <Link key={wh.id} to={`/webhooks/${wh.id}`}>
+                    <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors">
+                      <div>
+                        <p className="text-sm font-medium text-blue-600">{wh.url}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {wh.events.slice(0, 3).join(", ")}
+                          {wh.events.length > 3 && ` +${wh.events.length - 3} more`}
+                        </p>
+                      </div>
+                      {wh.active ? (
+                        <span className="bg-green-50 text-green-700 border border-green-200 rounded-full px-2 py-0.5 text-xs font-semibold">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="bg-red-50 text-red-700 border border-red-200 rounded-full px-2 py-0.5 text-xs font-semibold">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </AppShell>
