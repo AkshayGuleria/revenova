@@ -10,7 +10,7 @@ dependencies: [api-layer]
 blocks: []
 type: backend
 focus: B2B Enterprise (contracts, hierarchical accounts, seat-based licensing)
-phase: 5 of 5 (complete — Phase 6 B2C usage-based billing planned)
+phase: "5 of 5 (complete - Phase 6 B2C usage-based billing planned)"
 phase1_status: completed (enterprise accounts, contracts, products, invoices)
 phase2_status: completed (contract billing + hybrid scalability)
 phase3_status: completed (hierarchical accounts, consolidated billing)
