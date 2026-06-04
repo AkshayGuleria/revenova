@@ -21,7 +21,7 @@
 
 A complete revenue management system designed for B2B SaaS companies selling to large enterprises. Handles multi-year contracts, hierarchical account structures, consolidated billing, and custom payment terms.
 
-**Current Status:** Phase 4 In Progress — Sub-Invoices & Invoice Groups (COMPLETED), Purchase Orders + Credit Management (PLANNED)
+**Current Status:** All 5 phases complete ✅ — 811 backend tests passing, full frontend with E2E coverage
 
 ### Key Features
 
@@ -98,16 +98,19 @@ Frontend runs at `http://localhost:5173` and connects to backend at `http://loca
 
 **Frontend Features (Implemented):**
 
-- ✅ Dashboard with key metrics
-- ✅ Account management UI with hierarchy visualization
+- ✅ Dashboard with MRR/ARR stat cards
+- ✅ Account management with hierarchy visualization
 - ✅ Contract management with seat-based pricing
 - ✅ Product catalog with pricing models
-- ✅ Responsive layout with collapsible sidebar
-- ✅ Type-safe API integration with TanStack Query
-- ✅ Form validation with React Hook Form + Zod
 - ✅ Invoice generation, sub-invoices, and invoice groups
-- 🚧 Billing operations dashboard (in progress)
-- ⚪ Analytics and reporting (Phase 5, planned)
+- ✅ Billing operations (generate, batch, consolidated, dry-run)
+- ✅ Purchase orders with approve/reject workflows
+- ✅ Payments list and application
+- ✅ Analytics dashboard (ARR, MRR, churn, bookings)
+- ✅ Renewal tracking
+- ✅ Audit log with inline expand and entity trail
+- ✅ Webhooks (register, manage, delivery history, account tab)
+- ✅ Playwright E2E tests for all critical flows
 
 ---
 
@@ -125,14 +128,9 @@ revenova/
 │   │   ├── 001-nestjs-fastify-swc-framework.md
 │   │   ├── 002-backend-testing-framework.md
 │   │   └── 003-rest-api-response-structure.md
-│   ├── features/              # Feature documentation
-│   │   ├── accounts.md
-│   │   ├── contracts.md
-│   │   ├── products.md
-│   │   ├── invoices.md
-│   │   ├── billing.md
-│   │   └── hierarchical-accounts.md
-│   └── feature-spec.md        # Complete 141-task specification
+│   ├── features/              # Feature documentation (19 docs)
+│   ├── reference/             # Architecture, env vars, openapi.json
+│   └── adrs/                  # Architecture Decision Records
 │
 ├── packages/                  # Monorepo packages
 │   ├── revenue-backend/       # NestJS API server
@@ -196,15 +194,15 @@ revenova/
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| **Phase 1** | Foundation - Accounts, Contracts, Products, Invoices | ✅ Completed |
+| **Phase 1** | Foundation — Accounts, Contracts, Products, Invoices | ✅ Completed |
 | **Phase 2** | Contract Billing + Scalability (PM2, BullMQ, Workers) | ✅ Completed |
 | **Phase 3** | Hierarchical Accounts + Consolidated Billing | ✅ Completed |
 | **Phase 3.5** | Product Pricing Enhancement (chargeType, category, setupFee) | ✅ Completed |
-| **Phase 4** | Sub-Invoices + Invoice Groups + Purchase Orders + Credit Management | 🚧 In Progress |
-| **Phase 5** | Analytics + Renewal Tracking + Webhooks | ⚪ Planned |
-| **Phase 6+** | B2C Event-Based Billing | 🔵 Deferred |
+| **Phase 4** | Sub-Invoices, Invoice Groups, Purchase Orders, Credit, Payments, FX, Tax | ✅ Completed |
+| **Phase 5** | ARR/MRR Analytics, Renewal Tracking, Audit Log, Webhooks | ✅ Completed |
+| **Phase 6+** | B2C Event-Based / Usage-Based Billing | 🔵 Deferred |
 
-See [docs/feature-spec.md](./docs/feature-spec.md) for complete task breakdown.
+See [docs/features/](./docs/features/) for per-feature documentation.
 
 ---
 
@@ -267,12 +265,13 @@ See [.claude/git-workflow.md](./.claude/git-workflow.md) for complete guidelines
 
 - **[Backend Setup](./packages/revenue-backend/README.md)** - NestJS backend setup and development
 - **[Git Workflow](./.claude/git-workflow.md)** - Branching strategy and commit guidelines
-- **[Feature Spec](./docs/feature-spec.md)** - Complete 141-task specification
+- **[Feature Docs](./docs/features/)** - Per-feature documentation (19 docs)
+- **[OpenAPI Spec](./docs/reference/openapi.json)** - Machine-generated, always current
 
 ### For AI Agents
 
 - **[CLAUDE.md](./.claude/CLAUDE.md)** - Project guidance for Claude Code
-- **[Agents](./.claude/agents.md)** - Agent team definitions and coordination
+- **[Agents](./.claude/agents/)** - Agent team definitions
 
 ### Architecture Decisions
 
@@ -314,13 +313,23 @@ npm run test:cov        # Coverage report
 
 ## Database Schema
 
-Phase 1 includes:
+15 entities across all phases:
 
-- **accounts** - Hierarchical enterprise accounts
-- **contracts** - Multi-year seat-based contracts
-- **products** - Product catalog with volume tiers
-- **invoices** - Invoices linked to contracts
-- **invoice_items** - Invoice line items
+- **accounts** — Hierarchical (parent_account_id, max 5 levels)
+- **contracts** — Multi-year, seat-based pricing
+- **contract_products** — Contract-to-product bindings with overrides
+- **contract_shares** — Shared contract access across accounts
+- **products** — Seat-based + volume-tiered pricing
+- **invoice_groups** — Organizational groupings (dept, cost center)
+- **invoices** — Linked to contracts, POs, invoice groups
+- **invoice_items** — Line items with contract-product binding
+- **purchase_orders** — Enterprise procurement with approval workflow
+- **payments** — Payment records applied to invoices
+- **exchange_rates** — FX rates with source tracking
+- **tax_rates** — Tax rates by jurisdiction and category
+- **audit_log** — Immutable audit trail for all mutations
+- **webhook_endpoints** — Webhook registrations per account
+- **webhook_deliveries** — Per-event delivery attempts and status
 
 See [packages/revenue-backend/prisma/schema.prisma](./packages/revenue-backend/prisma/schema.prisma) for complete schema.
 
@@ -378,34 +387,11 @@ See [packages/revenue-backend/prisma/schema.prisma](./packages/revenue-backend/p
 
 Once running, access auto-generated Swagger documentation:
 
-**<http://localhost:5177/api/docs>**
+**<http://localhost:5177/api/docs>** — 66 endpoints across all modules
 
-### Key Endpoints (Phase 1)
+An offline copy is machine-generated and committed at [`docs/reference/openapi.json`](./docs/reference/openapi.json) (auto-updated on every backend commit via pre-commit hook).
 
-**Accounts:**
-
-- `POST /api/accounts` - Create account
-- `GET /api/accounts` - List accounts
-- `GET /api/accounts/:id` - Get account details
-- `PUT /api/accounts/:id` - Update account
-- `DELETE /api/accounts/:id` - Delete account
-
-**Contracts:**
-
-- `POST /api/contracts` - Create contract
-- `GET /api/contracts` - List contracts
-- `GET /api/contracts/:id` - Get contract details
-
-**Invoices:**
-
-- `POST /api/invoices` - Create invoice
-- `GET /api/invoices` - List invoices
-- `GET /api/invoices/:id` - Get invoice with line items
-
-**Frontend Integration:**
-The Revenue app (React) consumes these REST APIs to provide a dashboard for finance teams to manage accounts, contracts, and invoices.
-
-See backend README for complete API reference.
+Modules: accounts, analytics, audit-log, billing, contracts, credit-management, exchange-rates, invoice-groups, invoices, payments, products, purchase-orders, renewals, tax-rates, webhooks
 
 ---
 
@@ -458,6 +444,6 @@ UNLICENSED - Internal use only
 
 ---
 
-**Built with:** NestJS • Fastify • Prisma • PostgreSQL • TypeScript • SWC
+**Built with:** NestJS • Fastify • Prisma • PostgreSQL • BullMQ • React Router 7 • shadcn/ui • TypeScript • SWC
 
-**Status:** ✅ Phases 1-3.5 + Phase 4 (Sub-Invoices) Completed | Phase 4 (POs, Credit) + Phase 5 Planned
+**Status:** ✅ All 5 phases complete — 811 backend tests • 16 backend modules • 19 feature docs • 66 API endpoints
