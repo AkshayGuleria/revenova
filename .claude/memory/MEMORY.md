@@ -32,15 +32,13 @@ renewals, tax-rates, webhooks
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-06-01 21:00
-- **Branch:** feature/audit-log-webhooks-ui
-- **Last commit:** 2d9218d fix(frontend): type WebhookEndpoint properly in webhook detail route
+- **Last stop:** 2026-06-04 21:13
+- **Branch:** docs/phase5-doc-updates
+- **Last commit:** dffaae7 docs(readme): update project status, phases, frontend features, DB schema, API docs
 - **Modified files:**
 ```
 M .claude/memory/MEMORY.md
- M package-lock.json
- M packages/revenue-frontend/package.json
-?? .superpowers/
+ M .gitignore
 ```
 - **In progress:** _(update this manually before closing session)_
 
@@ -72,4 +70,22 @@ M .claude/memory/MEMORY.md
 - 2026-06-01 19:44 [bd1282eb] branch:master
 - 2026-06-01 20:09 [bd1282eb] branch:master
 - 2026-06-01 21:00 [bd1282eb] branch:feature/audit-log-webhooks-ui
+- 2026-06-01 21:25 [bd1282eb] branch:master
+- 2026-06-01 21:36 [bd1282eb] branch:master
+- 2026-06-01 21:36 [bd1282eb] branch:master
+- 2026-06-01 21:38 [bd1282eb] branch:master
+- 2026-06-04 18:53 [bd1282eb] branch:master
+- 2026-06-04 19:16 [bd1282eb] branch:master
+- 2026-06-04 19:40 [bd1282eb] branch:master
+- 2026-06-04 19:51 [bd1282eb] branch:master
+- 2026-06-04 19:54 [bd1282eb] branch:master
+- 2026-06-04 20:05 [bd1282eb] branch:master
+- 2026-06-04 20:10 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 20:11 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 20:15 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 20:15 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 20:16 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 20:18 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 20:47 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-06-04 21:13 [bd1282eb] branch:docs/phase5-doc-updates
 <!-- Appended by .claude/hooks/session-end.js on Stop -->
