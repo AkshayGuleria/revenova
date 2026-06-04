@@ -38,4 +38,5 @@ logs/
 *.log
 
 # Dev workflow
-.claude/worktrees/*.superpowers/
+.claude/worktrees/*
+.superpowers/*
