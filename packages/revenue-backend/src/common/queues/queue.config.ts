@@ -7,6 +7,7 @@ export const getQueueConfig = (
   connection: {
     host: configService.get<string>('REDIS_HOST', 'localhost'),
     port: configService.get<number>('REDIS_PORT', 6379),
+    ...(process.env.SWAGGER_EXPORT === 'true' ? { lazyConnect: true } : {}),
   },
   defaultJobOptions: {
     attempts: 3,

@@ -7,6 +7,7 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
+    if (process.env.SWAGGER_EXPORT === 'true') return;
     await this.$connect();
     console.log('✅ Prisma connected to database');
   }
