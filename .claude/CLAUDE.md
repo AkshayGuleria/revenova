@@ -86,7 +86,7 @@ Agent definitions: `.claude/agents/` — one file per agent. Never use `agents.m
 | Topic | File |
 |-------|------|
 | Architecture, stack, DB schema, perf targets | `docs/reference/architecture.md` |
-| Full endpoint listing | `docs/reference/api-endpoints.md` |
+| Full endpoint listing (machine-generated) | `docs/reference/openapi.json` or `http://localhost:5177/api/docs` |
 | Environment variables | `docs/reference/env-vars.md` |
 | Feature doc template | `docs/reference/feature-doc-template.md` |
 | Full task specification | `docs/feature-spec.md` |

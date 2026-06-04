@@ -24,7 +24,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
     "generate-data": "ts-node scripts/generate-test-data.ts",
-    "generate-data:clean": "ts-node scripts/generate-test-data.ts --clean"
+    "generate-data:clean": "ts-node scripts/generate-test-data.ts --clean",
+    "swagger:export": "curl -sf http://localhost:5177/api/docs-json -o ../../docs/reference/openapi.json && echo 'Swagger spec exported to docs/reference/openapi.json'"
   },
   "dependencies": {
     "@fastify/static": "^9.1.1",
