@@ -15,16 +15,19 @@ AUTH_SERVER_URL=http://localhost:5176
 # Redis
 REDIS_URL=redis://localhost:6379
 
-# Email (Phase 2)
+# Email
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=billing@example.com
 SMTP_PASSWORD=secret
 
-# Payments (Phase 5)
+# Payments (Stripe — not yet integrated, reserved)
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Workers
 THREAD_POOL_SIZE=2  # Worker Threads per process
+
+# Swagger Export
+SWAGGER_EXPORT=false  # Set true to skip DB/Redis connections (used by scripts/export-swagger.ts)
 ```

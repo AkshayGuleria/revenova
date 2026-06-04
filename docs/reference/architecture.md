@@ -6,7 +6,7 @@
 - **Database:** PostgreSQL + Prisma ORM, recursive CTEs for hierarchical queries
 - **Job Queue:** BullMQ + Redis
 - **Scalability:** PM2 cluster (4 API processes) + Worker Threads (hybrid)
-- **Payments:** Stripe API + ACH (planned Phase 5)
+- **Payments:** Manual payment reconciliation (Stripe integration deferred)
 - **Frontend:** React Router v7 (Remix) + shadcn/ui
 - **Monorepo:** npm workspaces (`packages/revenue-backend`, `packages/revenue-frontend`)
 
@@ -23,10 +23,19 @@
 |--------|---------|
 | `accounts` | Hierarchical (parent_account_id), max 5 levels |
 | `contracts` | Multi-year, seat-based pricing |
+| `contract_products` | Contract-to-product bindings with overrides |
+| `contract_shares` | Shared contract access across accounts |
 | `products` | Seat-based + volume-tiered pricing |
-| `invoices` | Linked to contracts + POs |
-| `invoice_items` | Line item details |
-| `purchase_orders` | Enterprise procurement (Phase 4) |
+| `invoice_groups` | Organizational groupings (dept, cost center) |
+| `invoices` | Linked to contracts, POs, invoice groups |
+| `invoice_items` | Line item details with contract-product binding |
+| `purchase_orders` | Enterprise procurement with approval workflow |
+| `payments` | Payment records applied to invoices |
+| `exchange_rates` | FX rates with source tracking |
+| `tax_rates` | Tax rates by jurisdiction and category |
+| `audit_log` | Immutable audit trail for all mutations |
+| `webhook_endpoints` | Webhook registrations per account |
+| `webhook_deliveries` | Per-event delivery attempts and status |
 
 ## Key Indices
 

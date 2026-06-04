@@ -1,7 +1,7 @@
 ---
 id: revenue-backend
 title: B2B Enterprise Revenue Management Backend System
-status: in_progress
+status: completed
 priority: high
 assignee: billman, habibi
 created: 2026-01-11
@@ -10,15 +10,20 @@ dependencies: [api-layer]
 blocks: []
 type: backend
 focus: B2B Enterprise (contracts, hierarchical accounts, seat-based licensing)
-phase: 4 of 5 (plus future B2C Phase 6+)
+phase: 5 of 5 (complete — Phase 6 B2C usage-based billing planned)
 phase1_status: completed (enterprise accounts, contracts, products, invoices)
 phase2_status: completed (contract billing + hybrid scalability)
 phase3_status: completed (hierarchical accounts, consolidated billing)
 phase3_5_status: completed (product pricing enhancement — chargeType, category, setupFee)
-phase4_status: in_progress (sub-invoices + invoice groups: completed; purchase orders, credit management: planned)
-phase5_status: planned (analytics, renewal tracking, SLA adjustments)
+phase4_status: completed
+phase5_status: completed (ARR/MRR analytics, renewal tracking, audit logging, webhooks)
 scalability: hybrid (cluster + worker threads + queues)
 ---
+
+> **⚠ DEPRECATION NOTICE:** This file is a historical planning artifact from before Phase 1.
+> It contains stale task tables, Express.js references, and `/api/customers` routes that no longer exist.
+> **Source of truth for implemented features:** `docs/features/`
+> **Source of truth for API endpoints:** `docs/reference/openapi.json` or `http://localhost:5177/api/docs`
 
 ## Proposed Solution
 
