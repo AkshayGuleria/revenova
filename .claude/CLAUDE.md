@@ -13,10 +13,29 @@ Load `.claude/memory/MEMORY.md` at session start for project state and prior con
 ECC skills in `.claude/skills/`: `nestjs-patterns`, `backend-patterns`, `api-design`,
 `database-migrations`, `prisma-patterns`, `tdd-workflow`, `e2e-testing`
 
+## Stack (ADR-001, ADR-002)
+
+Backend: NestJS + **Fastify** (not Express) + **SWC** build (not tsc) + Prisma.
+Backend tests: **Jest** (unit) + **Supertest** (integration) only — Playwright is
+frontend-only E2E, never use it for backend testing.
+
 ## Quality Gate
 
 Pre-commit hook (`.git/hooks/pre-commit`) runs: typecheck → lint → unit tests.
 Never skip with `--no-verify` unless user explicitly asks.
+
+## Git Workflow
+
+**Never commit directly to master.** All work on `<type>/<scope>-<description>` branches
+(`feature/`, `fix/`, `refactor/`, `test/`, `docs/`, `chore/`). Squash-merge to master,
+delete branch after. Full guide: `.claude/git-workflow.md`.
+
+## Model Routing
+
+Plan cap: 200k tokens. **Opus is off-limits** — Sonnet handles this codebase fine at
+1/3 the burn rate. Haiku for mechanical work (boilerplate, DTOs, migrations,
+`/checkpoint` summaries); Sonnet for anything needing reasoning (`/plan`, `/tdd`,
+`/code-review`, architecture, debugging). Default session model: Sonnet.
 
 ## Mandatory API Rules (ADR-003)
 
@@ -46,6 +65,14 @@ Operators: `[eq]` `[ne]` `[lt]` `[lte]` `[gt]` `[gte]` `[in]` `[nin]` `[like]` `
 - Response builder: `src/common/utils/response-builder.ts`
 - Pagination DTO: `src/common/dto/pagination.dto.ts`
 - API response interface: `src/common/interfaces/api-response.interface.ts`
+
+## Product Model Rules (ADR-004)
+
+Every product has `chargeType` (`recurring` | `one_time` | `usage_based` — usage_based
+stored but billing logic deferred to Phase 6) and `category` (`platform` | `seats` |
+`addon` | `support` | `professional_services` | `storage` | `api`). `billingInterval`
+is **required** when `chargeType=recurring`, **ignored** otherwise. Optional:
+`setupFee` (charged once, first invoice only), `trialPeriodDays`, `minCommitmentMonths`.
 
 ## Key Constraints
 
@@ -91,3 +118,6 @@ Agent definitions: `.claude/agents/` — one file per agent. Never use `agents.m
 | Feature doc template | `docs/reference/feature-doc-template.md` |
 | Full task specification | `docs/feature-spec.md` |
 | Completed feature docs | `docs/features/` |
+| Full git branch/commit workflow | `.claude/git-workflow.md` |
+| Full SDLC/memory/token-optimization guide | `docs/WORKFLOW.md` |
+| Architecture decision records | `docs/adrs/` |
