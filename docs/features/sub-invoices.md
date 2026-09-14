@@ -1,6 +1,6 @@
 # Sub-Invoices Feature
 
-**Status:** Implemented
+**Status:** Partial — see [README backlog](../../README.md#backlog-not-built)
 **Phase:** Phase 4 — Enterprise Operations
 **Implementation Date:** April 2026
 **ADR Compliance:** [ADR-003: REST API Response Structure & Query Parameters](../adrs/003-rest-api-response-structure.md)
@@ -154,97 +154,11 @@ Invoices, sub-invoices, and invoice items **cannot be deleted or detached**. All
 
 ---
 
-## Implementation Task Tracker
+## Implementation Scope
 
-**Legend:** `[ ]` Not started · `[~]` In progress · `[x]` Done
-
-### Phase A: Database Schema & Data Model (~1-2 days)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| A1 | Create `InvoiceGroup` entity (department, cost center, location, custom) | Medium | [ ] |
-| A2 | Add Prisma self-referencing relationship for `parentInvoiceId` on Invoice | Low | [ ] |
-| A3 | Add `invoiceGroupId` foreign key to Invoice model | Low | [ ] |
-| A4 | Add `groupType` enum (DEPARTMENT, COST_CENTER, LOCATION, CUSTOM) | Low | [ ] |
-| A5 | Add `groupReference` field to InvoiceItem for grouping line items | Low | [ ] |
-| A6 | Add `paymentMode` field to Invoice (`PARENT_PAYS` \| `CHILD_PAYS` \| null) | Low | [ ] |
-| A7 | Create database migration for all schema changes | Medium | [ ] |
-| A8 | Add index on `parentInvoiceId` for efficient hierarchy queries | Low | [ ] |
-
-### Phase B: Invoice Group Management (~1-2 days)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| B1 | Create `InvoiceGroup` service (CRUD operations) | Medium | [ ] |
-| B2 | Create DTOs for invoice group create/update/query | Medium | [ ] |
-| B3 | Create invoice group controller with REST endpoints | Medium | [ ] |
-| B4 | Add validation for group uniqueness per account | Low | [ ] |
-| B5 | Add cascade behavior (soft delete groups with invoices) | Low | [ ] |
-
-### Phase C: Sub-Invoice Core Logic (~2-3 days)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| C1 | Update Invoice service to support parent-child relationships | Medium | [ ] |
-| C2 | Add `createSubInvoice()` method with parent linking | Medium | [ ] |
-| C3 | Add `getSubInvoices()` method for parent invoice | Low | [ ] |
-| C4 | Implement sub-invoice number generation (`INV-001-A`, `INV-001-B`) | Medium | [ ] |
-| C5 | Add rollup calculation (parent totals = sum of children) | Medium | [ ] |
-| C6 | Add validation: sub-invoice totals must match parent | Medium | [ ] |
-| C7 | Implement `paymentMode` logic — cascade on `PARENT_PAYS`, independent on `CHILD_PAYS` | Medium | [ ] |
-| C8 | Default `paymentMode` from consolidation strategy (`BY_GROUP` → `PARENT_PAYS`, `BY_ACCOUNT` → `CHILD_PAYS`) | Low | [ ] |
-
-### Phase D: Invoice Item Grouping (~1 day)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| D1 | Update InvoiceItem to include `groupReference` field | Low | [ ] |
-| D2 | Add grouping logic in invoice creation | Medium | [ ] |
-| D3 | Add endpoint to move items between groups/sub-invoices | Medium | [ ] |
-| D4 | Add validation for item reassignment (amount consistency) | Medium | [ ] |
-
-### Phase E: API Endpoints (~2-3 days)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| E1 | `GET /api/invoices/:id/sub-invoices` — List sub-invoices (paginated) | Low | [ ] |
-| E2 | `POST /api/invoices/:id/sub-invoices` — Create sub-invoice | Medium | [ ] |
-| E3 | Invoice group CRUD endpoints (`/api/invoice-groups`) | Medium | [ ] |
-| E4 | Add `parentInvoiceId[eq]` and `parentInvoiceId[null]` filters to list endpoint | Low | [ ] |
-| E5 | Add `invoiceGroupId[eq]` filter to list endpoint | Low | [ ] |
-| E6 | Update invoice detail to include `subInvoiceCount` + `subInvoiceTotals` summary | Low | [ ] |
-| E7 | ~~`POST /api/invoices/:id/split`~~ — **Deferred to Phase 5** | High | — |
-| E8 | ~~`POST /api/invoices/:id/merge`~~ — **Deferred to Phase 5** | High | — |
-
-### Phase F: Consolidated Billing Integration (~2-3 days)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| F1 | Update consolidated billing to create parent + sub-invoices | High | [ ] |
-| F2 | Strategy: one sub-invoice per subsidiary account | Medium | [ ] |
-| F3 | Strategy: one sub-invoice per cost center/department | Medium | [ ] |
-| F4 | Add `consolidationStrategy` parameter (FLAT, BY_ACCOUNT, BY_GROUP) | Medium | [ ] |
-| F5 | Update billing processor to handle sub-invoice generation | Medium | [ ] |
-
-### Phase G: Testing (~2-3 days)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| G1 | Unit tests for invoice group service | Medium | [ ] |
-| G2 | Unit tests for sub-invoice creation/retrieval | Medium | [ ] |
-| G3 | Unit tests for rollup calculations | Medium | [ ] |
-| G4 | Integration tests for split/merge operations | High | [ ] |
-| G5 | Integration tests for consolidated billing with sub-invoices | High | [ ] |
-| G6 | E2E tests for complete sub-invoice workflows | High | [ ] |
-
-### Phase H: Documentation (~0.5-1 day)
-
-| ID | Task | Complexity | Status |
-|----|------|------------|--------|
-| H1 | Update this doc (`sub-invoices.md`) with implementation details post-build | Medium | [ ] |
-| H2 | Update `docs/features/invoices.md` with sub-invoice info | Low | [ ] |
-| H3 | Update `docs/features/billing.md` with consolidation strategies | Low | [ ] |
-| H4 | Add API examples and cURL commands | Low | [ ] |
+Task-tracker table removed 2026-09-14 (its checkboxes contradicted the shipped code). Unbuilt scope — split/merge,
+consolidation strategies, item grouping/reassignment, `GET :id/parent`, `includeSubInvoices`, integration/E2E tests,
+post-build doc update — is tracked only in [README → Backlog](../../README.md#backlog-not-built).
 
 ---
 
@@ -328,25 +242,6 @@ Step 5 — Invoice list updates (filter, badge, toggle)
 | B | Invoice Groups navigation | Link in Invoices page header (defer sidebar refactor) |
 | C | Sub-invoice creation entry point | Only from parent detail page — backend nested endpoint enforces parent context |
 | D | Invoice Group on "New Invoice" form | Add optional field — backend `CreateInvoiceDto` accepts `invoiceGroupId` |
-
-### Frontend Task Tracker
-
-| ID | Task | Status |
-|----|------|--------|
-| FE1 | Add `InvoiceGroup` type, extend `Invoice` in `models.ts` | [x] |
-| FE2 | Add `invoiceGroups` query keys, create `use-invoice-groups.ts` | [x] |
-| FE3 | Add `useSubInvoices` + `useCreateSubInvoice` to `use-invoices.ts` | [x] |
-| FE4 | Build `invoice-group-form.tsx` component | [x] |
-| FE5 | Build `invoice-groups._index.tsx` list route | [x] |
-| FE6 | Build `invoice-groups.new.tsx` + `invoice-groups.$id.edit.tsx` | [x] |
-| FE7 | Add Invoice Groups to sidebar/navigation | [x] |
-| FE8 | Add sub-invoices card to `invoices.$id.tsx` | [x] |
-| FE9 | Add parent breadcrumb to sub-invoice detail pages | [x] |
-| FE10 | Build `sub-invoice-form.tsx` component | [x] |
-| FE11 | Build `invoices.$id.sub-invoices.new.tsx` route | [x] |
-| FE12 | Add group filter + sub-invoice badge to `invoices._index.tsx` | [x] |
-| FE13 | Add Invoice Group select to `invoice-form.tsx` | [ ] |
-| FE14 | Register all new routes in `routes.ts` | [x] |
 
 ---
 

@@ -281,4 +281,4 @@ tapsa, track progress
 
 **Last Updated:** 2026-01-31
 **Project:** Revenova - Revenue Intelligence Platform
-**Status:** Phase 3 Complete, Phase 4-5 Planned
+**Status:** see `README.md` → Development Phases

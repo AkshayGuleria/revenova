@@ -1,28 +1,13 @@
 # Revenova Session Memory
 
 ## Project State
-- **Current Phase:** Phase 5 COMPLETE ✅ — considering Phase 6 (B2C / usage-based billing)
+- **Phase status + backlog:** `README.md` → Development Phases (single source of truth — do not copy status here)
 - **Stack:** NestJS + TypeScript + Prisma + PostgreSQL + BullMQ + Redis
 - **Frontend:** React Router v7 (Remix) + shadcn/ui
 - **Monorepo:** npm workspaces (`packages/revenue-backend`, `packages/revenue-frontend`)
 
-## Completed Phases
-- Phase 1: Foundation (accounts, contracts, products, invoices) ✅
-- Phase 2: Contract-Based Billing (automated invoicing, BullMQ, Worker Threads) ✅
-- Phase 3: Hierarchical Accounts (recursive CTEs, consolidated billing) ✅
-- Phase 3.5: Product Pricing Enhancement ✅
-- Phase 4: Enterprise Operations ✅ (PRs #20-26)
-  - Sub-invoices, invoice groups, contract-product binding, invoice dry run
-  - Purchase orders, credit management, exchange rates, tax rates, payments
-- Phase 5: Analytics & Optimization ✅ (PRs #27-30)
-  - ARR/MRR analytics, renewal tracking, audit logging, webhooks
-
-## Backend Modules (all on master, 811 tests)
-accounts, analytics, app-config, audit-log, billing, contracts, credit-management,
-exchange-rates, invoice-groups, invoices, payments, products, purchase-orders,
-renewals, tax-rates, webhooks
-
 ## Key Decisions
+- Progress tracked in ONE place: README phase table (+ per-feature `**Status:**` header in `docs/features/`). `docs/feature-spec.md` frozen, no status (2026-09-14)
 - REST API: operator-based query params (`field[op]=value`), offset pagination
 - Response shape: `{ data, paging }` always — see ADR-003
 - Hierarchy depth capped at 5 levels (recursive CTE guard)
@@ -32,13 +17,26 @@ renewals, tax-rates, webhooks
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-06-04 21:13
+- **Last stop:** 2026-09-14 20:00
 - **Branch:** docs/phase5-doc-updates
-- **Last commit:** dffaae7 docs(readme): update project status, phases, frontend features, DB schema, API docs
+- **Last commit:** 8bc4e6e chore: added claude memory and updated gitignore
 - **Modified files:**
 ```
-M .claude/memory/MEMORY.md
- M .gitignore
+M .claude/CLAUDE.md
+ M .claude/SKILLS-GUIDE.md
+ M .claude/agents/tapsa.md
+ M .claude/memory/MEMORY.md
+ M README.md
+ M docs/WORKFLOW.md
+ M docs/adrs/README.md
+ M docs/feature-spec.md
+ M docs/features/billing.md
+ M docs/features/contract-product-binding.md
+ M docs/features/sub-invoices.md
+ M docs/reference/feature-doc-template.md
+ M packages/revenue-frontend/README.md
+ M packages/revenue-frontend/TESTING.md
+ M packages/revenue-frontend/docs/DESIGN-REVIEW.md
 ```
 - **In progress:** _(update this manually before closing session)_
 
@@ -88,4 +86,16 @@ M .claude/memory/MEMORY.md
 - 2026-06-04 20:18 [bd1282eb] branch:docs/phase5-doc-updates
 - 2026-06-04 20:47 [bd1282eb] branch:docs/phase5-doc-updates
 - 2026-06-04 21:13 [bd1282eb] branch:docs/phase5-doc-updates
+- 2026-09-14 19:31 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-14 19:32 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-14 19:57 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-14 19:58 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-14 19:58 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 19:58 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 19:58 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 19:59 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 19:59 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 19:59 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 19:59 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 20:00 [8fd8a4e3] branch:docs/phase5-doc-updates
 <!-- Appended by .claude/hooks/session-end.js on Stop -->

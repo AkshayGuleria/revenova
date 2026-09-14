@@ -86,8 +86,10 @@ is **required** when `chargeType=recurring`, **ignored** otherwise. Optional:
 
 ## Project Status Reports
 
-Read in order: `README.md` → `docs/features/` → `docs/feature-spec.md`.
-Report by Phase with completion state. Do NOT mark tasks complete without explicit user confirmation.
+Single source of truth: `README.md` → "Development Phases" (phase status, open gaps, backlog).
+Per-feature detail: the one-line `**Status:**` header in `docs/features/<feature>.md`.
+`docs/feature-spec.md` is a frozen historical plan — never a status source.
+Verify against code before reporting anything as built. Do NOT mark tasks complete without explicit user confirmation.
 Never use bulk sed/regex across phase boundaries — use Edit tool per change.
 
 ## Agent Configuration
@@ -96,7 +98,10 @@ Agent definitions: `.claude/agents/` — one file per agent. Never use `agents.m
 
 ## Documentation Conventions
 
-- Use Edit tool for each checkbox/status change individually
+- **Record progress in ONE place** — README "Development Phases". Never copy phase status into
+  MEMORY.md, agent files, `feature-spec.md`, package READMEs, or task-tracker tables in feature docs
+- Feature docs carry a single `**Status:**` line — no checkbox/task-tracker tables
+- Use Edit tool for each status change individually
 - Confirm before making >3 changes at once
 - Never modify tasks outside the requested phase/scope
 - Create `docs/features/<feature>.md` after every new feature (see `docs/reference/feature-doc-template.md`)
@@ -116,8 +121,8 @@ Agent definitions: `.claude/agents/` — one file per agent. Never use `agents.m
 | Full endpoint listing (machine-generated) | `docs/reference/openapi.json` or `http://localhost:5177/api/docs` |
 | Environment variables | `docs/reference/env-vars.md` |
 | Feature doc template | `docs/reference/feature-doc-template.md` |
-| Full task specification | `docs/feature-spec.md` |
-| Completed feature docs | `docs/features/` |
+| Original plan (frozen, historical — not a status source) | `docs/feature-spec.md` |
+| Feature docs (one-line `**Status:**` each) | `docs/features/` |
 | Full git branch/commit workflow | `.claude/git-workflow.md` |
 | Full SDLC/memory/token-optimization guide | `docs/WORKFLOW.md` |
 | Architecture decision records | `docs/adrs/` |

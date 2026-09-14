@@ -141,29 +141,6 @@ Existing contracts have no products; existing invoices may have `contractId = nu
 
 ---
 
-## Task Tracker
-
-**Legend:** `[ ]` Not started · `[~]` In progress · `[x]` Done
-
-| ID | Task | Status |
-|----|------|--------|
-| CP1 | Add `ContractProduct` model to Prisma schema + run migration | [x] |
-| CP2 | Add `contractProductId` FK to `InvoiceItem` | [x] |
-| CP3 | Create `contract-product.dto.ts` | [x] |
-| CP4 | Update `CreateContractDto` — require `products[]` (min 1) | [x] |
-| CP5 | Update `ContractsService.create()` — write products in transaction, validate product IDs | [x] |
-| CP6 | Add `GET/POST/DELETE /api/contracts/:id/products` sub-endpoints | [x] |
-| CP7 | Update `contracts.service.spec.ts` — fix fixtures, add product tests | [x] |
-| CP8 | Update `CreateInvoiceDto` — require `contractId`, remove `items` | [x] |
-| CP9 | Update `InvoicesService.create()` — fetch contract products, auto-generate items | [x] |
-| CP10 | Update `invoices.service.spec.ts` — fix fixtures, add auto-generation tests | [x] |
-| CP11 | Update `generate-test-data.ts` — include products in contract create payload | [x] |
-| CP12 | Update `models.ts` — add `ContractProduct`, `CreateContractProductDto`, update `Contract` and `CreateInvoiceDto` | [x] |
-| CP13 | Update `contract-form.tsx` — add product picker with `useFieldArray` | [x] |
-| CP14 | Update `invoice-form.tsx` — require contractId, remove manual items, show contract-product preview | [x] |
-
----
-
 ## Files Affected
 
 **Backend:**
