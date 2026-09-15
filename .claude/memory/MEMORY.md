@@ -17,26 +17,12 @@
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-09-14 20:00
+- **Last stop:** 2026-09-15 19:07
 - **Branch:** docs/phase5-doc-updates
-- **Last commit:** 8bc4e6e chore: added claude memory and updated gitignore
+- **Last commit:** 5734843 docs: make README phase table the single progress tracker
 - **Modified files:**
 ```
-M .claude/CLAUDE.md
- M .claude/SKILLS-GUIDE.md
- M .claude/agents/tapsa.md
- M .claude/memory/MEMORY.md
- M README.md
- M docs/WORKFLOW.md
- M docs/adrs/README.md
- M docs/feature-spec.md
- M docs/features/billing.md
- M docs/features/contract-product-binding.md
- M docs/features/sub-invoices.md
- M docs/reference/feature-doc-template.md
- M packages/revenue-frontend/README.md
- M packages/revenue-frontend/TESTING.md
- M packages/revenue-frontend/docs/DESIGN-REVIEW.md
+M .claude/memory/MEMORY.md
 ```
 - **In progress:** _(update this manually before closing session)_
 
@@ -98,4 +84,6 @@ M .claude/CLAUDE.md
 - 2026-09-14 19:59 [8fd8a4e3] branch:docs/phase5-doc-updates
 - 2026-09-14 19:59 [8fd8a4e3] branch:docs/phase5-doc-updates
 - 2026-09-14 20:00 [8fd8a4e3] branch:docs/phase5-doc-updates
+- 2026-09-14 20:44 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-15 19:07 [63a831f7] branch:docs/phase5-doc-updates
 <!-- Appended by .claude/hooks/session-end.js on Stop -->
