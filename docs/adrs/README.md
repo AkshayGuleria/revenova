@@ -58,6 +58,7 @@ Each ADR follows this structure:
 | [001](./001-nestjs-fastify-swc-framework.md) | Adopt NestJS + Fastify + SWC for Backend | 2026-01-13 | Accepted | Framework |
 | [002](./002-backend-testing-framework.md) | Backend Testing Framework - Jest + Supertest (Not Playwright) | 2026-01-13 | Accepted | Testing Strategy |
 | [003](./003-rest-api-response-structure.md) | REST API Response Structure & Query Parameters | 2026-01-14 | Accepted | API Standards |
+| [004](./004-product-pricing-model-enhancement.md) | Product Pricing Model Enhancement — Charge Types, Categories & Setup Fees | 2026-02-18 | Accepted | Product/Billing |
 
 ## ADR Lifecycle
 

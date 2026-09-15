@@ -460,8 +460,8 @@ Document any known issues here:
 ---
 
 **Testing Environment:**
-- Backend Version: Phase 3 Complete
-- Frontend Version: Phase 3 Complete
+- Backend Version: <git commit SHA>
+- Frontend Version: <git commit SHA>
 - Node Version: 20.x
 - Browser: Chrome/Firefox/Safari/Edge
 - Screen Resolution: 1920x1080

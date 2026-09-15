@@ -27,11 +27,11 @@ This frontend application provides a complete user interface for the Revenova, e
 - **Invoice Management** - Manual and automated invoice creation with line items
 - **Billing Operations** - Sync/async invoice generation, batch billing, consolidated billing
 
-**Status:** Phase 3 Complete - All core features implemented ✅
+**Status:** see [root README → Development Phases](../../README.md#development-phases)
 
 ## Features
 
-### Implemented (Phase 1-3)
+### Implemented
 
 - ✅ **Accounts Module**
   - List view with pagination and filtering

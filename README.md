@@ -21,7 +21,7 @@
 
 A complete revenue management system designed for B2B SaaS companies selling to large enterprises. Handles multi-year contracts, hierarchical account structures, consolidated billing, and custom payment terms.
 
-**Current Status:** All 5 phases complete ✅ — 811 backend tests passing, full frontend with E2E coverage
+**Current Status:** see [Development Phases](#development-phases) — the single source of truth for project progress.
 
 ### Key Features
 
@@ -120,7 +120,7 @@ Frontend runs at `http://localhost:5173` and connects to backend at `http://loca
 revenova/
 ├── .claude/                    # AI agent configuration
 │   ├── CLAUDE.md              # Project guidance for AI agents
-│   ├── agents.md              # Team agent definitions
+│   ├── agents/                # Team agent definitions (one file per agent)
 │   └── git-workflow.md        # Git workflow guidelines
 │
 ├── docs/                      # Documentation
@@ -192,15 +192,59 @@ revenova/
 
 ## Development Phases
 
-| Phase | Focus | Status |
-|-------|-------|--------|
-| **Phase 1** | Foundation — Accounts, Contracts, Products, Invoices | ✅ Completed |
-| **Phase 2** | Contract Billing + Scalability (PM2, BullMQ, Workers) | ✅ Completed |
-| **Phase 3** | Hierarchical Accounts + Consolidated Billing | ✅ Completed |
-| **Phase 3.5** | Product Pricing Enhancement (chargeType, category, setupFee) | ✅ Completed |
-| **Phase 4** | Sub-Invoices, Invoice Groups, Purchase Orders, Credit, Payments, FX, Tax | ✅ Completed |
-| **Phase 5** | ARR/MRR Analytics, Renewal Tracking, Audit Log, Webhooks | ✅ Completed |
-| **Phase 6+** | B2C Event-Based / Usage-Based Billing | 🔵 Deferred |
+> **Single source of truth for project progress.** When status changes, update only this section
+> (plus the one-line `**Status:**` header of the affected `docs/features/*.md`). Do not track progress
+> anywhere else — `docs/feature-spec.md` is a frozen historical plan. Gaps below verified against code on 2026-09-14.
+
+| Phase | Focus | Status | Open gaps (details in [Backlog](#backlog-not-built)) |
+|-------|-------|--------|------------------------------------------------------|
+| **Phase 1** | Foundation — Accounts, Contracts, Products, Invoices | ✅ Completed | API authentication |
+| **Phase 2** | Contract Billing + Scalability (BullMQ) | ✅ Completed | Email, PDF, scheduled billing trigger, PM2/worker processes, DB pool limit |
+| **Phase 3** | Hierarchical Accounts + Consolidated Billing | ✅ Completed | Parent + subsidiary revenue roll-up report |
+| **Phase 3.5** | Product Pricing Enhancement (chargeType, category, setupFee) | ✅ Completed | — |
+| **Phase 4** | Sub-Invoices, Invoice Groups, Purchase Orders, Credit, Payments, FX, Tax | ✅ Completed | Split/merge, consolidation strategies, credit notes, dunning |
+| **Phase 5** | ARR/MRR Analytics, Renewal Tracking, Audit Log, Webhooks | ✅ Completed | Stripe, forecasting, data export, rate limiting |
+| **Phase 6+** | B2C Event-Based / Usage-Based Billing | 🔵 Deferred | — |
+
+### Backlog (not built)
+
+Scope from the original plan that is not in the code. Remove an item here when it ships. *(partial)* = some of it exists.
+
+**Platform / infrastructure**
+- API authentication — no auth guard on any endpoint *(P1)*
+- DB connection pool limit (max 5/process) — documented in `.env.production.example`, not applied *(P2)*
+- Graceful shutdown — `app.enableShutdownHooks()` never called *(P2, partial)*
+- PM2 cluster mode, dedicated worker processes, Worker Threads — BullMQ processors run in the API process *(P2)*
+- API rate limiting / throttling *(P5)*
+
+**Billing**
+- Scheduled billing trigger — queue + processors exist, no cron; only manual `POST /billing/batch` *(P2, partial)*
+- Email invoice delivery — queue name reserved, no processor; UI "Send Invoice" button inert *(P2)*
+- PDF invoice generation — queue name reserved, no processor; UI "Download PDF" button inert *(P2)*
+- `custom` billing frequency; `Custom` payment-terms option (numeric `paymentTermsDays` only) *(P1–2, partial)*
+- SLA-based billing adjustments; custom billing rules engine *(P5)*
+
+**Invoices / sub-invoices**
+- `POST /invoices/:id/split` and `/merge` *(P4)*
+- Consolidation strategies (FLAT / BY_ACCOUNT / BY_GROUP) and sub-invoice generation in consolidated billing *(P4)*
+- Item grouping on create, move items between groups, reassignment validation *(P4)*
+- `GET /invoices/:id/parent`; `includeSubInvoices` nested response *(P4)*
+- Integration/E2E tests for sub-invoice and consolidated-billing flows *(P4)*
+- Credit notes and refunds *(P4)*
+- Dunning workflows *(P4)*
+- Invoice Group select on the New Invoice form (UI; backend already accepts `invoiceGroupId`) *(P4)*
+- Post-build doc update: `sub-invoices.md`, `invoices.md`, consolidation strategies in `billing.md`, cURL examples *(P4)*
+
+**Payments / finance**
+- Stripe / ACH payment gateway *(P5)*
+- Automated payment reconciliation — manual one-to-one `POST /payments/:id/apply` only *(P4, partial)*
+- Configurable PO approval chains — single-step approve/reject only *(P4, partial)*
+- Scheduled daily exchange-rate updates — manual entry only *(P4, partial)*
+
+**Reporting / analytics**
+- Revenue by contract / by account report; parent + subsidiary revenue roll-up *(P2–3, partial)*
+- Revenue forecasting, customer health scoring, win rate / deal velocity *(P5)*
+- Data export (CSV / JSON) *(P5)*
 
 See [docs/features/](./docs/features/) for per-feature documentation.
 
@@ -223,17 +267,17 @@ See [docs/features/](./docs/features/) for per-feature documentation.
 
 ### Agent Team
 
-| Agent | Role | Current Work |
-|-------|------|--------------|
+| Agent | Role | Focus |
+|-------|------|-------|
 | **tommi** | Architecture & Brainstorming | Design reviews, problem solving |
-| **tapsa** | Task Manager & Tracker | Coordinate work, track progress |
+| **tapsa** | Task Manager & Tracker | Coordinate work, maintain [Development Phases](#development-phases) |
 | **biksi** | Backend Development | NestJS API implementation |
 | **riina** | Backend Testing | Jest unit + Supertest integration tests |
 | **habibi** | Infrastructure & DevOps | Docker, PostgreSQL, Redis, PM2 |
-| **frooti** | Frontend Development | React UI (Phase 1) |
+| **frooti** | Frontend Development | React Router 7 UI |
 | **piia** | Frontend Testing | Playwright E2E tests |
 
-See [.claude/agents.md](./.claude/agents.md) for detailed agent responsibilities.
+See [.claude/agents/](./.claude/agents/) for detailed agent responsibilities.
 
 ### Git Workflow
 
@@ -446,4 +490,4 @@ UNLICENSED - Internal use only
 
 **Built with:** NestJS • Fastify • Prisma • PostgreSQL • BullMQ • React Router 7 • shadcn/ui • TypeScript • SWC
 
-**Status:** ✅ All 5 phases complete — 811 backend tests • 16 backend modules • 19 feature docs • 66 API endpoints
+**Status:** see [Development Phases](#development-phases)

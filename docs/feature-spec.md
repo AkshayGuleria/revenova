@@ -1,7 +1,7 @@
 ---
 id: revenue-backend
 title: B2B Enterprise Revenue Management Backend System
-status: completed
+status: frozen
 priority: high
 assignee: billman, habibi
 created: 2026-01-11
@@ -10,13 +10,6 @@ dependencies: [api-layer]
 blocks: []
 type: backend
 focus: B2B Enterprise (contracts, hierarchical accounts, seat-based licensing)
-phase: "5 of 5 (complete - Phase 6 B2C usage-based billing planned)"
-phase1_status: completed (enterprise accounts, contracts, products, invoices)
-phase2_status: completed (contract billing + hybrid scalability)
-phase3_status: completed (hierarchical accounts, consolidated billing)
-phase3_5_status: completed (product pricing enhancement — chargeType, category, setupFee)
-phase4_status: completed
-phase5_status: completed (ARR/MRR analytics, renewal tracking, audit logging, webhooks)
 scalability: hybrid (cluster + worker threads + queues)
 ---
 
@@ -24,6 +17,8 @@ scalability: hybrid (cluster + worker threads + queues)
 > It contains stale task tables, Express.js references, and `/api/customers` routes that no longer exist.
 > **Source of truth for implemented features:** `docs/features/`
 > **Source of truth for API endpoints:** `docs/reference/openapi.json` or `http://localhost:5177/api/docs`
+> **Progress is NOT tracked here.** Phase status and backlog: [README.md → Development Phases](../README.md#development-phases). Per-feature status: the **Status:** header in each `docs/features/*.md`.
+> Checkboxes and Status columns were removed on 2026-09-14. Items below record the original planned scope, not what shipped.
 
 ## Proposed Solution
 
@@ -272,357 +267,357 @@ Build a **B2B Enterprise Revenue Management Backend System** in phases, starting
 
 ### Phase 1: Foundation (MUST HAVE)
 
-- [ ] PostgreSQL database setup with migrations
-- [ ] Enterprise account CRUD API with hierarchical ID support
-- [ ] Contract management API (create, read, update contracts)
-- [ ] Contract terms: start/end dates, commitment value, seat count
-- [ ] Product catalog API with seat-based pricing models
-- [ ] Payment terms configuration (Net 30, Net 60, Net 90, Custom)
-- [ ] Manual invoice creation API with contract linking
-- [ ] Invoice item line items
-- [ ] Basic invoice status workflow (draft → sent → paid → overdue)
-- [ ] RESTful API documentation (Swagger/OpenAPI)
-- [ ] Database schema designed for B2B extensibility
-- [ ] API authentication (integrate with auth-server sessions)
-- [ ] Revenue frontend migrated to real backend
+- PostgreSQL database setup with migrations
+- Enterprise account CRUD API with hierarchical ID support
+- Contract management API (create, read, update contracts)
+- Contract terms: start/end dates, commitment value, seat count
+- Product catalog API with seat-based pricing models
+- Payment terms configuration (Net 30, Net 60, Net 90, Custom)
+- Manual invoice creation API with contract linking
+- Invoice item line items
+- Basic invoice status workflow (draft → sent → paid → overdue)
+- RESTful API documentation (Swagger/OpenAPI)
+- Database schema designed for B2B extensibility
+- API authentication (integrate with auth-server sessions)
+- Revenue frontend migrated to real backend
 
 ### Phase 2: Contract-Based Billing & Scalability (SHOULD HAVE)
 
-- [ ] Automated invoice generation from active contracts
-- [ ] Seat-based billing calculation (per user/license)
-- [ ] Quarterly/Annual billing in advance support
-- [ ] Volume discount rule engine (tiered pricing)
-- [ ] Billing schedule configuration (monthly, quarterly, annual, custom)
-- [ ] Scheduled job runner for contract billing
-- [ ] Email notification system (invoice delivery)
-- [ ] PDF invoice generation with enterprise branding
-- [ ] Invoice numbering with customizable format
-- [ ] Due date calculation based on payment terms
-- [ ] Contract-based reporting (revenue by contract, account)
-- [ ] **Hybrid Scalability Architecture:**
-  - [ ] PM2 cluster mode for API server (4 processes)
-  - [ ] BullMQ job queue system (Redis-backed)
-  - [ ] Dedicated worker processes for CPU-intensive tasks
-  - [ ] Worker Threads for parallel computation (PDF, tax calc)
-  - [ ] Queue monitoring and job retry logic
-  - [ ] Graceful shutdown and error handling
-  - [ ] Database connection pooling (max 5 per process)
+- Automated invoice generation from active contracts
+- Seat-based billing calculation (per user/license)
+- Quarterly/Annual billing in advance support
+- Volume discount rule engine (tiered pricing)
+- Billing schedule configuration (monthly, quarterly, annual, custom)
+- Scheduled job runner for contract billing
+- Email notification system (invoice delivery)
+- PDF invoice generation with enterprise branding
+- Invoice numbering with customizable format
+- Due date calculation based on payment terms
+- Contract-based reporting (revenue by contract, account)
+- **Hybrid Scalability Architecture:**
+  - PM2 cluster mode for API server (4 processes)
+  - BullMQ job queue system (Redis-backed)
+  - Dedicated worker processes for CPU-intensive tasks
+  - Worker Threads for parallel computation (PDF, tax calc)
+  - Queue monitoring and job retry logic
+  - Graceful shutdown and error handling
+  - Database connection pooling (max 5 per process)
 
 ### Phase 3: Hierarchical Accounts (SHOULD HAVE)
 
-- [ ] Parent-child company relationship modeling
-- [ ] Account hierarchy API (create subsidiaries, link to parent)
-- [ ] Consolidated billing for account hierarchies
-- [ ] Roll-up reporting across parent and subsidiaries
-- [ ] Shared contract support (contract applies to multiple subsidiaries)
-- [ ] Multi-location billing address support
-- [ ] Separate billing contacts per subsidiary
-- [ ] Hierarchical account navigation in frontend
-- [ ] Consolidated invoice generation (all subsidiaries on one invoice)
-- [ ] Per-subsidiary invoice option
+- Parent-child company relationship modeling
+- Account hierarchy API (create subsidiaries, link to parent)
+- Consolidated billing for account hierarchies
+- Roll-up reporting across parent and subsidiaries
+- Shared contract support (contract applies to multiple subsidiaries)
+- Multi-location billing address support
+- Separate billing contacts per subsidiary
+- Hierarchical account navigation in frontend
+- Consolidated invoice generation (all subsidiaries on one invoice)
+- Per-subsidiary invoice option
 
 ### Phase 4: Enterprise Operations (NICE TO HAVE)
 
-- [ ] **Sub-Invoices & Organizational Billing (47 tasks, ~12-18 days):**
-  - [ ] `InvoiceGroup` entity (department, cost center, location, custom groupings)
-  - [ ] Prisma self-referencing parent-child relationship on Invoice
-  - [ ] Sub-invoice number generation (`INV-001-A`, `INV-001-B`)
-  - [ ] Rollup calculation (parent totals = sum of children)
-  - [ ] Cascade status updates (paying parent marks children paid)
-  - [ ] Invoice split endpoint (`POST /api/invoices/:id/split`)
-  - [ ] Invoice merge endpoint (`POST /api/invoices/:id/merge`)
-  - [ ] Consolidation strategy parameter (FLAT, BY_ACCOUNT, BY_GROUP)
-  - [ ] Invoice group CRUD API (`/api/invoice-groups`)
-  - [ ] Sub-invoice filtering and nested response support
-- [ ] Purchase order (PO) management system
-- [ ] PO number tracking on invoices
-- [ ] PO approval workflows (configurable approval chains)
-- [ ] Credit limit configuration per account
-- [ ] Credit hold enforcement (prevent new invoices if over limit)
-- [ ] Payment processing and payment application
-- [ ] Payment reconciliation (match payments to invoices)
-- [ ] Multi-currency support for global enterprises
-- [ ] Currency conversion rates (daily updates)
-- [ ] Tax calculation by jurisdiction (US states, EU VAT, etc.)
-- [ ] Discount management (contract-level discounts)
-- [ ] Credit notes and refunds
-- [ ] Dunning workflows for overdue enterprise accounts
+- **Sub-Invoices & Organizational Billing (47 tasks, ~12-18 days):**
+  - `InvoiceGroup` entity (department, cost center, location, custom groupings)
+  - Prisma self-referencing parent-child relationship on Invoice
+  - Sub-invoice number generation (`INV-001-A`, `INV-001-B`)
+  - Rollup calculation (parent totals = sum of children)
+  - Cascade status updates (paying parent marks children paid)
+  - Invoice split endpoint (`POST /api/invoices/:id/split`)
+  - Invoice merge endpoint (`POST /api/invoices/:id/merge`)
+  - Consolidation strategy parameter (FLAT, BY_ACCOUNT, BY_GROUP)
+  - Invoice group CRUD API (`/api/invoice-groups`)
+  - Sub-invoice filtering and nested response support
+- Purchase order (PO) management system
+- PO number tracking on invoices
+- PO approval workflows (configurable approval chains)
+- Credit limit configuration per account
+- Credit hold enforcement (prevent new invoices if over limit)
+- Payment processing and payment application
+- Payment reconciliation (match payments to invoices)
+- Multi-currency support for global enterprises
+- Currency conversion rates (daily updates)
+- Tax calculation by jurisdiction (US states, EU VAT, etc.)
+- Discount management (contract-level discounts)
+- Credit notes and refunds
+- Dunning workflows for overdue enterprise accounts
 
 ### Phase 5: Analytics & Optimization (NICE TO HAVE)
 
-- [ ] Enterprise analytics dashboard (ARR, MRR, bookings, churn)
-- [ ] Contract renewal tracking and alerts
-- [ ] Revenue forecasting based on pipeline and renewals
-- [ ] Customer health scoring (payment history, engagement)
-- [ ] SLA-based billing adjustments (credits for downtime)
-- [ ] Custom billing rules engine (Javascript/Lua scripting)
-- [ ] Webhook system for enterprise events (invoice.created, payment.received, contract.renewed)
-- [ ] Payment gateway integration (Stripe API, ACH)
-- [ ] Audit logging for SOC2/GDPR compliance
-- [ ] Data export for finance systems (CSV, JSON)
-- [ ] API rate limiting and throttling
-- [ ] Advanced contract analytics (win rate, deal velocity)
+- Enterprise analytics dashboard (ARR, MRR, bookings, churn)
+- Contract renewal tracking and alerts
+- Revenue forecasting based on pipeline and renewals
+- Customer health scoring (payment history, engagement)
+- SLA-based billing adjustments (credits for downtime)
+- Custom billing rules engine (Javascript/Lua scripting)
+- Webhook system for enterprise events (invoice.created, payment.received, contract.renewed)
+- Payment gateway integration (Stripe API, ACH)
+- Audit logging for SOC2/GDPR compliance
+- Data export for finance systems (CSV, JSON)
+- API rate limiting and throttling
+- Advanced contract analytics (win rate, deal velocity)
 
 ## Subtasks
 
 ### Phase 1: Foundation (Weeks 1-2)
 
-| ID | Task | Status | Assignee | Notes |
-|----|------|--------|----------|-------|
-| **Database Setup** | | | | |
-| 1 | Design database schema (ERD) | completed | billman | Customers, products, invoices |
-| 2 | Set up PostgreSQL with Docker | completed | habibi | docker-compose service |
-| 3 | Create migration system (node-pg-migrate) | completed | billman | Version control for schema |
-| 4 | Write initial migrations | completed | billman | Create tables |
-| 5 | Seed database with sample data | completed | billman | Test data |
-| **API Server** | | | | |
-| 6 | Create revenue-backend package structure | completed | billman | Express.js setup |
-| 7 | Set up Express server with CORS | completed | billman | Port 5177 |
-| 8 | Integrate auth-server session validation | completed | billman | Middleware for auth |
-| 9 | Set up PostgreSQL connection pool (pg) | completed | billman | Database client |
-| **Customer API** | | | | |
-| 10 | POST /api/customers - Create customer | completed | billman | Validation, error handling |
-| 11 | GET /api/customers - List customers | completed | billman | Pagination, filtering |
-| 12 | GET /api/customers/:id - Get customer | completed | billman | With related data |
-| 13 | PUT /api/customers/:id - Update customer | completed | billman | Partial updates |
-| 14 | DELETE /api/customers/:id - Delete customer | completed | billman | Soft delete |
-| **Product API** | | | | |
-| 15 | POST /api/products - Create product | completed | billman | Name, price, type |
-| 16 | GET /api/products - List products | completed | billman | Filter by type |
-| 17 | GET /api/products/:id - Get product | completed | billman | With pricing details |
-| 18 | PUT /api/products/:id - Update product | completed | billman | Price history |
-| **Invoice API** | | | | |
-| 19 | POST /api/invoices - Create invoice | completed | billman | Manual creation |
-| 20 | GET /api/invoices - List invoices | completed | billman | Filter by status, customer |
-| 21 | GET /api/invoices/:id - Get invoice | completed | billman | With line items |
-| 22 | PUT /api/invoices/:id - Update invoice | completed | billman | Status transitions |
-| 23 | POST /api/invoices/:id/items - Add line item | completed | billman | Product, quantity, price |
-| 24 | DELETE /api/invoices/:id/items/:itemId | completed | billman | Remove line item |
-| **Frontend Integration** | | | | |
-| 25 | Update Revenue app API client | completed | billman | Point to localhost:5177 |
-| 26 | Update useInvoices hook | completed | billman | Real API calls |
-| 27 | Update useCustomers hook (Revenue context) | completed | billman | Different from CRM |
-| 28 | Test full CRUD flow in UI | completed | billman | End-to-end |
-| **Documentation** | | | | |
-| 29 | Write API documentation (Swagger) | completed | billman | OpenAPI spec |
-| 30 | Write README for revenue-backend | completed | billman | Setup, usage |
+| ID | Task | Assignee | Notes |
+|----|------|----------|-------|
+| **Database Setup** | | | |
+| 1 | Design database schema (ERD) | billman | Customers, products, invoices |
+| 2 | Set up PostgreSQL with Docker | habibi | docker-compose service |
+| 3 | Create migration system (node-pg-migrate) | billman | Version control for schema |
+| 4 | Write initial migrations | billman | Create tables |
+| 5 | Seed database with sample data | billman | Test data |
+| **API Server** | | | |
+| 6 | Create revenue-backend package structure | billman | Express.js setup |
+| 7 | Set up Express server with CORS | billman | Port 5177 |
+| 8 | Integrate auth-server session validation | billman | Middleware for auth |
+| 9 | Set up PostgreSQL connection pool (pg) | billman | Database client |
+| **Customer API** | | | |
+| 10 | POST /api/customers - Create customer | billman | Validation, error handling |
+| 11 | GET /api/customers - List customers | billman | Pagination, filtering |
+| 12 | GET /api/customers/:id - Get customer | billman | With related data |
+| 13 | PUT /api/customers/:id - Update customer | billman | Partial updates |
+| 14 | DELETE /api/customers/:id - Delete customer | billman | Soft delete |
+| **Product API** | | | |
+| 15 | POST /api/products - Create product | billman | Name, price, type |
+| 16 | GET /api/products - List products | billman | Filter by type |
+| 17 | GET /api/products/:id - Get product | billman | With pricing details |
+| 18 | PUT /api/products/:id - Update product | billman | Price history |
+| **Invoice API** | | | |
+| 19 | POST /api/invoices - Create invoice | billman | Manual creation |
+| 20 | GET /api/invoices - List invoices | billman | Filter by status, customer |
+| 21 | GET /api/invoices/:id - Get invoice | billman | With line items |
+| 22 | PUT /api/invoices/:id - Update invoice | billman | Status transitions |
+| 23 | POST /api/invoices/:id/items - Add line item | billman | Product, quantity, price |
+| 24 | DELETE /api/invoices/:id/items/:itemId | billman | Remove line item |
+| **Frontend Integration** | | | |
+| 25 | Update Revenue app API client | billman | Point to localhost:5177 |
+| 26 | Update useInvoices hook | billman | Real API calls |
+| 27 | Update useCustomers hook (Revenue context) | billman | Different from CRM |
+| 28 | Test full CRUD flow in UI | billman | End-to-end |
+| **Documentation** | | | |
+| 29 | Write API documentation (Swagger) | billman | OpenAPI spec |
+| 30 | Write README for revenue-backend | billman | Setup, usage |
 
 ### Phase 2: Automation (Weeks 3-4)
 
-| ID | Task | Status | Assignee | Notes |
-|----|------|--------|----------|-------|
-| **Billing Engine** | | | | |
-| 31 | Design billing cycle configuration | completed | billman | Monthly, quarterly, annual |
-| 32 | Create billing_cycles table | completed | billman | Migration |
-| 33 | POST /api/billing-cycles - Create cycle | completed | billman | Schedule, rules |
-| 34 | Build invoice generation engine | completed | billman | From billing cycle + customer |
-| 35 | POST /api/billing/generate - Trigger generation | completed | billman | On-demand |
-| **Scheduled Jobs** | | | | |
-| 36 | Set up job scheduler (Bull/Redis) | completed | habibi | Job queue |
-| 37 | Create recurring job for invoice generation | completed | billman | Daily cron |
-| 38 | Add job monitoring dashboard | completed | billman | View job status |
-| **Email System** | | | | |
-| 39 | Set up email service (Nodemailer) | completed | billman | SMTP config |
-| 40 | Create invoice email templates | completed | billman | HTML + plain text |
-| 41 | POST /api/invoices/:id/send - Send invoice | completed | billman | Email to customer |
-| 42 | Add email notification on invoice created | completed | billman | Event-driven |
-| **PDF Generation** | | | | |
-| 43 | Install PDF library (pdfkit or puppeteer) | completed | billman | Choose best fit |
-| 44 | Create invoice PDF template | completed | billman | Company logo, styling |
-| 45 | GET /api/invoices/:id/pdf - Download PDF | completed | billman | Generate on demand |
-| 46 | Store PDFs in filesystem/S3 | completed | billman | Caching |
-| **Invoice Enhancements** | | | | |
-| 47 | Implement invoice numbering system | completed | billman | INV-2026-001 format |
-| 48 | Add payment terms configuration | completed | billman | Net 30, Net 60 |
-| 49 | Calculate due dates automatically | completed | billman | From issue date + terms |
-| 50 | Invoice status auto-transition (overdue) | completed | billman | Scheduled check |
-| **Reporting** | | | | |
-| 51 | GET /api/reports/revenue - Revenue by period | completed | billman | Aggregate queries |
-| 52 | GET /api/reports/customers - Customer analytics | completed | billman | Top customers |
-| 53 | Create reports database views | completed | billman | Optimize queries |
-| **Scalability Architecture (Hybrid Approach)** | | | | |
-| 54 | Install PM2 process manager | completed | habibi | npm install -g pm2 |
-| 55 | Create PM2 ecosystem.config.js | completed | habibi | Define API + workers |
-| 56 | Configure API server cluster mode (4 processes) | completed | habibi | PM2 cluster config |
-| 57 | Install BullMQ and ioredis | completed | billman | npm install bullmq ioredis |
-| 58 | Create queue configuration module | completed | billman | Redis connection |
-| 59 | Create PDF job queue (pdf-queue) | completed | billman | BullMQ queue setup |
-| 60 | Create tax calculation queue (tax-queue) | completed | billman | For heavy tax calc |
-| 61 | Create email queue (email-queue) | completed | billman | Async email sending |
-| 62 | Update API routes to use queues | completed | billman | POST /pdf → queue job |
-| 63 | Create PDF worker process | completed | billman | Separate worker.js |
-| 64 | Implement Worker Threads in PDF worker | completed | billman | Thread pool for PDFs |
-| 65 | Create tax calculation worker | completed | billman | With Worker Threads |
-| 66 | Create email worker process | completed | billman | Process email queue |
-| 67 | Implement database connection pooling | completed | billman | Max 5 per process |
-| 68 | Add graceful shutdown handlers | completed | billman | SIGTERM handling |
-| 69 | Implement job retry logic | completed | billman | 3 attempts, exp backoff |
-| 70 | Add queue monitoring endpoints | completed | billman | GET /api/queues/status |
-| 71 | Configure PM2 memory limits | completed | habibi | max_memory_restart |
-| 72 | Test cluster mode load balancing | completed | habibi | Load test with Artillery |
-| 73 | Benchmark PDF generation throughput | completed | billman | Measure PDFs/sec |
-| 74 | Document scalability architecture | completed | billman | README for workers |
+| ID | Task | Assignee | Notes |
+|----|------|----------|-------|
+| **Billing Engine** | | | |
+| 31 | Design billing cycle configuration | billman | Monthly, quarterly, annual |
+| 32 | Create billing_cycles table | billman | Migration |
+| 33 | POST /api/billing-cycles - Create cycle | billman | Schedule, rules |
+| 34 | Build invoice generation engine | billman | From billing cycle + customer |
+| 35 | POST /api/billing/generate - Trigger generation | billman | On-demand |
+| **Scheduled Jobs** | | | |
+| 36 | Set up job scheduler (Bull/Redis) | habibi | Job queue |
+| 37 | Create recurring job for invoice generation | billman | Daily cron |
+| 38 | Add job monitoring dashboard | billman | View job status |
+| **Email System** | | | |
+| 39 | Set up email service (Nodemailer) | billman | SMTP config |
+| 40 | Create invoice email templates | billman | HTML + plain text |
+| 41 | POST /api/invoices/:id/send - Send invoice | billman | Email to customer |
+| 42 | Add email notification on invoice created | billman | Event-driven |
+| **PDF Generation** | | | |
+| 43 | Install PDF library (pdfkit or puppeteer) | billman | Choose best fit |
+| 44 | Create invoice PDF template | billman | Company logo, styling |
+| 45 | GET /api/invoices/:id/pdf - Download PDF | billman | Generate on demand |
+| 46 | Store PDFs in filesystem/S3 | billman | Caching |
+| **Invoice Enhancements** | | | |
+| 47 | Implement invoice numbering system | billman | INV-2026-001 format |
+| 48 | Add payment terms configuration | billman | Net 30, Net 60 |
+| 49 | Calculate due dates automatically | billman | From issue date + terms |
+| 50 | Invoice status auto-transition (overdue) | billman | Scheduled check |
+| **Reporting** | | | |
+| 51 | GET /api/reports/revenue - Revenue by period | billman | Aggregate queries |
+| 52 | GET /api/reports/customers - Customer analytics | billman | Top customers |
+| 53 | Create reports database views | billman | Optimize queries |
+| **Scalability Architecture (Hybrid Approach)** | | | |
+| 54 | Install PM2 process manager | habibi | npm install -g pm2 |
+| 55 | Create PM2 ecosystem.config.js | habibi | Define API + workers |
+| 56 | Configure API server cluster mode (4 processes) | habibi | PM2 cluster config |
+| 57 | Install BullMQ and ioredis | billman | npm install bullmq ioredis |
+| 58 | Create queue configuration module | billman | Redis connection |
+| 59 | Create PDF job queue (pdf-queue) | billman | BullMQ queue setup |
+| 60 | Create tax calculation queue (tax-queue) | billman | For heavy tax calc |
+| 61 | Create email queue (email-queue) | billman | Async email sending |
+| 62 | Update API routes to use queues | billman | POST /pdf → queue job |
+| 63 | Create PDF worker process | billman | Separate worker.js |
+| 64 | Implement Worker Threads in PDF worker | billman | Thread pool for PDFs |
+| 65 | Create tax calculation worker | billman | With Worker Threads |
+| 66 | Create email worker process | billman | Process email queue |
+| 67 | Implement database connection pooling | billman | Max 5 per process |
+| 68 | Add graceful shutdown handlers | billman | SIGTERM handling |
+| 69 | Implement job retry logic | billman | 3 attempts, exp backoff |
+| 70 | Add queue monitoring endpoints | billman | GET /api/queues/status |
+| 71 | Configure PM2 memory limits | habibi | max_memory_restart |
+| 72 | Test cluster mode load balancing | habibi | Load test with Artillery |
+| 73 | Benchmark PDF generation throughput | billman | Measure PDFs/sec |
+| 74 | Document scalability architecture | billman | README for workers |
 
 ### Phase 3: Subscriptions (Weeks 5-6)
 
-| ID | Task | Status | Assignee | Notes |
-|----|------|--------|----------|-------|
-| **Subscription Plans** | | | | |
-| 75 | Create subscription_plans table | planned | billman | Migration |
-| 76 | POST /api/plans - Create plan | planned | billman | Name, price, interval |
-| 77 | GET /api/plans - List plans | planned | billman | Public catalog |
-| 78 | Support tiered pricing | planned | billman | Different tiers/features |
-| **Customer Subscriptions** | | | | |
-| 79 | Create subscriptions table | planned | billman | Customer, plan, status |
-| 80 | POST /api/subscriptions - Subscribe customer | planned | billman | Enroll in plan |
-| 81 | GET /api/subscriptions - List subscriptions | planned | billman | Filter by customer |
-| 82 | PUT /api/subscriptions/:id - Update subscription | planned | billman | Upgrade/downgrade |
-| 83 | DELETE /api/subscriptions/:id - Cancel | planned | billman | Immediate or end of period |
-| **Renewal Logic** | | | | |
-| 84 | Build auto-renewal job | planned | billman | Check expiring subscriptions |
-| 85 | Generate renewal invoices | planned | billman | Before renewal date |
-| 86 | Handle renewal failures | planned | billman | Grace period |
-| **Proration** | | | | |
-| 87 | Calculate proration for upgrades | planned | billman | Credit unused time |
-| 88 | Calculate proration for downgrades | planned | billman | Apply at next renewal |
-| 89 | Handle mid-cycle cancellations | planned | billman | Refund or credit |
-| **Trial Periods** | | | | |
-| 90 | Add trial period support to plans | planned | billman | Days count |
-| 91 | Create subscription with trial | planned | billman | No initial charge |
-| 92 | Convert trial to paid automatically | planned | billman | After trial ends |
-| **Analytics** | | | | |
-| 93 | GET /api/reports/subscriptions/mrr | planned | billman | Monthly Recurring Revenue |
-| 94 | GET /api/reports/subscriptions/churn | planned | billman | Cancellation rate |
-| 95 | Subscription lifecycle metrics | planned | billman | Active, churned, etc. |
+| ID | Task | Assignee | Notes |
+|----|------|----------|-------|
+| **Subscription Plans** | | | |
+| 75 | Create subscription_plans table | billman | Migration |
+| 76 | POST /api/plans - Create plan | billman | Name, price, interval |
+| 77 | GET /api/plans - List plans | billman | Public catalog |
+| 78 | Support tiered pricing | billman | Different tiers/features |
+| **Customer Subscriptions** | | | |
+| 79 | Create subscriptions table | billman | Customer, plan, status |
+| 80 | POST /api/subscriptions - Subscribe customer | billman | Enroll in plan |
+| 81 | GET /api/subscriptions - List subscriptions | billman | Filter by customer |
+| 82 | PUT /api/subscriptions/:id - Update subscription | billman | Upgrade/downgrade |
+| 83 | DELETE /api/subscriptions/:id - Cancel | billman | Immediate or end of period |
+| **Renewal Logic** | | | |
+| 84 | Build auto-renewal job | billman | Check expiring subscriptions |
+| 85 | Generate renewal invoices | billman | Before renewal date |
+| 86 | Handle renewal failures | billman | Grace period |
+| **Proration** | | | |
+| 87 | Calculate proration for upgrades | billman | Credit unused time |
+| 88 | Calculate proration for downgrades | billman | Apply at next renewal |
+| 89 | Handle mid-cycle cancellations | billman | Refund or credit |
+| **Trial Periods** | | | |
+| 90 | Add trial period support to plans | billman | Days count |
+| 91 | Create subscription with trial | billman | No initial charge |
+| 92 | Convert trial to paid automatically | billman | After trial ends |
+| **Analytics** | | | |
+| 93 | GET /api/reports/subscriptions/mrr | billman | Monthly Recurring Revenue |
+| 94 | GET /api/reports/subscriptions/churn | billman | Cancellation rate |
+| 95 | Subscription lifecycle metrics | billman | Active, churned, etc. |
 
 ### Phase 4: Advanced Billing (Weeks 7-9)
 
-| ID | Task | Status | Assignee | Notes |
-|----|------|--------|----------|-------|
-| **Usage-Based Billing** | | | | |
-| 96 | Create usage_records table | planned | billman | Metered usage data |
-| 97 | POST /api/usage - Ingest usage record | planned | billman | API calls, GB, etc. |
-| 98 | GET /api/usage - Query usage | planned | billman | By customer, period |
-| 99 | Build rating engine | planned | billman | Convert usage to charges |
-| 100 | Support tiered/volume pricing | planned | billman | $0.10/GB 0-100, $0.05/GB 100+ |
-| 101 | Generate usage-based invoices | planned | billman | Aggregate usage |
-| **Dunning** | | | | |
-| 102 | Create dunning_workflows table | planned | billman | Retry rules |
-| 103 | POST /api/payments/:id/retry - Retry payment | planned | billman | Manual retry |
-| 104 | Automated retry job | planned | billman | 3 retries over 7 days |
-| 105 | Email notifications for failed payments | planned | billman | Escalating urgency |
-| 106 | Suspend subscription after failures | planned | billman | Grace period expired |
-| **Multi-Currency** | | | | |
-| 107 | Add currency field to invoices | planned | billman | USD, EUR, GBP |
-| 108 | Create exchange_rates table | planned | billman | Daily rates |
-| 109 | GET /api/exchange-rates - Fetch rates | planned | billman | External API integration |
-| 110 | Convert invoice amounts | planned | billman | Display in customer currency |
-| **Tax Calculation** | | | | |
-| 111 | Create tax_rules table | planned | billman | By region, product type |
-| 112 | Calculate tax on invoice items | planned | billman | Based on customer location |
-| 113 | Support VAT/GST/Sales tax | planned | billman | Different tax types |
-| **Discounts & Credits** | | | | |
-| 114 | Create discount_codes table | planned | billman | Promo codes |
-| 115 | POST /api/discounts - Create discount | planned | billman | %, fixed amount |
-| 116 | Apply discount to invoice | planned | billman | Validation |
-| 117 | Create credit_notes table | planned | billman | Refunds, credits |
-| 118 | POST /api/credit-notes - Issue credit | planned | billman | Adjust invoice |
+| ID | Task | Assignee | Notes |
+|----|------|----------|-------|
+| **Usage-Based Billing** | | | |
+| 96 | Create usage_records table | billman | Metered usage data |
+| 97 | POST /api/usage - Ingest usage record | billman | API calls, GB, etc. |
+| 98 | GET /api/usage - Query usage | billman | By customer, period |
+| 99 | Build rating engine | billman | Convert usage to charges |
+| 100 | Support tiered/volume pricing | billman | $0.10/GB 0-100, $0.05/GB 100+ |
+| 101 | Generate usage-based invoices | billman | Aggregate usage |
+| **Dunning** | | | |
+| 102 | Create dunning_workflows table | billman | Retry rules |
+| 103 | POST /api/payments/:id/retry - Retry payment | billman | Manual retry |
+| 104 | Automated retry job | billman | 3 retries over 7 days |
+| 105 | Email notifications for failed payments | billman | Escalating urgency |
+| 106 | Suspend subscription after failures | billman | Grace period expired |
+| **Multi-Currency** | | | |
+| 107 | Add currency field to invoices | billman | USD, EUR, GBP |
+| 108 | Create exchange_rates table | billman | Daily rates |
+| 109 | GET /api/exchange-rates - Fetch rates | billman | External API integration |
+| 110 | Convert invoice amounts | billman | Display in customer currency |
+| **Tax Calculation** | | | |
+| 111 | Create tax_rules table | billman | By region, product type |
+| 112 | Calculate tax on invoice items | billman | Based on customer location |
+| 113 | Support VAT/GST/Sales tax | billman | Different tax types |
+| **Discounts & Credits** | | | |
+| 114 | Create discount_codes table | billman | Promo codes |
+| 115 | POST /api/discounts - Create discount | billman | %, fixed amount |
+| 116 | Apply discount to invoice | billman | Validation |
+| 117 | Create credit_notes table | billman | Refunds, credits |
+| 118 | POST /api/credit-notes - Issue credit | billman | Adjust invoice |
 
 ### Phase 5: Enterprise Features (Weeks 10-12)
 
-| ID | Task | Status | Assignee | Notes |
-|----|------|--------|----------|-------|
-| **Advanced Analytics** | | | | |
-| 119 | Build analytics dashboard API | planned | billman | KPIs, charts |
-| 120 | GET /api/analytics/arr - Annual Recurring Revenue | planned | billman | Forecasting |
-| 121 | GET /api/analytics/ltv - Customer Lifetime Value | planned | billman | Cohort analysis |
-| 122 | Revenue forecasting | planned | billman | Predictive analytics |
-| **Custom Billing Rules** | | | | |
-| 123 | Design rules engine architecture | planned | billman | Plugin system |
-| 124 | Support custom Javascript rules | planned | billman | Sandboxed execution |
-| 125 | Rule testing framework | planned | billman | Validate rules |
-| **Webhooks** | | | | |
-| 126 | Create webhooks table | planned | billman | Subscriber URLs |
-| 127 | POST /api/webhooks - Register webhook | planned | billman | Event types |
-| 128 | Webhook delivery system | planned | billman | Retry logic |
-| 129 | Webhook signature verification | planned | billman | HMAC security |
-| 130 | Events: invoice.created, payment.succeeded | planned | billman | Event catalog |
-| **Payment Gateway** | | | | |
-| 131 | Integrate Stripe SDK | planned | billman | Payment processing |
-| 132 | POST /api/payments - Process payment | planned | billman | Credit card |
-| 133 | Stripe webhook handler | planned | billman | Async updates |
-| 134 | Support multiple payment methods | planned | billman | Card, ACH, etc. |
-| **Multi-Tenant** | | | | |
-| 135 | Add tenant_id to all tables | planned | billman | Row-level security |
-| 136 | Tenant isolation middleware | planned | billman | Security |
-| 137 | Tenant provisioning API | planned | billman | Create new tenant |
-| **Compliance & Export** | | | | |
-| 138 | Audit logging system | planned | billman | All mutations logged |
-| 139 | GET /api/export/invoices - Export CSV | planned | billman | Data portability |
-| 140 | GET /api/export/customers - Export JSON | planned | billman | Backup |
-| 141 | API rate limiting | planned | billman | Prevent abuse |
+| ID | Task | Assignee | Notes |
+|----|------|----------|-------|
+| **Advanced Analytics** | | | |
+| 119 | Build analytics dashboard API | billman | KPIs, charts |
+| 120 | GET /api/analytics/arr - Annual Recurring Revenue | billman | Forecasting |
+| 121 | GET /api/analytics/ltv - Customer Lifetime Value | billman | Cohort analysis |
+| 122 | Revenue forecasting | billman | Predictive analytics |
+| **Custom Billing Rules** | | | |
+| 123 | Design rules engine architecture | billman | Plugin system |
+| 124 | Support custom Javascript rules | billman | Sandboxed execution |
+| 125 | Rule testing framework | billman | Validate rules |
+| **Webhooks** | | | |
+| 126 | Create webhooks table | billman | Subscriber URLs |
+| 127 | POST /api/webhooks - Register webhook | billman | Event types |
+| 128 | Webhook delivery system | billman | Retry logic |
+| 129 | Webhook signature verification | billman | HMAC security |
+| 130 | Events: invoice.created, payment.succeeded | billman | Event catalog |
+| **Payment Gateway** | | | |
+| 131 | Integrate Stripe SDK | billman | Payment processing |
+| 132 | POST /api/payments - Process payment | billman | Credit card |
+| 133 | Stripe webhook handler | billman | Async updates |
+| 134 | Support multiple payment methods | billman | Card, ACH, etc. |
+| **Multi-Tenant** | | | |
+| 135 | Add tenant_id to all tables | billman | Row-level security |
+| 136 | Tenant isolation middleware | billman | Security |
+| 137 | Tenant provisioning API | billman | Create new tenant |
+| **Compliance & Export** | | | |
+| 138 | Audit logging system | billman | All mutations logged |
+| 139 | GET /api/export/invoices - Export CSV | billman | Data portability |
+| 140 | GET /api/export/customers - Export JSON | billman | Backup |
+| 141 | API rate limiting | billman | Prevent abuse |
 
 ### Phase 4.5: Sub-Invoices & Organizational Billing (~12-18 days)
 
 Full detail: [`docs/features/sub-invoices.md`](./features/sub-invoices.md)
 
-| ID | Task | Complexity | Status | Notes |
-|----|------|------------|--------|-------|
-| **Phase A: Database Schema** | | | | |
-| A1 | Create `InvoiceGroup` entity | Medium | completed | DEPARTMENT, COST_CENTER, LOCATION, CUSTOM |
-| A2 | Add Prisma self-referencing relationship for `parentInvoiceId` | Low | completed | Defines Invoice hierarchy |
-| A3 | Add `invoiceGroupId` FK to Invoice model | Low | completed | Links invoice to org group |
-| A4 | Add `groupType` enum | Low | completed | See InvoiceGroup entity |
-| A5 | Add `groupReference` field to InvoiceItem | Low | completed | Line-item org attribution |
-| A6 | Create database migration | Medium | completed | All schema changes |
-| A7 | Add index on `parentInvoiceId` | Low | completed | Efficient hierarchy queries |
-| **Phase B: Invoice Group Management** | | | | |
-| B1 | `InvoiceGroup` service (CRUD) | Medium | completed | |
-| B2 | DTOs for invoice group create/update/query | Medium | completed | |
-| B3 | Invoice group controller + REST endpoints | Medium | completed | `/api/invoice-groups` |
-| B4 | Validate group uniqueness per account | Low | completed | |
-| B5 | Cascade behavior on group soft delete | Low | completed | |
-| **Phase C: Sub-Invoice Core Logic** | | | | |
-| C1 | Update Invoice service for parent-child support | Medium | completed | |
-| C2 | `createSubInvoice()` method | Medium | completed | Links to parent |
-| C3 | `getSubInvoices()` method | Low | completed | Children of a parent |
-| C4 | `getParentInvoice()` method | Low | completed | Parent of a child |
-| C5 | Sub-invoice number generation (`INV-001-A/B/C`) | Medium | completed | |
-| C6 | Rollup calculation (parent totals = sum of children) | Medium | completed | |
-| C7 | Validation: sub-invoice totals must match parent | Medium | completed | |
-| C8 | Cascade status updates (parent → children) | Medium | completed | Paying parent marks children paid |
-| **Phase D: Invoice Item Grouping** | | | | |
-| D1 | Add `groupReference` to InvoiceItem | Low | completed | |
-| D2 | Grouping logic in invoice creation | Medium | planned | |
-| D3 | Move items between groups/sub-invoices endpoint | Medium | planned | |
-| D4 | Validation for item reassignment | Medium | planned | Amount consistency |
-| **Phase E: API Endpoints** | | | | |
-| E1 | `GET /api/invoices/:id/sub-invoices` | Low | completed | |
-| E2 | `POST /api/invoices/:id/sub-invoices` | Medium | completed | |
-| E3 | `GET /api/invoices/:id/parent` | Low | planned | |
-| E4 | `POST /api/invoices/:id/split` | High | planned | Split by group |
-| E5 | `POST /api/invoices/:id/merge` | High | planned | Merge sub-invoices |
-| E6 | `parentInvoiceId[eq]` filter on list endpoint | Low | completed | |
-| E7 | `includeSubInvoices` query param | Medium | planned | Nested response |
-| E8 | Invoice detail includes sub-invoice summary | Low | completed | |
-| **Phase F: Consolidated Billing Integration** | | | | |
-| F1 | Update consolidated billing for parent + sub-invoices | High | planned | |
-| F2 | Strategy: sub-invoice per subsidiary account | Medium | planned | |
-| F3 | Strategy: sub-invoice per cost center/department | Medium | planned | |
-| F4 | `consolidationStrategy` param (FLAT, BY_ACCOUNT, BY_GROUP) | Medium | planned | |
-| F5 | Update billing processor for sub-invoice generation | Medium | planned | |
-| **Phase G: Testing** | | | | |
-| G1 | Unit tests for invoice group service | Medium | completed | |
-| G2 | Unit tests for sub-invoice creation/retrieval | Medium | completed | |
-| G3 | Unit tests for rollup calculations | Medium | completed | |
-| G4 | Integration tests for split/merge operations | High | planned | |
-| G5 | Integration tests for consolidated billing with sub-invoices | High | planned | |
-| G6 | E2E tests for complete sub-invoice workflows | High | planned | |
-| **Phase H: Documentation** | | | | |
-| H1 | Update `sub-invoices.md` post-implementation | Medium | planned | |
-| H2 | Update `invoices.md` with sub-invoice info | Low | planned | |
-| H3 | Update `billing.md` with consolidation strategies | Low | planned | |
-| H4 | Add API examples and cURL commands | Low | planned | |
+| ID | Task | Complexity | Notes |
+|----|------|----------|-------|
+| **Phase A: Database Schema** | | | |
+| A1 | Create `InvoiceGroup` entity | Medium | DEPARTMENT, COST_CENTER, LOCATION, CUSTOM |
+| A2 | Add Prisma self-referencing relationship for `parentInvoiceId` | Low | Defines Invoice hierarchy |
+| A3 | Add `invoiceGroupId` FK to Invoice model | Low | Links invoice to org group |
+| A4 | Add `groupType` enum | Low | See InvoiceGroup entity |
+| A5 | Add `groupReference` field to InvoiceItem | Low | Line-item org attribution |
+| A6 | Create database migration | Medium | All schema changes |
+| A7 | Add index on `parentInvoiceId` | Low | Efficient hierarchy queries |
+| **Phase B: Invoice Group Management** | | | |
+| B1 | `InvoiceGroup` service (CRUD) | Medium | |
+| B2 | DTOs for invoice group create/update/query | Medium | |
+| B3 | Invoice group controller + REST endpoints | Medium | `/api/invoice-groups` |
+| B4 | Validate group uniqueness per account | Low | |
+| B5 | Cascade behavior on group soft delete | Low | |
+| **Phase C: Sub-Invoice Core Logic** | | | |
+| C1 | Update Invoice service for parent-child support | Medium | |
+| C2 | `createSubInvoice()` method | Medium | Links to parent |
+| C3 | `getSubInvoices()` method | Low | Children of a parent |
+| C4 | `getParentInvoice()` method | Low | Parent of a child |
+| C5 | Sub-invoice number generation (`INV-001-A/B/C`) | Medium | |
+| C6 | Rollup calculation (parent totals = sum of children) | Medium | |
+| C7 | Validation: sub-invoice totals must match parent | Medium | |
+| C8 | Cascade status updates (parent → children) | Medium | Paying parent marks children paid |
+| **Phase D: Invoice Item Grouping** | | | |
+| D1 | Add `groupReference` to InvoiceItem | Low | |
+| D2 | Grouping logic in invoice creation | Medium | |
+| D3 | Move items between groups/sub-invoices endpoint | Medium | |
+| D4 | Validation for item reassignment | Medium | Amount consistency |
+| **Phase E: API Endpoints** | | | |
+| E1 | `GET /api/invoices/:id/sub-invoices` | Low | |
+| E2 | `POST /api/invoices/:id/sub-invoices` | Medium | |
+| E3 | `GET /api/invoices/:id/parent` | Low | |
+| E4 | `POST /api/invoices/:id/split` | High | Split by group |
+| E5 | `POST /api/invoices/:id/merge` | High | Merge sub-invoices |
+| E6 | `parentInvoiceId[eq]` filter on list endpoint | Low | |
+| E7 | `includeSubInvoices` query param | Medium | Nested response |
+| E8 | Invoice detail includes sub-invoice summary | Low | |
+| **Phase F: Consolidated Billing Integration** | | | |
+| F1 | Update consolidated billing for parent + sub-invoices | High | |
+| F2 | Strategy: sub-invoice per subsidiary account | Medium | |
+| F3 | Strategy: sub-invoice per cost center/department | Medium | |
+| F4 | `consolidationStrategy` param (FLAT, BY_ACCOUNT, BY_GROUP) | Medium | |
+| F5 | Update billing processor for sub-invoice generation | Medium | |
+| **Phase G: Testing** | | | |
+| G1 | Unit tests for invoice group service | Medium | |
+| G2 | Unit tests for sub-invoice creation/retrieval | Medium | |
+| G3 | Unit tests for rollup calculations | Medium | |
+| G4 | Integration tests for split/merge operations | High | |
+| G5 | Integration tests for consolidated billing with sub-invoices | High | |
+| G6 | E2E tests for complete sub-invoice workflows | High | |
+| **Phase H: Documentation** | | | |
+| H1 | Update `sub-invoices.md` post-implementation | Medium | |
+| H2 | Update `invoices.md` with sub-invoice info | Low | |
+| H3 | Update `billing.md` with consolidation strategies | Low | |
+| H4 | Add API examples and cURL commands | Low | |
 
 ## Technical Notes
 
@@ -1743,6 +1738,11 @@ After establishing the B2B Enterprise foundation, the system can be **extended t
 - Payment gateway integration testing (Stripe/ACH test mode)
 
 ## Progress Log
+
+### 2026-09-14 (Status tracking removed)
+
+- File frozen as historical plan; all progress markers removed (frontmatter phase statuses, acceptance checkboxes, subtask Status columns)
+- Single source of truth for phase status and descoped backlog: README.md → Development Phases
 
 ### 2026-01-12 (Major Refactor - B2B Enterprise Focus + Architecture Audit)
 

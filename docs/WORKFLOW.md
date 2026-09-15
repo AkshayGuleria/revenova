@@ -164,7 +164,7 @@ Session starts
   → SessionStart hook fires
   → Reads .claude/memory/MEMORY.md
   → Prints first 2000 chars into Claude's context
-  → Claude knows: current phase, key decisions, active work
+  → Claude knows: where phase status lives (README), key decisions, active work
 
 During session
   → /checkpoint writes summary to MEMORY.md "Active Work" section
@@ -177,7 +177,7 @@ Session ends
 
 ### Updating MEMORY.md
 
-The Stop hook writes timestamps only. Meaningful state updates (phase completion, new decisions) need to be written manually or via `/checkpoint`. After completing Phase 4, update the `## Active Work` and `## Completed Phases` sections in `.claude/memory/MEMORY.md`.
+The Stop hook writes timestamps only. New decisions and the `Resume Point → In progress` note need to be written manually or via `/checkpoint`. **Phase/feature completion is NOT recorded in MEMORY.md** — update only the `README.md` → "Development Phases" table (single source of truth) and the feature doc's `**Status:**` line.
 
 ### Memory file location
 

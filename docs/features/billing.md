@@ -840,38 +840,8 @@ removeOnFail: {
 
 ## Future Enhancements
 
-### Phase 2 (Current Phase - In Progress)
-
-- ✅ Seat-based pricing calculator
-- ✅ Invoice generation engine
-- ✅ Asynchronous job processing
-- ✅ Automatic invoice numbering
-- ⏳ Email notification system
-- ⏳ PDF invoice generation with Worker Threads
-- ⏳ Invoice auto-transitions (overdue status)
-- ⏳ Reporting endpoints (revenue analytics)
-
-### Phase 3 (Planned)
-
-- Consolidated billing for parent-child accounts
-- Roll-up invoices across subsidiaries
-- Hierarchical account support in billing
-
-### Phase 4 (Planned)
-
-- Purchase order integration
-- Credit limit enforcement
-- Payment processing and reconciliation
-- Multi-currency support
-- Tax calculation by jurisdiction
-
-### Phase 5 (Planned)
-
-- SLA-based billing adjustments
-- Custom billing rules engine
-- Advanced analytics (ARR, MRR, churn)
-- Contract renewal automation
-- Webhook notifications for billing events
+> Unbuilt billing scope (email delivery, PDF generation, scheduled billing trigger, consolidation strategies,
+> SLA adjustments, rules engine) is tracked only in [README → Backlog](../../README.md#backlog-not-built).
 
 ### Advanced Features (Future)
 
