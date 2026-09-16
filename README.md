@@ -240,6 +240,7 @@ Scope from the original plan that is not in the code. Remove an item here when i
 - Automated payment reconciliation — manual one-to-one `POST /payments/:id/apply` only *(P4, partial)*
 - Configurable PO approval chains — single-step approve/reject only *(P4, partial)*
 - Scheduled daily exchange-rate updates — manual entry only *(P4, partial)*
+- Credit limit / credit hold UI — backend `PATCH /accounts/:id/credit` exists but nothing calls it; the account form used to set credit via mass assignment and no longer can *(P4)*
 
 **Reporting / analytics**
 - Revenue by contract / by account report; parent + subsidiary revenue roll-up *(P2–3, partial)*

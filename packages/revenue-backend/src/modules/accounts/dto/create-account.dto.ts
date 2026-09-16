@@ -4,7 +4,6 @@ import {
   IsEmail,
   IsOptional,
   IsNumber,
-  IsBoolean,
   IsEnum,
   IsObject,
   Min,
@@ -162,23 +161,6 @@ export class CreateAccountDto {
   @IsOptional()
   @IsString()
   taxId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Credit limit amount',
-    example: 100000.0,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  creditLimit?: number;
-
-  @ApiPropertyOptional({
-    description: 'Whether account is on credit hold',
-    default: false,
-  })
-  @IsOptional()
-  @IsBoolean()
-  creditHold?: boolean;
 
   @ApiPropertyOptional({
     description: 'Additional metadata as JSON',

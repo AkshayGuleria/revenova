@@ -34,8 +34,6 @@ describe('CreateInvoiceDto', () => {
       discount: 500,
       currency: 'USD',
       status: InvoiceStatus.DRAFT,
-      paidAmount: 0,
-      paidDate: '2024-01-15',
       billingType: BillingType.RECURRING,
       consolidated: false,
       parentInvoiceId: 'parent-invoice-uuid',
