@@ -11,7 +11,7 @@ Load `.claude/memory/MEMORY.md` at session start for project state and prior con
 ```
 
 ECC skills in `.claude/skills/`: `nestjs-patterns`, `backend-patterns`, `api-design`,
-`database-migrations`, `prisma-patterns`, `tdd-workflow`, `e2e-testing`
+`database-migrations`, `prisma-patterns`, `tdd-workflow`, `e2e-testing`, `phase-audit`
 
 ## Stack (ADR-001, ADR-002)
 
