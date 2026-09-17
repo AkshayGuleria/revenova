@@ -17,9 +17,9 @@
 
 ## Resume Point
 <!-- Auto-updated by session-end hook — edit "In progress" manually before stopping -->
-- **Last stop:** 2026-09-15 19:07
+- **Last stop:** 2026-09-16 15:59
 - **Branch:** docs/phase5-doc-updates
-- **Last commit:** 5734843 docs: make README phase table the single progress tracker
+- **Last commit:** 845c4ff Merge origin/master into docs/phase5-doc-updates
 - **Modified files:**
 ```
 M .claude/memory/MEMORY.md
@@ -86,4 +86,12 @@ M .claude/memory/MEMORY.md
 - 2026-09-14 20:00 [8fd8a4e3] branch:docs/phase5-doc-updates
 - 2026-09-14 20:44 [63a831f7] branch:docs/phase5-doc-updates
 - 2026-09-15 19:07 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-15 19:12 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-15 19:58 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-15 19:58 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-16 15:55 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-16 15:57 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-16 15:58 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-16 15:59 [63a831f7] branch:docs/phase5-doc-updates
+- 2026-09-16 15:59 [63a831f7] branch:docs/phase5-doc-updates
 <!-- Appended by .claude/hooks/session-end.js on Stop -->
