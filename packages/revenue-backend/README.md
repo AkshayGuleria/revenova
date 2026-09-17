@@ -116,8 +116,10 @@ npm test
 # Test with coverage
 npm run test:cov
 
-# E2E tests
-npm run test:e2e
+# E2E tests — these TRUNCATE the target database, so it must be a test database.
+# setup/teardown refuse any database whose name lacks test/tests/e2e/ci.
+DATABASE_URL="postgresql://revenue_local:<password>@localhost:5433/revenue_e2e_db?schema=public" \
+  npm run test:e2e
 
 # Lint and format
 npm run lint

@@ -194,17 +194,46 @@ revenova/
 
 > **Single source of truth for project progress.** When status changes, update only this section
 > (plus the one-line `**Status:**` header of the affected `docs/features/*.md`). Do not track progress
-> anywhere else — `docs/feature-spec.md` is a frozen historical plan. Gaps below verified against code on 2026-09-14.
+> anywhere else — `docs/feature-spec.md` is a frozen historical plan. Gaps verified against code on 2026-09-14;
+> phase statuses revised after the [2026-09-16 audit](./docs/reviews/2026-09-16-security-and-correctness-audit.md).
 
 | Phase | Focus | Status | Open gaps (details in [Backlog](#backlog-not-built)) |
 |-------|-------|--------|------------------------------------------------------|
-| **Phase 1** | Foundation — Accounts, Contracts, Products, Invoices | ✅ Completed | API authentication |
-| **Phase 2** | Contract Billing + Scalability (BullMQ) | ✅ Completed | Email, PDF, scheduled billing trigger, PM2/worker processes, DB pool limit |
-| **Phase 3** | Hierarchical Accounts + Consolidated Billing | ✅ Completed | Parent + subsidiary revenue roll-up report |
-| **Phase 3.5** | Product Pricing Enhancement (chargeType, category, setupFee) | ✅ Completed | — |
-| **Phase 4** | Sub-Invoices, Invoice Groups, Purchase Orders, Credit, Payments, FX, Tax | ✅ Completed | Split/merge, consolidation strategies, credit notes, dunning |
-| **Phase 5** | ARR/MRR Analytics, Renewal Tracking, Audit Log, Webhooks | ✅ Completed | Stripe, forecasting, data export, rate limiting |
+| **Phase 1** | Foundation — Accounts, Contracts, Products, Invoices | ✅ Completed | API authentication; no tenant scoping |
+| **Phase 2** | Contract Billing + Scalability (BullMQ) | 🟡 Partial | Batch billing is a stub; tax always 0; setup fees and volume tiers never applied; email, PDF, PM2/workers, DB pool limit |
+| **Phase 3** | Hierarchical Accounts + Consolidated Billing | ✅ Completed | Parent + subsidiary revenue roll-up report; no recursive CTE / query timeout |
+| **Phase 3.5** | Product Pricing Enhancement (chargeType, category, setupFee) | 🟡 Partial | `setupFee` and `volumeTiers` are stored but never billed |
+| **Phase 4** | Sub-Invoices, Invoice Groups, Purchase Orders, Credit, Payments, FX, Tax | 🟡 Partial | Credit hold unenforced on automated billing; tax/FX not wired into billing; split/merge, consolidation strategies, credit notes, dunning |
+| **Phase 5** | ARR/MRR Analytics, Renewal Tracking, Audit Log, Webhooks | 🟡 Partial | Audit trail missing on billing/payments and records no actor; Stripe, forecasting, data export, rate limiting |
 | **Phase 6+** | B2C Event-Based / Usage-Based Billing | 🔵 Deferred | — |
+
+### Must fix — audit findings (2026-09-16)
+
+Full evidence and repro detail: [docs/reviews/2026-09-16-security-and-correctness-audit.md](./docs/reviews/2026-09-16-security-and-correctness-audit.md).
+**P0 = exploitable by an unauthenticated caller, or silently wrong money.** Not production-ready until these close.
+
+**P0**
+- [ ] P0-12 · `npm run test:e2e` wipes the dev database — no env guard on `deleteMany` (`test/setup-e2e.ts:22`) — *do first, one-line guard*
+- [ ] P0-1 · No authentication on any endpoint, **and** no tenant scoping beneath it — both must land together
+- [ ] P0-2 · Mass assignment: `PATCH /invoices/:id {"status":"paid"}` and `creditLimit` at account creation
+- [ ] P0-3 · SSRF — webhook URLs unrestricted, response body stored and readable; block per dispatch, not just registration
+- [ ] P0-4 · Webhook HMAC secret brute-forcible via `?secret[like]=` — needs a per-model filter whitelist (4 other controllers share the hole)
+- [ ] P0-5 · Lost update on concurrent payments (stale read + float math); no overpayment cap
+- [ ] P0-6 · Tax hardcoded to 0 in both billing paths — `TaxRatesService` never called
+- [ ] P0-7 · Setup fees and volume tiers never applied (`product` hardcoded `null`, `volumeTiers` unread)
+- [ ] P0-8 · Credit hold ignored by automated billing and sub-invoice creation
+- [ ] P0-9 · Batch billing is a `TODO` stub that returns 202 and logs success while billing nothing
+- [ ] P0-10 · Client-supplied invoice totals accepted without recomputation from items
+- [ ] P0-11 · No audit trail on billing engine or payments; `actorId` always null (SOC2/GDPR)
+
+**P1** — 13 items: ungated Swagger console, paid invoices editable/deletable, missing `enableShutdownHooks`,
+unenforced DB pool limit, no recursive CTE or statement timeout, schema/migration drift on the anti-double-billing
+indexes, no rate limiting or helmet, no Prisma exception filter, unbounded `offset`, unaudited contract hard-delete,
+no dead-letter/alerting, non-atomic invoice numbering, unread `CORS_ORIGINS`. See the review doc.
+
+**P2** — 11 items: UTC date off-by-one on due dates, logout leaves session valid, inert buttons, missing
+confirmations, no CSRF token, no payments/PO e2e coverage, disabled deploy pipeline, float money math elsewhere,
+`PARENT_PAYS` rollup drift, FX never applied, absent PM2/Worker Threads. See the review doc.
 
 ### Backlog (not built)
 
@@ -218,7 +247,7 @@ Scope from the original plan that is not in the code. Remove an item here when i
 - API rate limiting / throttling *(P5)*
 
 **Billing**
-- Scheduled billing trigger — queue + processors exist, no cron; only manual `POST /billing/batch` *(P2, partial)*
+- Batch/scheduled billing — `POST /billing/batch` queues a stub handler that bills nothing; no cron either *(P2)*
 - Email invoice delivery — queue name reserved, no processor; UI "Send Invoice" button inert *(P2)*
 - PDF invoice generation — queue name reserved, no processor; UI "Download PDF" button inert *(P2)*
 - `custom` billing frequency; `Custom` payment-terms option (numeric `paymentTermsDays` only) *(P1–2, partial)*
