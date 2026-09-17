@@ -355,4 +355,54 @@ describe('WebhooksService', () => {
       expect(mockPrismaService.webhookDelivery.create).not.toHaveBeenCalled();
     });
   });
+
+  // -----------------------------------------------------------------------
+  // SSRF protection
+  // -----------------------------------------------------------------------
+  describe('SSRF protection', () => {
+    it('refuses to register a webhook pointing at a private address', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({ id: 'acc-1' });
+
+      await expect(
+        service.create({
+          accountId: 'acc-1',
+          url: 'http://169.254.169.254/latest/meta-data/',
+          events: ['invoice.created'],
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.webhookEndpoint.create).not.toHaveBeenCalled();
+    });
+
+    it('does not send a request to a stored private URL, and records the failure', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch' as any).mockResolvedValue({
+        status: 200,
+        ok: true,
+        text: async () => 'ok',
+      } as any);
+
+      mockPrismaService.webhookEndpoint.findMany.mockResolvedValue([
+        {
+          id: 'wh-1',
+          url: 'http://127.0.0.1:6379/',
+          secret: 's',
+          events: ['invoice.created'],
+        },
+      ]);
+      mockPrismaService.webhookDelivery.create.mockResolvedValue({});
+      mockPrismaService.webhookDelivery.updateMany.mockResolvedValue({
+        count: 1,
+      });
+
+      await service.dispatch('acc-1', 'invoice.created', { id: 'inv-1' });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(mockPrismaService.webhookDelivery.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'failed' }),
+        }),
+      );
+      fetchSpy.mockRestore();
+    });
+  });
 });
