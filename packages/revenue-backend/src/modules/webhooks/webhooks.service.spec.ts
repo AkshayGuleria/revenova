@@ -131,6 +131,24 @@ describe('WebhooksService', () => {
   // findAll
   // -----------------------------------------------------------------------
   describe('findAll', () => {
+    it('refuses to filter on the signing secret', async () => {
+      // `secret` is excluded from `select`, but a filter on it still reaches the
+      // where clause — making paging.total a brute-force oracle for the HMAC key.
+      await expect(
+        service.findAll({ 'secret[like]': 'ab%' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.webhookEndpoint.findMany).not.toHaveBeenCalled();
+    });
+
+    it('still allows filtering on a public field', async () => {
+      mockPrismaService.webhookEndpoint.findMany.mockResolvedValue([]);
+      mockPrismaService.webhookEndpoint.count.mockResolvedValue(0);
+
+      await expect(
+        service.findAll({ 'url[like]': 'example.com' }),
+      ).resolves.toBeDefined();
+    });
+
     it('should return a paginated list without secret field', async () => {
       const webhooks = [
         {

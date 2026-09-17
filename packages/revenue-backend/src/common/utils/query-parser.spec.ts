@@ -7,6 +7,7 @@ import {
   parseQuery,
 } from './query-parser';
 import { QueryFilter } from '../interfaces';
+import { BadRequestException } from '@nestjs/common';
 
 describe('QueryParser', () => {
   describe('parseQueryKey', () => {
@@ -505,6 +506,48 @@ describe('QueryParser', () => {
       } as unknown as QueryFilter;
       const result = filterToPrismaWhere(filter);
       expect(result).toEqual({});
+    });
+  });
+
+  describe('field allowlist', () => {
+    const allowed = ['accountId', 'url', 'active', 'createdAt'] as const;
+
+    it('rejects a filter on a field that is not allowed', () => {
+      expect(() =>
+        parseQueryFilters({ 'secret[like]': 'ab%' }, allowed),
+      ).toThrow(BadRequestException);
+    });
+
+    it('names the rejected field', () => {
+      expect(() =>
+        parseQueryFilters({ 'secret[like]': 'ab%' }, allowed),
+      ).toThrow(/secret/);
+    });
+
+    it('allows filters on listed fields', () => {
+      const filters = parseQueryFilters({ 'url[like]': 'example' }, allowed);
+      expect(filters).toEqual([
+        { field: 'url', operator: 'like', value: 'example' },
+      ]);
+    });
+
+    it('still allows pagination params alongside an allowlist', () => {
+      expect(() =>
+        parseQueryFilters({ 'offset[eq]': '10', 'limit[eq]': '5' }, allowed),
+      ).not.toThrow();
+    });
+
+    it('parseQuery enforces the allowlist too', () => {
+      expect(() => parseQuery({ 'secret[eq]': 'x' }, allowed)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('without an allowlist behaviour is unchanged', () => {
+      const filters = parseQueryFilters({ 'anything[eq]': 'x' });
+      expect(filters).toEqual([
+        { field: 'anything', operator: 'eq', value: 'x' },
+      ]);
     });
   });
 });

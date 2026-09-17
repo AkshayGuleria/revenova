@@ -14,6 +14,12 @@ import {
 import { ApiResponse } from '../../common/interfaces';
 import { parseQuery } from '../../common/utils/query-parser';
 
+/**
+ * Columns a client may filter on via ?field[op]=value.
+ * Excludes free-text `notes` and the `metadata` JSON blob.
+ */
+const PAYMENT_FILTERABLE_FIELDS: readonly string[] = ['id','paymentNumber','accountId','invoiceId','amount','currency','method','referenceNumber','paymentDate','status','createdAt','updatedAt'];
+
 @Injectable()
 export class PaymentsService {
   constructor(private prisma: PrismaService) {}
@@ -105,7 +111,7 @@ export class PaymentsService {
   }
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
-    const { pagination, where } = parseQuery(query);
+    const { pagination, where } = parseQuery(query, PAYMENT_FILTERABLE_FIELDS);
     const { offset, limit } = pagination;
 
     const [data, total] = await Promise.all([

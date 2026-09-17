@@ -8,6 +8,12 @@ import {
 import { ApiResponse } from '../../common/interfaces';
 import { parseQuery } from '../../common/utils/query-parser';
 
+/**
+ * Columns a client may filter on via ?field[op]=value.
+ * 
+ */
+const TAX_RATE_FILTERABLE_FIELDS: readonly string[] = ['id','jurisdiction','taxType','rate','name','effectiveFrom','effectiveTo','active','createdAt','updatedAt'];
+
 @Injectable()
 export class TaxRatesService {
   constructor(private prisma: PrismaService) {}
@@ -29,7 +35,7 @@ export class TaxRatesService {
   }
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
-    const { pagination, where } = parseQuery(query);
+    const { pagination, where } = parseQuery(query, TAX_RATE_FILTERABLE_FIELDS);
     const offset = pagination.offset;
     const limit = pagination.limit;
 

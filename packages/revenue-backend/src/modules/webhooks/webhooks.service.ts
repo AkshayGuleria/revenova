@@ -13,6 +13,13 @@ import {
 import { ApiResponse } from '../../common/interfaces';
 import { parseQuery } from '../../common/utils/query-parser';
 
+/**
+ * Columns a client may filter on via ?field[op]=value.
+ * Deliberately excludes `secret`: it is hidden from `select`, so allowing it as a
+ * filter would turn the result count into a brute-force oracle for the HMAC key.
+ */
+const WEBHOOK_FILTERABLE_FIELDS: readonly string[] = ['id','accountId','url','events','active','description','createdAt','updatedAt'];
+
 @Injectable()
 export class WebhooksService {
   constructor(private prisma: PrismaService) {}
@@ -52,7 +59,7 @@ export class WebhooksService {
   }
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
-    const { pagination, where } = parseQuery(query);
+    const { pagination, where } = parseQuery(query, WEBHOOK_FILTERABLE_FIELDS);
     const { offset, limit } = pagination;
 
     const [data, total] = await Promise.all([
