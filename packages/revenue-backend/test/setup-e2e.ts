@@ -1,9 +1,14 @@
 import { PrismaClient } from '@prisma/client';
+import { assertTestDatabase } from '../src/common/utils/assert-test-database';
 
 /**
  * Global setup for E2E tests
  * Ensures a clean database state before running tests
  */
+
+// Requiring @prisma/client loads .env into process.env, so DATABASE_URL is
+// resolved by the time this runs. Refuse to truncate anything but a test database.
+assertTestDatabase(process.env.DATABASE_URL);
 
 const prisma = new PrismaClient();
 
@@ -19,6 +24,8 @@ async function globalSetup() {
     console.log('🧹 Cleaning up test data...');
 
     // Delete in correct order (respecting foreign keys)
+    await prisma.payment.deleteMany();
+    await prisma.purchaseOrder.deleteMany();
     await prisma.invoiceItem.deleteMany();
     await prisma.invoice.deleteMany();
     await prisma.invoiceGroup.deleteMany();
