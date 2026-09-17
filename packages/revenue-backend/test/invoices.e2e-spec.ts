@@ -350,18 +350,18 @@ describe('InvoicesController (e2e)', () => {
       expect(response.body.data.status).toBe('sent');
     });
 
-    it('should update invoice amounts', async () => {
-      const response = await request(app.getHttpServer())
+    it('refuses to set paidAmount directly — payment state comes from PaymentsService', async () => {
+      await request(app.getHttpServer())
         .patch(`/api/invoices/${createdInvoiceId}`)
-        .send({
-          paidAmount: 500,
-          paidDate: '2024-01-15',
-          status: 'paid',
-        })
-        .expect(HttpStatus.OK);
+        .send({ paidAmount: 500 })
+        .expect(HttpStatus.BAD_REQUEST);
+    });
 
-      expect(parseFloat(response.body.data.paidAmount)).toBeCloseTo(500);
-      expect(response.body.data.status).toBe('paid');
+    it('refuses to mark an invoice paid without a payment', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/invoices/${createdInvoiceId}`)
+        .send({ status: 'paid' })
+        .expect(HttpStatus.BAD_REQUEST);
     });
 
     it('should return 404 for non-existent invoice', async () => {
