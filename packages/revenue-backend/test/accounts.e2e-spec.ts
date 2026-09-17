@@ -24,7 +24,6 @@ describe('Accounts API (e2e)', () => {
     accountType: AccountType.ENTERPRISE,
     paymentTerms: PaymentTerms.NET_30,
     currency: 'USD',
-    creditLimit: 100000,
   };
 
   // Secondary test account data (may be used in future tests)
@@ -84,6 +83,28 @@ describe('Accounts API (e2e)', () => {
   });
 
   describe('POST /api/accounts', () => {
+    it('rejects creditLimit at creation — credit is granted via PATCH /accounts/:id/credit', () => {
+      return request(app.getHttpServer())
+        .post('/api/accounts')
+        .send({
+          accountName: 'Test Credit Injection',
+          primaryContactEmail: `test-credit-${Date.now()}@example.com`,
+          creditLimit: 10000000,
+        })
+        .expect(400);
+    });
+
+    it('rejects creditHold at creation', () => {
+      return request(app.getHttpServer())
+        .post('/api/accounts')
+        .send({
+          accountName: 'Test Credit Hold Injection',
+          primaryContactEmail: `test-hold-${Date.now()}@example.com`,
+          creditHold: false,
+        })
+        .expect(400);
+    });
+
     it('should create a new account successfully', () => {
       return request(app.getHttpServer())
         .post('/api/accounts')
@@ -497,13 +518,10 @@ describe('Accounts API (e2e)', () => {
         .patch(`/api/accounts/${testAccountId}`)
         .send({
           accountName: 'Test Updated Account Name',
-          creditLimit: 200000,
         })
         .expect(200)
         .expect((res) => {
           expect(res.body.data.accountName).toBe('Test Updated Account Name');
-          // Prisma returns Decimal as string, so check both types
-          expect(parseFloat(res.body.data.creditLimit)).toBe(200000);
           expect(res.body.paging).toEqual({
             offset: null,
             limit: null,

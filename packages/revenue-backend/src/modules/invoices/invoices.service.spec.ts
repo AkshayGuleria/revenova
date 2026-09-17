@@ -637,7 +637,7 @@ describe('InvoicesService', () => {
   describe('update', () => {
     it('should update invoice successfully', async () => {
       const updateDto: UpdateInvoiceDto = {
-        status: InvoiceStatus.PAID,
+        status: InvoiceStatus.SENT,
       };
 
       const mockExistingInvoice = {
@@ -658,6 +658,31 @@ describe('InvoicesService', () => {
       const result = await service.update('invoice-id-123', updateDto);
 
       expect(result.data).toEqual(mockUpdatedInvoice);
+    });
+
+    it('refuses a direct transition to paid — that state comes from a payment', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'invoice-id-123',
+        status: 'sent',
+      });
+
+      await expect(
+        service.update('invoice-id-123', { status: InvoiceStatus.PAID }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.invoice.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a direct transition to partially_paid', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'invoice-id-123',
+        status: 'sent',
+      });
+
+      await expect(
+        service.update('invoice-id-123', {
+          status: 'partially_paid' as InvoiceStatus,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should validate account if accountId is updated', async () => {
@@ -869,12 +894,11 @@ describe('InvoicesService', () => {
       ],
     };
 
-    it('should create invoice with periodStart, periodEnd, and paidDate', async () => {
+    it('should create invoice with periodStart and periodEnd', async () => {
       const dtoWithDates: CreateInvoiceDto = {
         ...baseDto,
         periodStart: '2024-01-01',
         periodEnd: '2024-01-31',
-        paidDate: '2024-01-15',
       };
 
       const mockAccount = { id: 'account-123' };
@@ -887,7 +911,6 @@ describe('InvoicesService', () => {
         dueDate: new Date('2024-01-31'),
         periodStart: new Date('2024-01-01'),
         periodEnd: new Date('2024-01-31'),
-        paidDate: new Date('2024-01-15'),
         items: [],
       };
 
@@ -905,7 +928,6 @@ describe('InvoicesService', () => {
           data: expect.objectContaining({
             periodStart: new Date('2024-01-01'),
             periodEnd: new Date('2024-01-31'),
-            paidDate: new Date('2024-01-15'),
           }),
         }),
       );
@@ -1123,7 +1145,6 @@ describe('InvoicesService', () => {
         dueDate: '2024-03-01',
         periodStart: '2024-02-01',
         periodEnd: '2024-02-28',
-        paidDate: '2024-02-15',
       };
 
       const mockExistingInvoice = {
@@ -1138,7 +1159,6 @@ describe('InvoicesService', () => {
         dueDate: new Date('2024-03-01'),
         periodStart: new Date('2024-02-01'),
         periodEnd: new Date('2024-02-28'),
-        paidDate: new Date('2024-02-15'),
       };
 
       mockPrismaService.invoice.findUnique.mockResolvedValue(
@@ -1156,7 +1176,6 @@ describe('InvoicesService', () => {
             dueDate: new Date('2024-03-01'),
             periodStart: new Date('2024-02-01'),
             periodEnd: new Date('2024-02-28'),
-            paidDate: new Date('2024-02-15'),
           }),
         }),
       );
@@ -1165,7 +1184,7 @@ describe('InvoicesService', () => {
     it('should update contractId to undefined (null) when explicitly set', async () => {
       const updateDto: UpdateInvoiceDto = {
         contractId: undefined,
-        status: InvoiceStatus.PAID,
+        status: InvoiceStatus.SENT,
       };
 
       const mockExistingInvoice = {
@@ -1177,7 +1196,7 @@ describe('InvoicesService', () => {
       const mockUpdatedInvoice = {
         ...mockExistingInvoice,
         contractId: undefined,
-        status: 'paid',
+        status: 'sent',
       };
 
       mockPrismaService.invoice.findUnique.mockResolvedValue(

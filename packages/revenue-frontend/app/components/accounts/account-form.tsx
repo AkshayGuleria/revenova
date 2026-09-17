@@ -56,7 +56,6 @@ const accountFormSchema = z.object({
   paymentTerms: z.nativeEnum(PaymentTerms).optional(),
   currency: z.string().optional(),
   taxId: z.string().optional(),
-  creditLimit: z.coerce.number().positive().optional(),
 });
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
@@ -104,7 +103,6 @@ export function AccountForm({
       paymentTerms: account?.paymentTerms || PaymentTerms.NET_30,
       currency: account?.currency || defaultCurrency,
       taxId: account?.taxId || "",
-      creditLimit: account?.creditLimit,
     },
   });
 
@@ -332,25 +330,6 @@ export function AccountForm({
                   <FormLabel>Tax ID</FormLabel>
                   <FormControl>
                     <Input placeholder="12-3456789" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="creditLimit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Credit Limit</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="50000"
-                      {...field}
-                      value={field.value || ""}
-                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

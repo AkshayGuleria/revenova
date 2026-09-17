@@ -182,11 +182,11 @@ export function InvoiceForm({
         ...(data.contractId ? { contractId: data.contractId } : {}),
         issueDate: data.issueDate,
         dueDate: data.dueDate,
-        status: data.status,
+        // `paid` is derived from recorded payments; tax/discount are not
+        // client-writable on update because the server does not recompute total.
+        ...(data.status === "paid" ? {} : { status: data.status }),
         currency: data.currency || defaultCurrency,
         notes: data.notes,
-        tax: data.tax,
-        discount: data.discount,
       } as UpdateInvoiceDto);
       return;
     }
@@ -306,7 +306,6 @@ export function InvoiceForm({
                     <SelectContent>
                       <SelectItem value="draft">Draft</SelectItem>
                       <SelectItem value="sent">Sent</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                       <SelectItem value="void">Void</SelectItem>
