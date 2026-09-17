@@ -12,6 +12,9 @@ import {
 } from '../../common/utils/response-builder';
 import { ApiResponse } from '../../common/interfaces';
 import { parseQuery } from '../../common/utils/query-parser';
+import { assertPublicHttpUrl } from '../../common/utils/assert-public-url';
+
+const MAX_STORED_RESPONSE_CHARS = 2000;
 
 @Injectable()
 export class WebhooksService {
@@ -33,6 +36,10 @@ export class WebhooksService {
         `Invalid events: ${invalidEvents.join(', ')}. Valid events: ${VALID_EVENTS.join(', ')}`,
       );
     }
+
+    // Reject internal/reserved targets up front. Re-checked before every
+    // delivery too, since DNS can be re-pointed after registration.
+    await assertPublicHttpUrl(dto.url);
 
     const secret = crypto.randomBytes(32).toString('hex');
 
@@ -200,6 +207,17 @@ export class WebhooksService {
     let responseBody: string | null = null;
 
     try {
+      // Re-validate here, not just at registration: the hostname may now
+      // resolve somewhere internal (DNS rebinding).
+      await assertPublicHttpUrl(url);
+    } catch (error) {
+      await this.recordDeliveryOutcome(webhookId, event, 'failed', null, {
+        message: error instanceof Error ? error.message : 'blocked',
+      });
+      return;
+    }
+
+    try {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -208,21 +226,44 @@ export class WebhooksService {
           'X-Webhook-Event': event,
         },
         body,
+        redirect: 'error', // a public URL must not bounce us somewhere internal
         signal: AbortSignal.timeout(10000),
       });
       responseStatus = res.status;
-      responseBody = await res.text().catch(() => null);
+      responseBody = await res
+        .text()
+        .then((text) => text.slice(0, MAX_STORED_RESPONSE_CHARS))
+        .catch(() => null);
       status = res.ok ? 'delivered' : 'failed';
     } catch {
       status = 'failed';
     }
 
+    await this.recordDeliveryOutcome(
+      webhookId,
+      event,
+      status,
+      responseStatus,
+      responseBody,
+    );
+  }
+
+  private async recordDeliveryOutcome(
+    webhookId: string,
+    event: string,
+    status: 'delivered' | 'failed',
+    responseStatus: number | null,
+    responseBody: string | Record<string, any> | null,
+  ): Promise<void> {
     await this.prisma.webhookDelivery.updateMany({
       where: { webhookId, event, status: 'pending' },
       data: {
         status,
         responseStatus,
-        responseBody,
+        responseBody:
+          typeof responseBody === 'string' || responseBody === null
+            ? responseBody
+            : JSON.stringify(responseBody),
         attemptCount: { increment: 1 },
         lastAttemptAt: new Date(),
         deliveredAt: status === 'delivered' ? new Date() : null,
