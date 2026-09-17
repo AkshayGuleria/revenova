@@ -501,7 +501,6 @@ export class InvoicesService {
     return result;
   }
 
-
   /**
    * `paid`/`partially_paid` are derived from recorded payments. Accepting them
    * here would let a caller settle an invoice with no payment behind it.

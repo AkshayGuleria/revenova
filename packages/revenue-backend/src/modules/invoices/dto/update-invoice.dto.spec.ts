@@ -27,9 +27,9 @@ describe('UpdateInvoiceDto', () => {
       ['tax', 800],
       ['discount', 500],
     ])('rejects %s', async (field, value) => {
-      await expect(pipe.transform({ [field]: value }, metadata)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        pipe.transform({ [field]: value }, metadata),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('names the rejected field so the caller can see what was refused', async () => {
