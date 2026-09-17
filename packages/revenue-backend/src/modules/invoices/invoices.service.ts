@@ -145,7 +145,7 @@ export class InvoicesService {
 
     try {
       const invoice = await this.prisma.$transaction(async (tx) => {
-        return tx.invoice.create({
+        const newInvoice = await tx.invoice.create({
           data: {
             ...data,
             accountId,
@@ -167,18 +167,24 @@ export class InvoicesService {
             items: true,
           },
         });
-      });
 
-      // Audit trail — fire-and-forget (non-blocking)
-      void this.auditLogService.log({
-        entityType: 'invoice',
-        entityId: invoice.id,
-        action: 'created',
-        actorType: 'system',
-        metadata: {
-          invoiceNumber: invoice.invoiceNumber,
-          accountId: invoice.accountId,
-        },
+        // Inside the transaction: an audit row must not outlive a rolled-back
+        // invoice, and a failed audit write must fail the mutation (SOC2/GDPR).
+        await this.auditLogService.log(
+          {
+            entityType: 'invoice',
+            entityId: newInvoice.id,
+            action: 'created',
+            actorType: 'system',
+            metadata: {
+              invoiceNumber: newInvoice.invoiceNumber,
+              accountId: newInvoice.accountId,
+            },
+          },
+          tx,
+        );
+
+        return newInvoice;
       });
 
       return buildSingleResponse(invoice);
@@ -582,35 +588,43 @@ export class InvoicesService {
       if (periodEnd) updateData.periodEnd = new Date(periodEnd);
       if (paidDate) updateData.paidDate = new Date(paidDate);
 
-      const invoice = await this.prisma.invoice.update({
-        where: { id },
-        data: updateData,
-      });
+      // The write and its audit row share one transaction, so the trail can
+      // never describe a change that did not commit.
+      const invoice = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.invoice.update({
+          where: { id },
+          data: updateData,
+        });
 
-      // Determine the appropriate audit action
-      const statusChanged =
-        updateData.status !== undefined &&
-        updateData.status !== existing.status;
-      const action =
-        updateData.status === 'paid'
-          ? 'paid'
-          : statusChanged
-            ? 'status_changed'
-            : 'updated';
+        // Determine the appropriate audit action
+        const statusChanged =
+          updateData.status !== undefined &&
+          updateData.status !== existing.status;
+        const action =
+          updateData.status === 'paid'
+            ? 'paid'
+            : statusChanged
+              ? 'status_changed'
+              : 'updated';
 
-      const changes: Record<string, { from: any; to: any }> = {};
-      if (statusChanged) {
-        changes['status'] = { from: existing.status, to: invoice.status };
-      }
+        const changes: Record<string, { from: any; to: any }> = {};
+        if (statusChanged) {
+          changes['status'] = { from: existing.status, to: updated.status };
+        }
 
-      // Audit trail — fire-and-forget (non-blocking)
-      void this.auditLogService.log({
-        entityType: 'invoice',
-        entityId: invoice.id,
-        action,
-        actorType: 'system',
-        changes: Object.keys(changes).length > 0 ? changes : undefined,
-        metadata: { invoiceNumber: invoice.invoiceNumber },
+        await this.auditLogService.log(
+          {
+            entityType: 'invoice',
+            entityId: updated.id,
+            action,
+            actorType: 'system',
+            changes: Object.keys(changes).length > 0 ? changes : undefined,
+            metadata: { invoiceNumber: updated.invoiceNumber },
+          },
+          tx,
+        );
+
+        return updated;
       });
 
       return buildSingleResponse(invoice);

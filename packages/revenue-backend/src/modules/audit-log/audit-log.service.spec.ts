@@ -196,4 +196,18 @@ describe('AuditLogService', () => {
       );
     });
   });
+
+  describe('transactional logging', () => {
+    it('writes through a supplied transaction client instead of the default one', async () => {
+      const tx = { auditLog: { create: jest.fn().mockResolvedValue({}) } };
+
+      await service.log(
+        { entityType: 'invoice', entityId: 'inv-1', action: 'created' },
+        tx as any,
+      );
+
+      expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.auditLog.create).not.toHaveBeenCalled();
+    });
+  });
 });

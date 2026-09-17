@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditLogService } from '../../audit-log/audit-log.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ConsolidatedDryRunResult } from '../interfaces/dry-run.interface';
 
@@ -25,7 +26,10 @@ export interface ConsolidatedInvoiceResult {
 
 @Injectable()
 export class ConsolidatedBillingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLog: AuditLogService,
+  ) {}
 
   /**
    * Generate consolidated invoice for parent account and all subsidiaries
@@ -213,6 +217,23 @@ export class ConsolidatedBillingService {
             periodEnd,
           })),
         });
+
+        await this.auditLog.log(
+          {
+            entityType: 'invoice',
+            entityId: newInvoice.id,
+            action: 'created',
+            actorType: 'system',
+            metadata: {
+              invoiceNumber: newInvoice.invoiceNumber,
+              accountId: parentAccountId,
+              source: 'consolidated-billing',
+              subsidiaryCount: accountIds.length,
+              total: String(total),
+            },
+          },
+          tx,
+        );
 
         return newInvoice;
       });
