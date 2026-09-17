@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConsolidatedBillingService } from './consolidated-billing.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditLogService } from '../../audit-log/audit-log.service';
 import { Decimal } from '@prisma/client/runtime/library';
+
+const mockConsolidatedAuditLog = { log: jest.fn() };
 
 describe('ConsolidatedBillingService', () => {
   let service: ConsolidatedBillingService;
@@ -34,6 +37,10 @@ describe('ConsolidatedBillingService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockConsolidatedAuditLog,
         },
       ],
     }).compile();

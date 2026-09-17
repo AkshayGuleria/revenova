@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import {
   NotFoundException,
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+
+const mockAuditLogService = { log: jest.fn() };
 
 const mockPrismaService = {
   payment: {
@@ -52,6 +55,7 @@ describe('PaymentsService', () => {
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
     service = module.get<PaymentsService>(PaymentsService);
@@ -625,6 +629,104 @@ describe('PaymentsService', () => {
       );
       expect(tx.state.paidAmount).toBe(0);
       expect(tx.state.status).toBe('sent');
+    });
+  });
+
+  describe('audit trail', () => {
+    const statefulTx = (invoice: Record<string, any>) => ({
+      invoice: statefulInvoice(invoice),
+      payment: {
+        create: jest.fn(async ({ data }: any) => ({ id: 'pay-new', ...data })),
+        update: jest.fn(async () => ({ id: 'pay-1', invoiceId: 'inv-1' })),
+      },
+    });
+
+    it('records the payment and the invoice balance change on create', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({ id: 'acc-1' });
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 0,
+        status: 'sent',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(statefulTx({ total: 10000, paidAmount: 0, status: 'sent' })),
+      );
+
+      await service.create({
+        paymentNumber: 'PAY-1',
+        accountId: 'acc-1',
+        invoiceId: 'inv-1',
+        amount: 4000,
+        method: 'bank_transfer',
+        paymentDate: '2026-01-15',
+      } as any);
+
+      const logged = mockAuditLogService.log.mock.calls.map((c: any[]) => c[0]);
+      expect(logged).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ entityType: 'payment', action: 'created' }),
+          expect.objectContaining({
+            entityType: 'invoice',
+            action: 'payment_applied',
+          }),
+        ]),
+      );
+    });
+
+    it('writes audit entries through the transaction client', async () => {
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: null,
+        amount: 1000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 5000,
+        paidAmount: 0,
+        status: 'sent',
+      });
+      const tx = statefulTx({ total: 5000, paidAmount: 0, status: 'sent' });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.applyToInvoice('pay-1', { invoiceId: 'inv-1' });
+
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ entityType: 'payment', action: 'applied' }),
+        tx,
+      );
+    });
+
+    it('records a voided payment', async () => {
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: 'inv-1',
+        amount: 1000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(
+          statefulTx({
+            total: 5000,
+            paidAmount: 1000,
+            status: 'partially_paid',
+          }),
+        ),
+      );
+
+      await service.void('pay-1');
+
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ entityType: 'payment', action: 'voided' }),
+        expect.anything(),
+      );
     });
   });
 });

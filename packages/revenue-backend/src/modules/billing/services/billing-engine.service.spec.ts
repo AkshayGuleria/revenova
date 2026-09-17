@@ -5,8 +5,11 @@ import {
 } from './billing-engine.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditLogService } from '../../audit-log/audit-log.service';
 import { NotFoundException } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
+
+const mockAuditLogService = { log: jest.fn() };
 
 describe('BillingEngineService', () => {
   let service: BillingEngineService;
@@ -43,6 +46,10 @@ describe('BillingEngineService', () => {
         {
           provide: SeatCalculatorService,
           useValue: mockSeatCalculator,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
         },
       ],
     }).compile();
@@ -116,6 +123,35 @@ describe('BillingEngineService', () => {
       await expect(
         service.generateInvoiceFromContract({ contractId: 'contract-123' }),
       ).rejects.toThrow('Contract contract-123 is not active');
+    });
+
+    it('records an audit entry for the generated invoice, inside the transaction', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(mockContract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue({
+        seatCount: 50,
+        pricePerSeat: new Decimal(600),
+        subtotal: new Decimal(30000),
+      });
+
+      const tx = {
+        invoice: { create: jest.fn().mockResolvedValue(mockInvoice) },
+        invoiceItem: { createMany: jest.fn() },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) =>
+        callback(tx),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-123' });
+
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: 'invoice',
+          entityId: 'invoice-123',
+          action: 'created',
+        }),
+        tx,
+      );
     });
 
     it('should generate invoice with seat-based pricing', async () => {

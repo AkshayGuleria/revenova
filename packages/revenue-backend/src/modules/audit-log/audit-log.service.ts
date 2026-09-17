@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   buildSingleResponse,
@@ -21,8 +22,18 @@ export interface AuditLogEntry {
 export class AuditLogService {
   constructor(private prisma: PrismaService) {}
 
-  async log(entry: AuditLogEntry): Promise<void> {
-    await this.prisma.auditLog.create({
+  /**
+   * Writes an audit entry.
+   *
+   * Pass the transaction client when auditing a financial mutation: the entry
+   * then commits or rolls back with the change it describes, so the trail can
+   * never disagree with the data (SOC2/GDPR).
+   */
+  async log(
+    entry: AuditLogEntry,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<void> {
+    await client.auditLog.create({
       data: {
         entityType: entry.entityType,
         entityId: entry.entityId,
