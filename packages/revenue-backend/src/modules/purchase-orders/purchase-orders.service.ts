@@ -26,7 +26,24 @@ import {
  * Columns a client may filter on via ?field[op]=value.
  * Excludes free-text `notes`/`rejectionReason` and the `metadata` JSON blob.
  */
-const PURCHASE_ORDER_FILTERABLE_FIELDS: readonly string[] = ['id','poNumber','accountId','contractId','description','amount','currency','issueDate','expiryDate','status','approvedById','approvedAt','rejectedById','rejectedAt','createdAt','updatedAt'];
+const PURCHASE_ORDER_FILTERABLE_FIELDS: readonly string[] = [
+  'id',
+  'poNumber',
+  'accountId',
+  'contractId',
+  'description',
+  'amount',
+  'currency',
+  'issueDate',
+  'expiryDate',
+  'status',
+  'approvedById',
+  'approvedAt',
+  'rejectedById',
+  'rejectedAt',
+  'createdAt',
+  'updatedAt',
+];
 
 @Injectable()
 export class PurchaseOrdersService {

@@ -134,9 +134,9 @@ describe('WebhooksService', () => {
     it('refuses to filter on the signing secret', async () => {
       // `secret` is excluded from `select`, but a filter on it still reaches the
       // where clause — making paging.total a brute-force oracle for the HMAC key.
-      await expect(
-        service.findAll({ 'secret[like]': 'ab%' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.findAll({ 'secret[like]': 'ab%' })).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockPrismaService.webhookEndpoint.findMany).not.toHaveBeenCalled();
     });
 

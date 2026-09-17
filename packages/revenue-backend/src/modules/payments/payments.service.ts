@@ -18,7 +18,20 @@ import { parseQuery } from '../../common/utils/query-parser';
  * Columns a client may filter on via ?field[op]=value.
  * Excludes free-text `notes` and the `metadata` JSON blob.
  */
-const PAYMENT_FILTERABLE_FIELDS: readonly string[] = ['id','paymentNumber','accountId','invoiceId','amount','currency','method','referenceNumber','paymentDate','status','createdAt','updatedAt'];
+const PAYMENT_FILTERABLE_FIELDS: readonly string[] = [
+  'id',
+  'paymentNumber',
+  'accountId',
+  'invoiceId',
+  'amount',
+  'currency',
+  'method',
+  'referenceNumber',
+  'paymentDate',
+  'status',
+  'createdAt',
+  'updatedAt',
+];
 
 @Injectable()
 export class PaymentsService {

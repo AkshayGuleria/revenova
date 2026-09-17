@@ -10,9 +10,20 @@ import { parseQuery } from '../../common/utils/query-parser';
 
 /**
  * Columns a client may filter on via ?field[op]=value.
- * 
+ *
  */
-const TAX_RATE_FILTERABLE_FIELDS: readonly string[] = ['id','jurisdiction','taxType','rate','name','effectiveFrom','effectiveTo','active','createdAt','updatedAt'];
+const TAX_RATE_FILTERABLE_FIELDS: readonly string[] = [
+  'id',
+  'jurisdiction',
+  'taxType',
+  'rate',
+  'name',
+  'effectiveFrom',
+  'effectiveTo',
+  'active',
+  'createdAt',
+  'updatedAt',
+];
 
 @Injectable()
 export class TaxRatesService {

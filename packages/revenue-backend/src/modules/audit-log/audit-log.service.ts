@@ -21,7 +21,15 @@ export interface AuditLogEntry {
  * Columns a client may filter on via ?field[op]=value.
  * Excludes the `changes`/`metadata` JSON blobs, which can hold field values.
  */
-const AUDIT_LOG_FILTERABLE_FIELDS: readonly string[] = ['id','entityType','entityId','action','actorId','actorType','createdAt'];
+const AUDIT_LOG_FILTERABLE_FIELDS: readonly string[] = [
+  'id',
+  'entityType',
+  'entityId',
+  'action',
+  'actorId',
+  'actorType',
+  'createdAt',
+];
 
 @Injectable()
 export class AuditLogService {
@@ -42,7 +50,10 @@ export class AuditLogService {
   }
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
-    const { pagination, where } = parseQuery(query, AUDIT_LOG_FILTERABLE_FIELDS);
+    const { pagination, where } = parseQuery(
+      query,
+      AUDIT_LOG_FILTERABLE_FIELDS,
+    );
     const { offset, limit } = pagination;
 
     const [data, total] = await Promise.all([

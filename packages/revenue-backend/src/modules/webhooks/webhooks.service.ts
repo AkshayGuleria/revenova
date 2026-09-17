@@ -18,7 +18,16 @@ import { parseQuery } from '../../common/utils/query-parser';
  * Deliberately excludes `secret`: it is hidden from `select`, so allowing it as a
  * filter would turn the result count into a brute-force oracle for the HMAC key.
  */
-const WEBHOOK_FILTERABLE_FIELDS: readonly string[] = ['id','accountId','url','events','active','description','createdAt','updatedAt'];
+const WEBHOOK_FILTERABLE_FIELDS: readonly string[] = [
+  'id',
+  'accountId',
+  'url',
+  'events',
+  'active',
+  'description',
+  'createdAt',
+  'updatedAt',
+];
 
 @Injectable()
 export class WebhooksService {
