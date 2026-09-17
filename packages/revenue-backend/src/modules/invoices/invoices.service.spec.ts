@@ -1217,6 +1217,79 @@ describe('InvoicesService', () => {
       total: 5400,
     };
 
+    it('derives subtotal and total from line items, ignoring client-sent amounts', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockImplementation(async ({ data }) => ({
+        id: 'sub-id-1',
+        ...data,
+        items: [],
+        invoiceGroup: null,
+      }));
+
+      const result = await service.createSubInvoice('parent-id', {
+        // client claims 50 while the line items are worth 500
+        subtotal: 50,
+        tax: 0,
+        discount: 0,
+        total: 50,
+        items: [
+          {
+            description: 'Seats',
+            quantity: 5,
+            unitPrice: 100,
+            amount: 500,
+          },
+        ],
+      } as any);
+
+      expect(Number((result.data as any).subtotal)).toBe(500);
+      expect(Number((result.data as any).total)).toBe(500);
+    });
+
+    it('rejects a line item whose amount is not quantity x unitPrice', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      await expect(
+        service.createSubInvoice('parent-id', {
+          subtotal: 500,
+          tax: 0,
+          discount: 0,
+          total: 500,
+          items: [
+            {
+              description: 'Seats',
+              quantity: 5,
+              unitPrice: 100,
+              amount: 5,
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it('derives total from subtotal, tax and discount when there are no line items', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockImplementation(async ({ data }) => ({
+        id: 'sub-id-1',
+        ...data,
+        items: [],
+        invoiceGroup: null,
+      }));
+
+      const result = await service.createSubInvoice('parent-id', {
+        subtotal: 1000,
+        tax: 100,
+        discount: 50,
+        total: 999999, // client-supplied total must not be trusted
+      } as any);
+
+      expect(Number((result.data as any).total)).toBe(1050);
+    });
+
     it('creates first sub-invoice with suffix -A', async () => {
       const createdSub = {
         id: 'sub-id-1',
@@ -1321,19 +1394,6 @@ describe('InvoicesService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when total does not match subtotal + tax - discount', async () => {
-      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
-
-      await expect(
-        service.createSubInvoice('parent-id', {
-          subtotal: 5000,
-          tax: 400,
-          discount: 0,
-          total: 9999,
-        } as any),
-      ).rejects.toThrow(BadRequestException);
-    });
-
     it('throws ConflictException on P2002 when sub-invoice number already exists', async () => {
       const { PrismaClientKnownRequestError } = jest.requireActual(
         '@prisma/client/runtime/library',
@@ -1424,14 +1484,9 @@ describe('InvoicesService', () => {
 
       await service.createSubInvoice('parent-id', dtoWithoutTaxDiscount as any);
 
-      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            tax: 0,
-            discount: 0,
-          }),
-        }),
-      );
+      const { data } = mockPrismaService.invoice.create.mock.calls[0][0];
+      expect(String(data.tax)).toBe('0');
+      expect(String(data.discount)).toBe('0');
     });
 
     it('inherits periodStart and periodEnd from parent when omitted in DTO', async () => {
