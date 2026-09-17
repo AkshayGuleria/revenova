@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreatePaymentDto, ApplyPaymentDto } from './dto';
+import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import {
   buildSingleResponse,
@@ -66,28 +67,13 @@ export class PaymentsService {
           },
         });
 
-        // If linked to an invoice, update paidAmount and auto-mark paid
+        // If linked to an invoice, move its balance atomically
         if (dto.invoiceId) {
-          const invoice = await tx.invoice.findUnique({
-            where: { id: dto.invoiceId },
-          });
-          const newPaidAmount =
-            Number(invoice!.paidAmount) + Number(dto.amount);
-          const newStatus =
-            newPaidAmount >= Number(invoice!.total)
-              ? 'paid'
-              : newPaidAmount > 0
-                ? 'partially_paid'
-                : invoice!.status;
-
-          await tx.invoice.update({
-            where: { id: dto.invoiceId },
-            data: {
-              paidAmount: newPaidAmount,
-              status: newStatus,
-              paidDate: newStatus === 'paid' ? new Date() : undefined,
-            },
-          });
+          await this.settleInvoiceBalance(
+            tx,
+            dto.invoiceId,
+            Number(dto.amount),
+          );
         }
 
         return p;
@@ -102,6 +88,62 @@ export class PaymentsService {
       }
       throw e;
     }
+  }
+
+  /**
+   * Moves an invoice's paid balance by `delta` and derives its status.
+   *
+   * The balance change is an atomic increment/decrement performed by the
+   * database, never a read-then-write: two payments landing at the same time
+   * would otherwise both read the old balance and one would be lost. The
+   * overpayment check runs on the post-update row, so it rolls back the
+   * transaction rather than racing another writer.
+   */
+  private async settleInvoiceBalance(
+    tx: Prisma.TransactionClient,
+    invoiceId: string,
+    delta: number,
+  ): Promise<void> {
+    const applied = await tx.invoice.update({
+      where: { id: invoiceId },
+      data:
+        delta >= 0
+          ? { paidAmount: { increment: delta } }
+          : { paidAmount: { decrement: Math.abs(delta) } },
+    });
+
+    const total = new Prisma.Decimal(applied.total);
+    let paid = new Prisma.Decimal(applied.paidAmount);
+
+    if (delta > 0 && paid.greaterThan(total)) {
+      const room = total.minus(paid).plus(delta);
+      throw new BadRequestException(
+        `Payment exceeds the invoice balance. Outstanding: ${room.toFixed(2)} ${applied.currency ?? ''}`.trim() +
+          '.',
+      );
+    }
+
+    const data: Record<string, any> = {};
+    if (paid.lessThan(0)) {
+      paid = new Prisma.Decimal(0);
+      data.paidAmount = 0;
+    }
+
+    let status: string;
+    if (paid.greaterThan(0) && paid.greaterThanOrEqualTo(total)) {
+      status = 'paid';
+    } else if (paid.greaterThan(0)) {
+      status = 'partially_paid';
+    } else {
+      status = ['paid', 'partially_paid'].includes(applied.status)
+        ? 'sent'
+        : applied.status;
+    }
+
+    data.status = status;
+    data.paidDate = status === 'paid' ? new Date() : null;
+
+    await tx.invoice.update({ where: { id: invoiceId }, data });
   }
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
@@ -172,22 +214,13 @@ export class PaymentsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const newPaidAmount = Number(invoice.paidAmount) + Number(payment.amount);
-      const newStatus =
-        newPaidAmount >= Number(invoice.total)
-          ? 'paid'
-          : newPaidAmount > 0
-            ? 'partially_paid'
-            : invoice.status;
-
-      await tx.invoice.update({
-        where: { id: dto.invoiceId },
-        data: {
-          paidAmount: newPaidAmount,
-          status: newStatus,
-          paidDate: newStatus === 'paid' ? new Date() : undefined,
-        },
-      });
+      // The reads above only validate ownership; the balance itself moves
+      // atomically here, so a concurrent payment cannot be lost.
+      await this.settleInvoiceBalance(
+        tx,
+        dto.invoiceId,
+        Number(payment.amount),
+      );
 
       return tx.payment.update({
         where: { id },
@@ -219,30 +252,11 @@ export class PaymentsService {
     const result = await this.prisma.$transaction(async (tx) => {
       // Reverse paidAmount on linked invoice
       if (payment.invoiceId) {
-        const invoice = await tx.invoice.findUnique({
-          where: { id: payment.invoiceId },
-        });
-        if (invoice) {
-          const newPaidAmount = Math.max(
-            0,
-            Number(invoice.paidAmount) - Number(payment.amount),
-          );
-          const newStatus =
-            newPaidAmount <= 0
-              ? invoice.status === 'paid'
-                ? 'sent'
-                : invoice.status
-              : 'partially_paid';
-
-          await tx.invoice.update({
-            where: { id: payment.invoiceId },
-            data: {
-              paidAmount: newPaidAmount,
-              status: newStatus,
-              paidDate: null,
-            },
-          });
-        }
+        await this.settleInvoiceBalance(
+          tx,
+          payment.invoiceId,
+          -Number(payment.amount),
+        );
       }
 
       return tx.payment.update({

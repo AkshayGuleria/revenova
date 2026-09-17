@@ -20,6 +20,30 @@ const mockPrismaService = {
   $transaction: jest.fn(),
 };
 
+/**
+ * Invoice row that applies `{ increment }` / `{ decrement }` the way the
+ * database does, and returns the post-update row.
+ */
+const statefulInvoice = (invoice: Record<string, any>) => {
+  const state: Record<string, any> = { currency: 'EUR', ...invoice };
+  return {
+    findUnique: jest.fn(async () => ({ ...state })),
+    update: jest.fn(async ({ data }: any) => {
+      if (data.paidAmount?.increment !== undefined) {
+        state.paidAmount =
+          Number(state.paidAmount) + Number(data.paidAmount.increment);
+      } else if (data.paidAmount?.decrement !== undefined) {
+        state.paidAmount =
+          Number(state.paidAmount) - Number(data.paidAmount.decrement);
+      } else if (data.paidAmount !== undefined) {
+        state.paidAmount = Number(data.paidAmount);
+      }
+      if (data.status !== undefined) state.status = data.status;
+      return { ...state };
+    }),
+  };
+};
+
 describe('PaymentsService', () => {
   let service: PaymentsService;
 
@@ -53,14 +77,11 @@ describe('PaymentsService', () => {
               invoiceId: 'inv-1',
             }),
           },
-          invoice: {
-            findUnique: jest.fn().mockResolvedValue({
-              total: 5000,
-              paidAmount: 0,
-              status: 'sent',
-            }),
-            update: jest.fn(),
-          },
+          invoice: statefulInvoice({
+            total: 5000,
+            paidAmount: 0,
+            status: 'sent',
+          }),
         };
         return fn(txMock);
       });
@@ -125,16 +146,19 @@ describe('PaymentsService', () => {
               invoiceId: 'inv-1',
             }),
           },
-          invoice: {
-            findUnique: jest.fn().mockResolvedValue({
+          invoice: (() => {
+            const inv = statefulInvoice({
               total: 5000,
               paidAmount: 0,
               status: 'sent',
-            }),
-            update: jest.fn().mockImplementation(({ data }) => {
-              invoiceUpdateData = data;
-            }),
-          },
+            });
+            const update = inv.update;
+            inv.update = jest.fn(async (args: any) => {
+              invoiceUpdateData = args.data;
+              return update(args);
+            });
+            return inv;
+          })(),
         };
         return fn(txMock);
       });
@@ -273,7 +297,11 @@ describe('PaymentsService', () => {
       });
       mockPrismaService.$transaction.mockImplementation(async (fn) => {
         const txMock = {
-          invoice: { update: jest.fn() },
+          invoice: statefulInvoice({
+            total: 1000,
+            paidAmount: 0,
+            status: 'sent',
+          }),
           payment: {
             update: jest
               .fn()
@@ -368,12 +396,11 @@ describe('PaymentsService', () => {
       });
       mockPrismaService.$transaction.mockImplementation(async (fn) => {
         const txMock = {
-          invoice: {
-            findUnique: jest
-              .fn()
-              .mockResolvedValue({ paidAmount: 1000, status: 'paid' }),
-            update: jest.fn(),
-          },
+          invoice: statefulInvoice({
+            total: 1000,
+            paidAmount: 1000,
+            status: 'paid',
+          }),
           payment: {
             update: jest
               .fn()
@@ -422,6 +449,182 @@ describe('PaymentsService', () => {
     it('should throw NotFoundException for unknown payment', async () => {
       mockPrismaService.payment.findUnique.mockResolvedValue(null);
       await expect(service.void('bad')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Concurrency-safe balance updates (P0-5)
+  // -------------------------------------------------------------------------
+  describe('invoice balance updates', () => {
+    /**
+     * Models a real invoice row: `{ increment }` is applied by the database,
+     * so a stale read cannot silently win. Returns the post-update row.
+     */
+    const txForInvoice = (invoice: Record<string, any>) => {
+      const state = { ...invoice };
+      return {
+        state,
+        invoice: {
+          findUnique: jest.fn(async () => ({ ...state })),
+          update: jest.fn(async ({ data }: any) => {
+            if (data.paidAmount?.increment !== undefined) {
+              state.paidAmount =
+                Number(state.paidAmount) + Number(data.paidAmount.increment);
+            } else if (data.paidAmount?.decrement !== undefined) {
+              state.paidAmount =
+                Number(state.paidAmount) - Number(data.paidAmount.decrement);
+            } else if (data.paidAmount !== undefined) {
+              state.paidAmount = Number(data.paidAmount);
+            }
+            if (data.status !== undefined) state.status = data.status;
+            return { ...state };
+          }),
+        },
+        payment: {
+          create: jest.fn(async ({ data }: any) => ({
+            id: 'pay-new',
+            ...data,
+          })),
+          update: jest.fn(async () => ({ id: 'pay-1', invoiceId: 'inv-1' })),
+        },
+      };
+    };
+
+    it('applies a payment with an atomic increment, not a read-then-write', async () => {
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: null,
+        amount: 5000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      const tx = txForInvoice({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 0,
+        status: 'sent',
+      });
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 0,
+        status: 'sent',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.applyToInvoice('pay-1', { invoiceId: 'inv-1' });
+
+      expect(tx.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            paidAmount: { increment: 5000 },
+          }),
+        }),
+      );
+      expect(tx.state.paidAmount).toBe(5000);
+      expect(tx.state.status).toBe('partially_paid');
+    });
+
+    it('refuses a payment that would overpay the invoice', async () => {
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: null,
+        amount: 5000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      const tx = txForInvoice({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 8000,
+        status: 'partially_paid',
+      });
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 8000,
+        status: 'partially_paid',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await expect(
+        service.applyToInvoice('pay-1', { invoiceId: 'inv-1' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('creates an invoice-linked payment with an atomic increment', async () => {
+      mockPrismaService.account.findUnique.mockResolvedValue({ id: 'acc-1' });
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 0,
+        status: 'sent',
+      });
+      const tx = txForInvoice({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 0,
+        status: 'sent',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.create({
+        paymentNumber: 'PAY-1',
+        accountId: 'acc-1',
+        invoiceId: 'inv-1',
+        amount: 10000,
+        method: 'bank_transfer',
+        paymentDate: '2026-01-15',
+      } as any);
+
+      expect(tx.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ paidAmount: { increment: 10000 } }),
+        }),
+      );
+      expect(tx.state.status).toBe('paid');
+    });
+
+    it('voids a payment with an atomic decrement and never goes negative', async () => {
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: 'inv-1',
+        amount: 5000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      const tx = txForInvoice({
+        id: 'inv-1',
+        accountId: 'acc-1',
+        total: 10000,
+        paidAmount: 5000,
+        status: 'partially_paid',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.void('pay-1');
+
+      expect(tx.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ paidAmount: { decrement: 5000 } }),
+        }),
+      );
+      expect(tx.state.paidAmount).toBe(0);
+      expect(tx.state.status).toBe('sent');
     });
   });
 });
