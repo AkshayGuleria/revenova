@@ -359,6 +359,17 @@ export class InvoicesService {
   ): Promise<ApiResponse<any>> {
     const parent = await this.getInvoiceById(parentId);
 
+    // CreditHoldGuard reads request.body.accountId, which a sub-invoice never
+    // sends — it inherits the parent's account — so the guard silently passed.
+    const account = await this.prisma.account.findUnique({
+      where: { id: parent.accountId },
+    });
+    if (account?.creditHold) {
+      throw new BadRequestException(
+        `Account ${parent.accountId} is on credit hold. Cannot create sub-invoice.`,
+      );
+    }
+
     // Validate invoice group if provided
     if (dto.invoiceGroupId) {
       const group = await this.prisma.invoiceGroup.findUnique({

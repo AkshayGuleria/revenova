@@ -96,15 +96,55 @@ export class ContractBillingProcessor extends WorkerHost {
       `Running batch contract billing for ${billingPeriod} on ${billingDate}`,
     );
 
-    // TODO: Implement batch billing logic
-    // 1. Find all contracts due for billing
-    // 2. Generate invoices for each contract
-    // 3. Return summary of processed contracts
+    const PAGE_SIZE = 100;
+    const asOf = new Date(billingDate);
+    let skip = 0;
+    let processedCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
+
+    for (;;) {
+      const contracts = await this.billingEngine.findContractsDueForBilling(
+        billingPeriod,
+        asOf,
+        { skip, take: PAGE_SIZE },
+      );
+      if (contracts.length === 0) break;
+
+      for (const contract of contracts) {
+        try {
+          await this.billingEngine.generateInvoiceFromContract({
+            contractId: contract.id,
+          });
+          processedCount++;
+        } catch (error) {
+          if (error instanceof ConflictException) {
+            // Already billed for this period. The DB partial unique index is
+            // the real guard, so this is a safe no-op, not a failure.
+            skippedCount++;
+          } else {
+            // One bad contract must not abandon the rest of the run.
+            failedCount++;
+            this.logger.error(
+              `Batch billing failed for contract ${contract.id}: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+          }
+        }
+      }
+
+      if (contracts.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
+    }
 
     return {
-      processedCount: 0,
-      failedCount: 0,
-      message: 'Batch billing not yet implemented',
+      processedCount,
+      skippedCount,
+      failedCount,
+      message:
+        `Batch ${billingPeriod} billing for ${billingDate}: ` +
+        `${processedCount} invoiced, ${skippedCount} already billed, ${failedCount} failed`,
     };
   }
 

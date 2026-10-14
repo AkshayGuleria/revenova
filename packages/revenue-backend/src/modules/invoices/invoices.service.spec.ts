@@ -1271,6 +1271,15 @@ describe('InvoicesService', () => {
   // ---------------------------------------------------------------------------
 
   describe('createSubInvoice', () => {
+    beforeEach(() => {
+      // Default: account is not on credit hold. clearAllMocks() does not drop
+      // implementations, so without this a hold set by one test leaks forward.
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-1',
+        creditHold: false,
+      });
+    });
+
     const parentInvoice = {
       id: 'parent-id',
       invoiceNumber: 'INV-2026-000001',
@@ -1363,6 +1372,24 @@ describe('InvoicesService', () => {
       } as any);
 
       expect(Number((result.data as any).total)).toBe(1050);
+    });
+
+    it('refuses to create a sub-invoice for an account on credit hold (P0-8)', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-1',
+        creditHold: true,
+      });
+
+      await expect(
+        service.createSubInvoice('parent-id', {
+          subtotal: 1000,
+          tax: 0,
+          discount: 0,
+          total: 1000,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.invoice.create).not.toHaveBeenCalled();
     });
 
     it('creates first sub-invoice with suffix -A', async () => {

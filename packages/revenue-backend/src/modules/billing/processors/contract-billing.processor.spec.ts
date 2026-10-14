@@ -11,6 +11,7 @@ describe('ContractBillingProcessor', () => {
 
   const mockBillingEngine = {
     generateInvoiceFromContract: jest.fn(),
+    findContractsDueForBilling: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -146,13 +147,19 @@ describe('ContractBillingProcessor', () => {
         data: jobData,
       } as Job;
 
+      mockBillingEngine.findContractsDueForBilling.mockResolvedValue([]);
+
       const result = await processor.process(mockJob);
 
-      // Current implementation returns placeholder
-      expect(result).toEqual({
+      expect(mockBillingEngine.findContractsDueForBilling).toHaveBeenCalledWith(
+        'monthly',
+        new Date('2026-01-01'),
+        { skip: 0, take: 100 },
+      );
+      expect(result).toMatchObject({
         processedCount: 0,
+        skippedCount: 0,
         failedCount: 0,
-        message: 'Batch billing not yet implemented',
       });
     });
 
@@ -168,9 +175,16 @@ describe('ContractBillingProcessor', () => {
         data: jobData,
       } as Job;
 
+      mockBillingEngine.findContractsDueForBilling.mockResolvedValue([]);
+
       const result = await processor.process(mockJob);
 
-      expect(result.message).toBe('Batch billing not yet implemented');
+      expect(mockBillingEngine.findContractsDueForBilling).toHaveBeenCalledWith(
+        'quarterly',
+        new Date('2026-04-01'),
+        { skip: 0, take: 100 },
+      );
+      expect(result.message).toContain('quarterly');
     });
 
     it('should handle annual batch billing', async () => {
@@ -185,9 +199,16 @@ describe('ContractBillingProcessor', () => {
         data: jobData,
       } as Job;
 
+      mockBillingEngine.findContractsDueForBilling.mockResolvedValue([]);
+
       const result = await processor.process(mockJob);
 
-      expect(result.message).toBe('Batch billing not yet implemented');
+      expect(mockBillingEngine.findContractsDueForBilling).toHaveBeenCalledWith(
+        'annual',
+        new Date('2026-01-01'),
+        { skip: 0, take: 100 },
+      );
+      expect(result.message).toContain('annual');
     });
   });
 
@@ -236,6 +257,91 @@ describe('ContractBillingProcessor', () => {
 
       // Should not throw
       expect(() => processor.onActive(mockJob)).not.toThrow();
+    });
+  });
+
+  describe('batch contract billing (P0-9)', () => {
+    beforeEach(() => {
+      // mockResolvedValueOnce queues are not drained by clearAllMocks
+      mockBillingEngine.findContractsDueForBilling.mockReset();
+      mockBillingEngine.generateInvoiceFromContract.mockReset();
+    });
+
+    const batchJob = {
+      id: 'job-batch',
+      name: 'batch-contract-billing',
+      data: { billingDate: '2026-02-01', billingPeriod: 'monthly' },
+    } as Job<any>;
+
+    it('bills every contract that is due and reports the counts', async () => {
+      mockBillingEngine.findContractsDueForBilling.mockImplementation(
+        async (_freq: string, _asOf: Date, { skip }: any) =>
+          skip === 0 ? [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }] : [],
+      );
+      mockBillingEngine.generateInvoiceFromContract.mockResolvedValue({
+        invoiceId: 'inv',
+        total: new Decimal(100),
+      });
+
+      const result = await processor.process(batchJob);
+
+      expect(
+        mockBillingEngine.generateInvoiceFromContract,
+      ).toHaveBeenCalledTimes(3);
+      expect(result).toMatchObject({
+        processedCount: 3,
+        skippedCount: 0,
+        failedCount: 0,
+      });
+    });
+
+    it('counts an already-billed period as skipped, not failed', async () => {
+      const { ConflictException } = jest.requireActual('@nestjs/common');
+      mockBillingEngine.findContractsDueForBilling.mockImplementation(
+        async (_freq: string, _asOf: Date, { skip }: any) =>
+          skip === 0 ? [{ id: 'c-1' }, { id: 'c-2' }] : [],
+      );
+      mockBillingEngine.generateInvoiceFromContract
+        .mockResolvedValueOnce({ invoiceId: 'inv-1', total: new Decimal(100) })
+        .mockRejectedValueOnce(new ConflictException('already billed'));
+
+      const result = await processor.process(batchJob);
+
+      expect(result).toMatchObject({
+        processedCount: 1,
+        skippedCount: 1,
+        failedCount: 0,
+      });
+    });
+
+    it('keeps going after a failure instead of abandoning the run', async () => {
+      mockBillingEngine.findContractsDueForBilling.mockImplementation(
+        async (_freq: string, _asOf: Date, { skip }: any) =>
+          skip === 0 ? [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }] : [],
+      );
+      mockBillingEngine.generateInvoiceFromContract
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({ invoiceId: 'inv-2', total: new Decimal(100) })
+        .mockResolvedValueOnce({ invoiceId: 'inv-3', total: new Decimal(100) });
+
+      const result = await processor.process(batchJob);
+
+      expect(
+        mockBillingEngine.generateInvoiceFromContract,
+      ).toHaveBeenCalledTimes(3);
+      expect(result).toMatchObject({
+        processedCount: 2,
+        failedCount: 1,
+      });
+    });
+
+    it('never reports success while billing nothing', async () => {
+      mockBillingEngine.findContractsDueForBilling.mockResolvedValue([]);
+
+      const result = await processor.process(batchJob);
+
+      expect(result).toMatchObject({ processedCount: 0 });
+      expect(result.message).not.toMatch(/not yet implemented/i);
     });
   });
 });

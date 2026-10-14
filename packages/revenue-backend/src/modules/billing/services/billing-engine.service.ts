@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ConflictException,
@@ -41,6 +42,33 @@ export class BillingEngineService {
   ) {}
 
   /**
+   * Active contracts whose term covers `asOf` and whose billing frequency
+   * matches the run. Accounts on credit hold are excluded in the query — they
+   * would be rejected per-contract anyway.
+   *
+   * Paginated so a batch run never loads the whole table into memory.
+   */
+  async findContractsDueForBilling(
+    billingFrequency: string,
+    asOf: Date,
+    pagination: { skip: number; take: number },
+  ): Promise<{ id: string }[]> {
+    return this.prisma.contract.findMany({
+      where: {
+        status: 'active',
+        billingFrequency,
+        startDate: { lte: asOf },
+        endDate: { gte: asOf },
+        account: { creditHold: false, deletedAt: null },
+      },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+  }
+
+  /**
    * Generate invoice from contract.
    */
   async generateInvoiceFromContract(
@@ -62,6 +90,16 @@ export class BillingEngineService {
 
     if (contract.status !== 'active') {
       throw new Error(`Contract ${contractId} is not active`);
+    }
+
+    // Credit hold must block the automated path too. CreditHoldGuard only
+    // covers POST /api/invoices, so without this a frozen account kept being
+    // invoiced by queued and scheduled billing. Dry-run preview below is
+    // read-only and deliberately not blocked.
+    if (contract.account.creditHold) {
+      throw new BadRequestException(
+        `Account ${contract.accountId} is on credit hold. Cannot generate invoice.`,
+      );
     }
 
     const billingPeriod = this.calculateBillingPeriod(
