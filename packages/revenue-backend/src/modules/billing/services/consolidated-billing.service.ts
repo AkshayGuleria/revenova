@@ -10,7 +10,10 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
 import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { Decimal } from '@prisma/client/runtime/library';
-import { ConsolidatedDryRunResult } from '../interfaces/dry-run.interface';
+import {
+  ConsolidatedDryRunResult,
+  TaxStatus,
+} from '../interfaces/dry-run.interface';
 
 export interface ConsolidatedInvoiceParams {
   parentAccountId: string;
@@ -172,7 +175,7 @@ export class ConsolidatedBillingService {
     }
 
     // Calculate tax and totals
-    const tax = await this.calculateTax(subtotal, parentAccount);
+    const { tax, taxStatus } = await this.calculateTax(subtotal, parentAccount);
     const discount = new Decimal(0); // TODO: Apply consolidated discounts
     const total = subtotal.add(tax).sub(discount);
 
@@ -235,6 +238,7 @@ export class ConsolidatedBillingService {
               source: 'consolidated-billing',
               subsidiaryCount: accountIds.length - 1, // accountIds[0] is the parent
               total: String(total),
+              taxStatus,
             },
           },
           tx,
@@ -369,7 +373,7 @@ export class ConsolidatedBillingService {
       );
     }
 
-    const tax = await this.calculateTax(subtotal, parentAccount);
+    const { tax, taxStatus } = await this.calculateTax(subtotal, parentAccount);
     const discount = new Decimal(0);
     const total = subtotal.add(tax).sub(discount);
 
@@ -399,6 +403,7 @@ export class ConsolidatedBillingService {
       subsidiariesIncluded: accountIds.length - 1,
       isDryRun: true,
       computedAt: new Date().toISOString(),
+      taxStatus,
     };
   }
 
@@ -523,20 +528,27 @@ export class ConsolidatedBillingService {
    * billingCountry; rate is a fraction; applied to the subtotal; a missing
    * rate yields 0 tax and a warning rather than a failed invoice.
    */
+  /**
+   * Tax for a consolidated invoice, from the parent account's jurisdiction.
+   *
+   * Mirrors BillingEngineService.resolveTax, including the distinction that
+   * matters: a CONFIGURED 0% rate is `zero_rated` (a real case, e.g. Finnish
+   * healthcare) while a zero caused by missing config is flagged `unrated_*`.
+   */
   private async calculateTax(
     subtotal: Decimal,
     parentAccount: {
       billingState?: string | null;
       billingCountry?: string | null;
     },
-  ): Promise<Decimal> {
+  ): Promise<{ tax: Decimal; taxStatus: TaxStatus }> {
     const jurisdiction =
       parentAccount?.billingState || parentAccount?.billingCountry;
     if (!jurisdiction) {
       this.logger.warn(
-        'No billing state or country on parent account — consolidated invoice billed with 0 tax',
+        'No billing state or country on parent account — consolidated invoice billed with 0 tax (unrated)',
       );
-      return new Decimal(0);
+      return { tax: new Decimal(0), taxStatus: 'unrated_no_jurisdiction' };
     }
 
     const taxRate = await this.taxRates.findApplicableRate(
@@ -545,12 +557,17 @@ export class ConsolidatedBillingService {
     );
     if (!taxRate) {
       this.logger.warn(
-        `No active tax rate for jurisdiction ${jurisdiction} — consolidated invoice billed with 0 tax`,
+        `No active tax rate for jurisdiction ${jurisdiction} — consolidated invoice billed with 0 tax (unrated)`,
       );
-      return new Decimal(0);
+      return { tax: new Decimal(0), taxStatus: 'unrated_no_rate' };
     }
 
-    return subtotal.mul(new Decimal(taxRate.rate as any));
+    const rate = new Decimal(taxRate.rate as any);
+    if (rate.isZero()) {
+      return { tax: new Decimal(0), taxStatus: 'zero_rated' };
+    }
+
+    return { tax: subtotal.mul(rate), taxStatus: 'rated' };
   }
 
   /**

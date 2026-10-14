@@ -1397,4 +1397,156 @@ describe('BillingEngineService', () => {
       expect(preview.tierDivergences?.[0].tierUnitPrice).toBe('80.00');
     });
   });
+
+  describe('tax status — zero-rated vs unrated (P0-6 follow-up)', () => {
+    const periodStart = new Date('2026-01-01');
+
+    const contractFor = (account: Record<string, any>) => ({
+      id: 'contract-1',
+      accountId: 'account-1',
+      status: 'active',
+      startDate: new Date('2026-01-01'),
+      billingFrequency: 'monthly',
+      contractValue: new Decimal(12000),
+      seatCount: null,
+      seatPrice: null,
+      account: { currency: 'EUR', paymentTermsDays: 30, ...account },
+      products: [
+        {
+          quantity: 10,
+          unitPrice: null,
+          discount: null,
+          product: {
+            name: 'Care Platform',
+            basePrice: new Decimal(100),
+            chargeType: 'recurring',
+            setupFee: null,
+            trialPeriodDays: null,
+            volumeTiers: null,
+          },
+        },
+      ],
+    });
+
+    it('treats a configured 0% rate as rated, not a problem', async () => {
+      // Legitimate zero-rated supply (e.g. Finnish healthcare VAT exemption).
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'FI',
+        taxType: 'vat',
+        rate: new Decimal('0'),
+        name: 'Healthcare exemption',
+      });
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: 'FI' }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tax.toString()).toBe('0');
+      expect(result.taxStatus).toBe('zero_rated');
+    });
+
+    it('flags a zero that comes from no configured rate', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: 'DE' }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tax.toString()).toBe('0');
+      expect(result.taxStatus).toBe('unrated_no_rate');
+    });
+
+    it('flags an account with no jurisdiction at all', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: null, billingState: null }),
+        null,
+        periodStart,
+      );
+
+      expect(result.taxStatus).toBe('unrated_no_jurisdiction');
+      expect(mockTaxRates.findApplicableRate).not.toHaveBeenCalled();
+    });
+
+    it('reports a normal rate as rated', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'DE',
+        taxType: 'vat',
+        rate: new Decimal('0.19'),
+        name: 'German VAT',
+      });
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: 'DE' }),
+        null,
+        periodStart,
+      );
+
+      expect(result.taxStatus).toBe('rated');
+      expect(result.tax.toString()).toBe('190');
+    });
+
+    it('carries an unrated flag into audit metadata and dry-run output', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractFor({ billingCountry: 'DE' }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            create: jest.fn().mockResolvedValue({
+              id: 'invoice-1',
+              invoiceNumber: 'INV-2026-000001',
+              total: new Decimal(1000),
+            }),
+          },
+          invoiceItem: { createMany: jest.fn() },
+        }),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-1' });
+      const entry = mockAuditLogService.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.taxStatus).toBe('unrated_no_rate');
+
+      const preview = await service.previewInvoice({
+        contractId: 'contract-1',
+      });
+      expect(preview.taxStatus).toBe('unrated_no_rate');
+    });
+
+    it('does not flag a configured zero rate in audit metadata', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'FI',
+        taxType: 'vat',
+        rate: new Decimal('0'),
+        name: 'Healthcare exemption',
+      });
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractFor({ billingCountry: 'FI' }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            create: jest.fn().mockResolvedValue({
+              id: 'invoice-2',
+              invoiceNumber: 'INV-2026-000002',
+              total: new Decimal(1000),
+            }),
+          },
+          invoiceItem: { createMany: jest.fn() },
+        }),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-1' });
+      const entry = mockAuditLogService.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.taxStatus).toBe('zero_rated');
+    });
+  });
 });

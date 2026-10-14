@@ -13,6 +13,7 @@ import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   InvoiceDryRunResult,
+  TaxStatus,
   TierDivergence,
 } from '../interfaces/dry-run.interface';
 
@@ -189,6 +190,7 @@ export class BillingEngineService {
               contractId: contract.id,
               source: 'contract-billing',
               total: String(amounts.total),
+              taxStatus: amounts.taxStatus,
               ...(amounts.tierDivergences.length > 0 && {
                 tierDivergences: amounts.tierDivergences,
               }),
@@ -293,6 +295,7 @@ export class BillingEngineService {
       isDryRun: true,
       computedAt: new Date().toISOString(),
       tierDivergences: amounts.tierDivergences,
+      taxStatus: amounts.taxStatus,
     };
   }
 
@@ -548,10 +551,22 @@ export class BillingEngineService {
     }
 
     const discount = new Decimal(0);
-    const tax = await this.resolveTax(contract.account, subtotal, periodStart);
+    const { tax, taxStatus } = await this.resolveTax(
+      contract.account,
+      subtotal,
+      periodStart,
+    );
     const total = subtotal.add(tax).sub(discount);
 
-    return { lineItems, subtotal, tax, discount, total, tierDivergences };
+    return {
+      lineItems,
+      subtotal,
+      tax,
+      discount,
+      total,
+      tierDivergences,
+      taxStatus,
+    };
   }
 
   /**
@@ -567,24 +582,32 @@ export class BillingEngineService {
     account: { billingState?: string | null; billingCountry?: string | null },
     subtotal: Decimal,
     asOf: Date,
-  ): Promise<Decimal> {
+  ): Promise<{ tax: Decimal; taxStatus: TaxStatus }> {
     const jurisdiction = account?.billingState || account?.billingCountry;
     if (!jurisdiction) {
       this.logger.warn(
-        'No billing state or country on account — billing invoice with 0 tax',
+        'No billing state or country on account — billing invoice with 0 tax (unrated)',
       );
-      return new Decimal(0);
+      return { tax: new Decimal(0), taxStatus: 'unrated_no_jurisdiction' };
     }
 
     const taxRate = await this.taxRates.findApplicableRate(jurisdiction, asOf);
     if (!taxRate) {
       this.logger.warn(
-        `No active tax rate for jurisdiction ${jurisdiction} — billing invoice with 0 tax`,
+        `No active tax rate for jurisdiction ${jurisdiction} — billing invoice with 0 tax (unrated)`,
       );
-      return new Decimal(0);
+      return { tax: new Decimal(0), taxStatus: 'unrated_no_rate' };
     }
 
-    return subtotal.mul(new Decimal(taxRate.rate as any));
+    const rate = new Decimal(taxRate.rate as any);
+
+    // A configured 0% rate is a real answer, not missing config — zero-rated
+    // supplies exist (e.g. Finnish healthcare). It is NOT flagged.
+    if (rate.isZero()) {
+      return { tax: new Decimal(0), taxStatus: 'zero_rated' };
+    }
+
+    return { tax: subtotal.mul(rate), taxStatus: 'rated' };
   }
 
   private calculatePeriodAmount(
