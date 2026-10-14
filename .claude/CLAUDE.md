@@ -100,6 +100,22 @@ Agent definitions: `.claude/agents/` — one file per agent. Never use `agents.m
 
 - **Record progress in ONE place** — README "Development Phases". Never copy phase status into
   MEMORY.md, agent files, `feature-spec.md`, package READMEs, or task-tracker tables in feature docs
+- **One topic, one owning doc.** Before adding content, check this table and write it in the owner
+  — everywhere else links:
+
+| Topic | Owner |
+|-------|-------|
+| Phase status, gaps, backlog | `README.md` → Development Phases |
+| Runtime architecture (as-built + designed-not-built) | `docs/reference/architecture.md` |
+| Database schema | `packages/revenue-backend/prisma/schema.prisma` |
+| API endpoints, examples | `docs/reference/openapi.json` (generated) |
+| Environment variables | `docs/reference/env-vars.md` + `.env.example` |
+| Per-feature behaviour | `docs/features/<feature>.md` |
+| Testing strategy, agent/workflow rules | this file |
+| Origin story, original scope | `docs/feature-spec.md` (frozen, never updated) |
+
+- `architecture.md` states only what the code does; anything unbuilt goes under its
+  "Designed, Not Built" section and is tracked in the README backlog
 - Feature docs carry a single `**Status:**` line — no checkbox/task-tracker tables
 - Use Edit tool for each status change individually
 - Confirm before making >3 changes at once
@@ -117,7 +133,7 @@ Agent definitions: `.claude/agents/` — one file per agent. Never use `agents.m
 
 | Topic | File |
 |-------|------|
-| Architecture, stack, DB schema, perf targets | `docs/reference/architecture.md` |
+| Runtime architecture — as-built + designed-not-built | `docs/reference/architecture.md` |
 | Full endpoint listing (machine-generated) | `docs/reference/openapi.json` or `http://localhost:5177/api/docs` |
 | Environment variables | `docs/reference/env-vars.md` |
 | Feature doc template | `docs/reference/feature-doc-template.md` |
