@@ -450,7 +450,7 @@ export interface CreateAccountDto {
   paymentTerms?: PaymentTerms;
   currency?: string;
   taxId?: string;
-  creditLimit?: number;
+  // creditLimit/creditHold are not settable here — use PATCH /accounts/:id/credit
 
   metadata?: Record<string, any>;
 }
@@ -532,12 +532,7 @@ export interface UpdateInvoiceDto {
   currency?: string;
   notes?: string;
   internalNotes?: string;
-  subtotal?: number;
-  tax?: number;
-  discount?: number;
-  total?: number;
-  paidAmount?: number;
-  paidDate?: string;
+  // Amounts are derived server-side; paidAmount/paidDate come from payments.
   metadata?: Record<string, any>;
 }
 

@@ -693,7 +693,7 @@ describe('InvoicesService', () => {
   describe('update', () => {
     it('should update invoice successfully', async () => {
       const updateDto: UpdateInvoiceDto = {
-        status: InvoiceStatus.PAID,
+        status: InvoiceStatus.SENT,
       };
 
       const mockExistingInvoice = {
@@ -714,6 +714,31 @@ describe('InvoicesService', () => {
       const result = await service.update('invoice-id-123', updateDto);
 
       expect(result.data).toEqual(mockUpdatedInvoice);
+    });
+
+    it('refuses a direct transition to paid — that state comes from a payment', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'invoice-id-123',
+        status: 'sent',
+      });
+
+      await expect(
+        service.update('invoice-id-123', { status: InvoiceStatus.PAID }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.invoice.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a direct transition to partially_paid', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'invoice-id-123',
+        status: 'sent',
+      });
+
+      await expect(
+        service.update('invoice-id-123', {
+          status: 'partially_paid' as InvoiceStatus,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should validate account if accountId is updated', async () => {
@@ -925,12 +950,11 @@ describe('InvoicesService', () => {
       ],
     };
 
-    it('should create invoice with periodStart, periodEnd, and paidDate', async () => {
+    it('should create invoice with periodStart and periodEnd', async () => {
       const dtoWithDates: CreateInvoiceDto = {
         ...baseDto,
         periodStart: '2024-01-01',
         periodEnd: '2024-01-31',
-        paidDate: '2024-01-15',
       };
 
       const mockAccount = { id: 'account-123' };
@@ -943,7 +967,6 @@ describe('InvoicesService', () => {
         dueDate: new Date('2024-01-31'),
         periodStart: new Date('2024-01-01'),
         periodEnd: new Date('2024-01-31'),
-        paidDate: new Date('2024-01-15'),
         items: [],
       };
 
@@ -961,7 +984,6 @@ describe('InvoicesService', () => {
           data: expect.objectContaining({
             periodStart: new Date('2024-01-01'),
             periodEnd: new Date('2024-01-31'),
-            paidDate: new Date('2024-01-15'),
           }),
         }),
       );
@@ -1179,7 +1201,6 @@ describe('InvoicesService', () => {
         dueDate: '2024-03-01',
         periodStart: '2024-02-01',
         periodEnd: '2024-02-28',
-        paidDate: '2024-02-15',
       };
 
       const mockExistingInvoice = {
@@ -1194,7 +1215,6 @@ describe('InvoicesService', () => {
         dueDate: new Date('2024-03-01'),
         periodStart: new Date('2024-02-01'),
         periodEnd: new Date('2024-02-28'),
-        paidDate: new Date('2024-02-15'),
       };
 
       mockPrismaService.invoice.findUnique.mockResolvedValue(
@@ -1212,7 +1232,6 @@ describe('InvoicesService', () => {
             dueDate: new Date('2024-03-01'),
             periodStart: new Date('2024-02-01'),
             periodEnd: new Date('2024-02-28'),
-            paidDate: new Date('2024-02-15'),
           }),
         }),
       );
@@ -1221,7 +1240,7 @@ describe('InvoicesService', () => {
     it('should update contractId to undefined (null) when explicitly set', async () => {
       const updateDto: UpdateInvoiceDto = {
         contractId: undefined,
-        status: InvoiceStatus.PAID,
+        status: InvoiceStatus.SENT,
       };
 
       const mockExistingInvoice = {
@@ -1233,7 +1252,7 @@ describe('InvoicesService', () => {
       const mockUpdatedInvoice = {
         ...mockExistingInvoice,
         contractId: undefined,
-        status: 'paid',
+        status: 'sent',
       };
 
       mockPrismaService.invoice.findUnique.mockResolvedValue(
@@ -1272,6 +1291,79 @@ describe('InvoicesService', () => {
       discount: 0,
       total: 5400,
     };
+
+    it('derives subtotal and total from line items, ignoring client-sent amounts', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockImplementation(async ({ data }) => ({
+        id: 'sub-id-1',
+        ...data,
+        items: [],
+        invoiceGroup: null,
+      }));
+
+      const result = await service.createSubInvoice('parent-id', {
+        // client claims 50 while the line items are worth 500
+        subtotal: 50,
+        tax: 0,
+        discount: 0,
+        total: 50,
+        items: [
+          {
+            description: 'Seats',
+            quantity: 5,
+            unitPrice: 100,
+            amount: 500,
+          },
+        ],
+      } as any);
+
+      expect(Number((result.data as any).subtotal)).toBe(500);
+      expect(Number((result.data as any).total)).toBe(500);
+    });
+
+    it('rejects a line item whose amount is not quantity x unitPrice', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      await expect(
+        service.createSubInvoice('parent-id', {
+          subtotal: 500,
+          tax: 0,
+          discount: 0,
+          total: 500,
+          items: [
+            {
+              description: 'Seats',
+              quantity: 5,
+              unitPrice: 100,
+              amount: 5,
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it('derives total from subtotal, tax and discount when there are no line items', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.invoice.create.mockImplementation(async ({ data }) => ({
+        id: 'sub-id-1',
+        ...data,
+        items: [],
+        invoiceGroup: null,
+      }));
+
+      const result = await service.createSubInvoice('parent-id', {
+        subtotal: 1000,
+        tax: 100,
+        discount: 50,
+        total: 999999, // client-supplied total must not be trusted
+      } as any);
+
+      expect(Number((result.data as any).total)).toBe(1050);
+    });
 
     it('creates first sub-invoice with suffix -A', async () => {
       const createdSub = {
@@ -1377,19 +1469,6 @@ describe('InvoicesService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when total does not match subtotal + tax - discount', async () => {
-      mockPrismaService.invoice.findUnique.mockResolvedValue(parentInvoice);
-
-      await expect(
-        service.createSubInvoice('parent-id', {
-          subtotal: 5000,
-          tax: 400,
-          discount: 0,
-          total: 9999,
-        } as any),
-      ).rejects.toThrow(BadRequestException);
-    });
-
     it('throws ConflictException on P2002 when sub-invoice number already exists', async () => {
       const { PrismaClientKnownRequestError } = jest.requireActual(
         '@prisma/client/runtime/library',
@@ -1480,14 +1559,9 @@ describe('InvoicesService', () => {
 
       await service.createSubInvoice('parent-id', dtoWithoutTaxDiscount as any);
 
-      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            tax: 0,
-            discount: 0,
-          }),
-        }),
-      );
+      const { data } = mockPrismaService.invoice.create.mock.calls[0][0];
+      expect(String(data.tax)).toBe('0');
+      expect(String(data.discount)).toBe('0');
     });
 
     it('inherits periodStart and periodEnd from parent when omitted in DTO', async () => {

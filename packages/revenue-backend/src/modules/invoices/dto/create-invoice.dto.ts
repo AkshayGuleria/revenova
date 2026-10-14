@@ -128,24 +128,6 @@ export class CreateInvoiceDto {
   status?: InvoiceStatus;
 
   @ApiPropertyOptional({
-    description: 'Paid amount',
-    example: 0,
-    default: 0,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  paidAmount?: number;
-
-  @ApiPropertyOptional({
-    description: 'Date when invoice was paid',
-    example: '2024-01-15',
-  })
-  @IsOptional()
-  @IsDateString()
-  paidDate?: string;
-
-  @ApiPropertyOptional({
     description: 'Billing type',
     enum: BillingType,
     default: BillingType.RECURRING,

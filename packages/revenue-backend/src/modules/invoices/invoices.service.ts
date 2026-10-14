@@ -44,11 +44,12 @@ export class InvoicesService {
       dueDate,
       periodStart,
       periodEnd,
-      paidDate,
       tax,
       discount,
       ...data
     } = createInvoiceDto;
+
+    this.assertStatusIsNotPaymentDerived(createInvoiceDto.status);
 
     data.currency =
       data.currency ??
@@ -154,7 +155,6 @@ export class InvoicesService {
             dueDate: due,
             periodStart: periodStart ? new Date(periodStart) : undefined,
             periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-            paidDate: paidDate ? new Date(paidDate) : undefined,
             subtotal,
             tax: taxAmount,
             discount: discountAmount,
@@ -376,14 +376,34 @@ export class InvoicesService {
       }
     }
 
-    // Validate amounts
-    const calculatedTotal = dto.subtotal + (dto.tax ?? 0) - (dto.discount ?? 0);
-    const tolerance = 0.01;
-    if (Math.abs(calculatedTotal - dto.total) > tolerance) {
-      throw new BadRequestException(
-        `Total ${dto.total} does not match subtotal + tax - discount (${calculatedTotal.toFixed(2)})`,
+    // Amounts are derived here, never taken from the request. The previous
+    // check only confirmed the client's numbers were self-consistent, so a
+    // tampered payload could bill line items worth 500 as 50,000.
+    const tax = new Prisma.Decimal(dto.tax ?? 0);
+    const discount = new Prisma.Decimal(dto.discount ?? 0);
+    const tolerance = new Prisma.Decimal('0.01');
+
+    let subtotal: Prisma.Decimal;
+    if (dto.items?.length) {
+      for (const item of dto.items) {
+        const expected = new Prisma.Decimal(item.quantity).times(
+          item.unitPrice,
+        );
+        if (expected.minus(item.amount).abs().greaterThan(tolerance)) {
+          throw new BadRequestException(
+            `Line item "${item.description}" has amount ${item.amount}, but quantity x unitPrice is ${expected.toFixed(2)}.`,
+          );
+        }
+      }
+      subtotal = dto.items.reduce(
+        (sum, item) => sum.plus(new Prisma.Decimal(item.amount)),
+        new Prisma.Decimal(0),
       );
+    } else {
+      subtotal = new Prisma.Decimal(dto.subtotal ?? 0);
     }
+
+    const total = subtotal.plus(tax).minus(discount);
 
     // Generate sub-invoice number: INV-2026-000042-A, -B, etc.
     const subInvoiceNumber = await this.generateSubInvoiceNumber(
@@ -410,10 +430,10 @@ export class InvoicesService {
           periodEnd: dto.periodEnd
             ? new Date(dto.periodEnd)
             : (parent.periodEnd ?? undefined),
-          subtotal: dto.subtotal,
-          tax: dto.tax ?? 0,
-          discount: dto.discount ?? 0,
-          total: dto.total,
+          subtotal,
+          tax,
+          discount,
+          total,
           currency,
           status: dto.status ?? parent.status,
           billingType: parent.billingType,
@@ -507,12 +527,28 @@ export class InvoicesService {
     return result;
   }
 
+  /**
+   * `paid`/`partially_paid` are derived from recorded payments. Accepting them
+   * here would let a caller settle an invoice with no payment behind it.
+   */
+  private assertStatusIsNotPaymentDerived(status?: string): void {
+    const paymentDerived = ['paid', 'partially_paid'];
+    if (status && paymentDerived.includes(status)) {
+      throw new BadRequestException(
+        `Invoice status "${status}" is set by recording a payment, not by writing the invoice directly. ` +
+          `Use POST /api/payments and POST /api/payments/:id/apply.`,
+      );
+    }
+  }
+
   async update(
     id: string,
     updateInvoiceDto: UpdateInvoiceDto,
   ): Promise<ApiResponse<any>> {
     // Check if invoice exists — also capture current state for audit diff
     const existing = await this.getInvoiceById(id);
+
+    this.assertStatusIsNotPaymentDerived(updateInvoiceDto.status);
 
     const {
       accountId,
@@ -521,7 +557,6 @@ export class InvoicesService {
       dueDate,
       periodStart,
       periodEnd,
-      paidDate,
       ...data
     } = updateInvoiceDto;
 
@@ -586,7 +621,6 @@ export class InvoicesService {
       if (dueDate) updateData.dueDate = new Date(dueDate);
       if (periodStart) updateData.periodStart = new Date(periodStart);
       if (periodEnd) updateData.periodEnd = new Date(periodEnd);
-      if (paidDate) updateData.paidDate = new Date(paidDate);
 
       // The write and its audit row share one transaction, so the trail can
       // never describe a change that did not commit.

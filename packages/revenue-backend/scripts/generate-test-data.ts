@@ -532,12 +532,22 @@ class DataGenerator {
         const productId = response.data.data.id;
         this.generatedIds.products.push(productId);
         this.success(`Created product: ${product.name} (ID: ${productId})`);
-      } catch (error) {
+      } catch (error: any) {
+        if (error.response?.status === 409) {
+          const existingId = await this.findProductIdBySku(product.sku);
+          if (existingId) {
+            this.generatedIds.products.push(existingId);
+            this.log(`♻️  Reusing existing product: ${product.name}`);
+            continue;
+          }
+        }
         this.error(`Failed to create product: ${product.name}`, error);
       }
     }
 
-    this.log(`✅ Created ${this.generatedIds.products.length} products`);
+    this.log(
+      `✅ ${this.generatedIds.products.length} products available (created or reused)`,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -841,7 +851,10 @@ class DataGenerator {
       },
     ];
 
-    let contractCounter = 1;
+    // contractNumber is @unique. Starting at 1 every run means every POST
+    // collides on a database that already holds contracts, so continue the
+    // sequence after whatever is already stored.
+    let contractCounter = (await this.countExisting('/api/contracts')) + 1;
 
     for (let i = 0; i < this.generatedIds.accounts.length; i++) {
       const accountId = this.generatedIds.accounts[i];
@@ -882,10 +895,40 @@ class DataGenerator {
           const contractId = response.data.data.id;
           this.generatedIds.contracts.push(contractId);
           this.success(`Created contract: ${contract.contractNumber} for account ${accountId}`);
-          contractCounter++;
-        } catch (error) {
-          this.error(`Failed to create contract: ${contract.contractNumber}`, error);
+        } catch (error: any) {
+          if (error.response?.status === 409) {
+            // Numbering is not contiguous (deletions, other sources). Walk
+            // forward until a free number is found rather than retrying the
+            // same one, which would never succeed.
+            let retries = 0;
+            let created = false;
+            while (retries < 50 && !created) {
+              contractCounter++;
+              retries++;
+              contract.contractNumber = `CNT-2024-${String(contractCounter).padStart(4, '0')}`;
+              try {
+                const retry = await this.client.post('/api/contracts', contract);
+                this.generatedIds.contracts.push(retry.data.data.id);
+                this.success(
+                  `Created contract: ${contract.contractNumber} for account ${accountId}`,
+                );
+                created = true;
+              } catch (retryError: any) {
+                if (retryError.response?.status !== 409) {
+                  this.error(
+                    `Failed to create contract: ${contract.contractNumber}`,
+                    retryError,
+                  );
+                  break;
+                }
+              }
+            }
+          } else {
+            this.error(`Failed to create contract: ${contract.contractNumber}`, error);
+          }
         }
+        // Advance regardless of outcome — retrying a taken number never succeeds.
+        contractCounter++;
       }
     }
 
@@ -895,6 +938,34 @@ class DataGenerator {
   // ---------------------------------------------------------------------------
   // Clean — paginate through all records and delete every one
   // ---------------------------------------------------------------------------
+
+  /**
+   * Products carry fixed SKUs and the column is unique, so re-running against a
+   * non-empty database returns 409 for every product. Look the existing row up
+   * instead of dropping it — otherwise nothing downstream (contracts) has any
+   * product to reference.
+   */
+  /** Total rows already stored, read from the paging envelope (ADR-003). */
+  private async countExisting(url: string): Promise<number> {
+    try {
+      const response = await this.client.get(`${url}?limit[eq]=1`);
+      return response.data.paging?.total ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  private async findProductIdBySku(sku: string): Promise<string | null> {
+    try {
+      const response = await this.client.get(
+        `/api/products?sku[eq]=${encodeURIComponent(sku)}&limit[eq]=1`,
+      );
+      const items: any[] = response.data.data || [];
+      return items.length > 0 ? items[0].id : null;
+    } catch {
+      return null;
+    }
+  }
 
   private async fetchAllIds(url: string): Promise<string[]> {
     const ids: string[] = [];
