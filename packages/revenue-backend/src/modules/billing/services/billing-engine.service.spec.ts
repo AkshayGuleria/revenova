@@ -1248,8 +1248,10 @@ describe('BillingEngineService', () => {
         periodStart,
       );
 
-      expect(mockSeatCalculator.calculateSeatPricing).not.toHaveBeenCalled();
+      // The tier is still computed, but only to compare — billing uses the
+      // negotiated price, and a cheaper negotiated price reports no divergence.
       expect(result.subtotal.toString()).toBe('600');
+      expect(result.tierDivergences).toHaveLength(0);
     });
 
     it('skips a usage_based product but still bills the rest', async () => {
@@ -1270,6 +1272,129 @@ describe('BillingEngineService', () => {
         'Platform',
       ]);
       expect(result.subtotal.toString()).toBe('1000');
+    });
+  });
+
+  describe('tier divergence signal (negotiated price wins, but surface it)', () => {
+    const periodStart = new Date('2026-01-01');
+
+    const contractWithTiered = (cpOverrides: Record<string, any>) => ({
+      id: 'contract-1',
+      accountId: 'account-1',
+      status: 'active',
+      startDate: new Date('2026-01-01'),
+      billingFrequency: 'monthly',
+      contractValue: new Decimal(12000),
+      seatCount: null,
+      seatPrice: null,
+      account: {
+        billingCountry: 'DE',
+        billingState: null,
+        currency: 'EUR',
+        paymentTermsDays: 30,
+      },
+      products: [
+        {
+          quantity: 10,
+          discount: null,
+          ...cpOverrides,
+          product: {
+            name: 'Enterprise Volume',
+            basePrice: new Decimal(100),
+            chargeType: 'recurring',
+            setupFee: null,
+            trialPeriodDays: null,
+            volumeTiers: [{ minSeats: 10, maxSeats: 50, pricePerSeat: 80 }],
+          },
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue({
+        seatCount: 10,
+        pricePerSeat: new Decimal(80),
+        subtotal: new Decimal(800),
+      });
+    });
+
+    it('still bills the negotiated price but reports the cheaper tier', async () => {
+      const result = await service.computeLineItems(
+        contractWithTiered({ unitPrice: 100 }),
+        null,
+        periodStart,
+      );
+
+      // Billing is unchanged: the negotiated price wins.
+      expect(result.subtotal.toString()).toBe('1000');
+      expect(result.tierDivergences).toHaveLength(1);
+      expect(result.tierDivergences[0]).toMatchObject({
+        productName: 'Enterprise Volume',
+        negotiatedUnitPrice: '100.00',
+        tierUnitPrice: '80.00',
+        negotiatedAmount: '1000.00',
+        tierAmount: '800.00',
+      });
+    });
+
+    it('reports nothing when the negotiated price already beats the tier', async () => {
+      const result = await service.computeLineItems(
+        contractWithTiered({ unitPrice: 60 }),
+        null,
+        periodStart,
+      );
+
+      expect(result.subtotal.toString()).toBe('600');
+      expect(result.tierDivergences).toHaveLength(0);
+    });
+
+    it('reports nothing when the contract has no negotiated price', async () => {
+      const result = await service.computeLineItems(
+        contractWithTiered({ unitPrice: null }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tierDivergences).toHaveLength(0);
+    });
+
+    it('records the divergence in the invoice audit metadata', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithTiered({ unitPrice: 100 }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            create: jest.fn().mockResolvedValue({
+              id: 'invoice-1',
+              invoiceNumber: 'INV-2026-000001',
+              total: new Decimal(1000),
+            }),
+          },
+          invoiceItem: { createMany: jest.fn() },
+        }),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-1' });
+
+      const entry = mockAuditLogService.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.tierDivergences).toHaveLength(1);
+    });
+
+    it('surfaces the divergence in dry-run output', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithTiered({ unitPrice: 100 }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      const preview = await service.previewInvoice({
+        contractId: 'contract-1',
+      });
+
+      expect(preview.tierDivergences).toHaveLength(1);
+      expect(preview.tierDivergences?.[0].tierUnitPrice).toBe('80.00');
     });
   });
 });

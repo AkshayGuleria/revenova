@@ -11,7 +11,10 @@ import { AuditLogService } from '../../audit-log/audit-log.service';
 import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
-import { InvoiceDryRunResult } from '../interfaces/dry-run.interface';
+import {
+  InvoiceDryRunResult,
+  TierDivergence,
+} from '../interfaces/dry-run.interface';
 
 export interface GenerateInvoiceParams {
   contractId: string;
@@ -186,6 +189,9 @@ export class BillingEngineService {
               contractId: contract.id,
               source: 'contract-billing',
               total: String(amounts.total),
+              ...(amounts.tierDivergences.length > 0 && {
+                tierDivergences: amounts.tierDivergences,
+              }),
             },
           },
           tx,
@@ -286,6 +292,7 @@ export class BillingEngineService {
       billingType: 'recurring',
       isDryRun: true,
       computedAt: new Date().toISOString(),
+      tierDivergences: amounts.tierDivergences,
     };
   }
 
@@ -404,6 +411,7 @@ export class BillingEngineService {
     }> = [];
 
     let subtotal = new Decimal(0);
+    const tierDivergences: TierDivergence[] = [];
 
     if (contract.products && contract.products.length > 0) {
       // Contract products attached — bill from them
@@ -441,6 +449,32 @@ export class BillingEngineService {
           amount = unitPrice
             .mul(cp.quantity)
             .mul(new Decimal(1).sub(discountRate));
+
+          // Negotiated price wins, but if the catalog tier would have been
+          // cheaper, record the gap. Threshold of one cent keeps rounding
+          // noise out of the signal.
+          if (cp.unitPrice != null && tiers) {
+            const tiered = this.seatCalculator.calculateSeatPricing(
+              cp.quantity,
+              new Decimal(cp.product.basePrice),
+              tiers,
+            );
+            const tierAmount = tiered.subtotal.mul(
+              new Decimal(1).sub(discountRate),
+            );
+            const difference = amount.sub(tierAmount);
+            if (difference.greaterThan(new Decimal('0.01'))) {
+              tierDivergences.push({
+                productName: cp.product.name,
+                quantity: String(cp.quantity),
+                negotiatedUnitPrice: unitPrice.toFixed(2),
+                tierUnitPrice: tiered.pricePerSeat.toFixed(2),
+                negotiatedAmount: amount.toFixed(2),
+                tierAmount: tierAmount.toFixed(2),
+                difference: difference.toFixed(2),
+              });
+            }
+          }
         }
 
         lineItems.push({
@@ -517,7 +551,7 @@ export class BillingEngineService {
     const tax = await this.resolveTax(contract.account, subtotal, periodStart);
     const total = subtotal.add(tax).sub(discount);
 
-    return { lineItems, subtotal, tax, discount, total };
+    return { lineItems, subtotal, tax, discount, total, tierDivergences };
   }
 
   /**

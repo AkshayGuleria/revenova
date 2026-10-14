@@ -7,6 +7,24 @@ export interface DryRunLineItem {
   amount: Decimal;
 }
 
+/**
+ * A contract line billing ABOVE the product's catalog volume tier.
+ *
+ * The negotiated ContractProduct.unitPrice always wins (a signed deal is not
+ * silently re-priced by a catalog edit), but the gap is reported so stale deals
+ * can be found — in the invoice's audit metadata and in dry-run output.
+ * Amounts are fixed-2 strings so they survive JSON without precision loss.
+ */
+export interface TierDivergence {
+  productName: string;
+  quantity: string;
+  negotiatedUnitPrice: string;
+  tierUnitPrice: string;
+  negotiatedAmount: string;
+  tierAmount: string;
+  difference: string;
+}
+
 export interface InvoiceDryRunResult {
   invoiceId: null;
   projectedInvoiceNumber: string | null;
@@ -25,6 +43,7 @@ export interface InvoiceDryRunResult {
   billingType: 'recurring';
   isDryRun: true;
   computedAt: string;
+  tierDivergences?: TierDivergence[];
 }
 
 export interface ConsolidatedDryRunLineItem extends DryRunLineItem {
