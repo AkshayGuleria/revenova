@@ -7,10 +7,12 @@ import {
 import { SeatCalculatorService } from './seat-calculator.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
+import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { NotFoundException } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 
 const mockAuditLogService = { log: jest.fn() };
+const mockTaxRates = { findApplicableRate: jest.fn() };
 
 describe('BillingEngineService', () => {
   let service: BillingEngineService;
@@ -51,6 +53,10 @@ describe('BillingEngineService', () => {
         {
           provide: AuditLogService,
           useValue: mockAuditLogService,
+        },
+        {
+          provide: TaxRatesService,
+          useValue: mockTaxRates,
         },
       ],
     }).compile();
@@ -1076,6 +1082,471 @@ describe('BillingEngineService', () => {
       // Annual = full contractValue
       expect(capturedLineItems[0].amount.toString()).toBe('120000');
       expect(capturedLineItems[0].description).toBe('Annual Subscription');
+    });
+  });
+
+  describe('tax (P0-6) and product pricing (P0-7)', () => {
+    const periodStart = new Date('2026-01-01');
+
+    const contractWith = (overrides: Record<string, any>) => ({
+      id: 'contract-1',
+      accountId: 'account-1',
+      startDate: new Date('2026-01-01'),
+      billingFrequency: 'monthly',
+      contractValue: new Decimal(12000),
+      seatCount: null,
+      seatPrice: null,
+      account: { billingCountry: 'DE', billingState: null, currency: 'EUR' },
+      products: [],
+      ...overrides,
+    });
+
+    const productLine = (
+      product: Record<string, any>,
+      cp: Record<string, any> = {},
+    ) => ({
+      quantity: 10,
+      unitPrice: null,
+      discount: null,
+      ...cp,
+      product: {
+        name: 'Seats',
+        basePrice: new Decimal(100),
+        chargeType: 'recurring',
+        setupFee: null,
+        trialPeriodDays: null,
+        volumeTiers: null,
+        ...product,
+      },
+    });
+
+    beforeEach(() => {
+      mockTaxRates.findApplicableRate.mockReset();
+    });
+
+    it('applies the tax rate for the account jurisdiction', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'DE',
+        taxType: 'vat',
+        rate: new Decimal('0.19'),
+        name: 'German VAT',
+      });
+
+      const result = await service.computeLineItems(
+        contractWith({ products: [productLine({})] }),
+        null,
+        periodStart,
+      );
+
+      expect(result.subtotal.toString()).toBe('1000');
+      expect(result.tax.toString()).toBe('190');
+      expect(result.total.toString()).toBe('1190');
+    });
+
+    it('prefers billing state over country when resolving jurisdiction', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        rate: new Decimal('0.0875'),
+        taxType: 'sales_tax',
+        jurisdiction: 'US-CA',
+      });
+
+      await service.computeLineItems(
+        contractWith({
+          account: { billingCountry: 'US', billingState: 'US-CA' },
+          products: [productLine({})],
+        }),
+        null,
+        periodStart,
+      );
+
+      expect(mockTaxRates.findApplicableRate).toHaveBeenCalledWith(
+        'US-CA',
+        expect.any(Date),
+      );
+    });
+
+    it('bills zero tax rather than failing when no rate is configured', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+
+      const result = await service.computeLineItems(
+        contractWith({ products: [productLine({})] }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tax.toString()).toBe('0');
+      expect(result.total.toString()).toBe('1000');
+    });
+
+    it('charges each product setup fee on the first period only', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      const contract = contractWith({
+        products: [productLine({ setupFee: new Decimal(500) })],
+      });
+
+      const first = await service.computeLineItems(contract, null, periodStart);
+      expect(
+        first.lineItems.some((l: any) => /setup fee/i.test(l.description)),
+      ).toBe(true);
+      expect(first.subtotal.toString()).toBe('1500');
+
+      const later = await service.computeLineItems(
+        contract,
+        null,
+        new Date('2026-05-01'),
+      );
+      expect(
+        later.lineItems.some((l: any) => /setup fee/i.test(l.description)),
+      ).toBe(false);
+      expect(later.subtotal.toString()).toBe('1000');
+    });
+
+    it('applies volume tiers when the contract does not override the price', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue({
+        seatCount: 10,
+        pricePerSeat: new Decimal(80),
+        subtotal: new Decimal(800),
+      });
+
+      const result = await service.computeLineItems(
+        contractWith({
+          products: [
+            productLine({
+              volumeTiers: [{ minSeats: 10, maxSeats: 50, pricePerSeat: 80 }],
+            }),
+          ],
+        }),
+        null,
+        periodStart,
+      );
+
+      expect(mockSeatCalculator.calculateSeatPricing).toHaveBeenCalledWith(
+        10,
+        expect.anything(),
+        [{ minSeats: 10, maxSeats: 50, pricePerSeat: 80 }],
+      );
+      expect(result.subtotal.toString()).toBe('800');
+    });
+
+    it('lets a negotiated contract price win over catalog tiers', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      mockSeatCalculator.calculateSeatPricing.mockClear();
+
+      const result = await service.computeLineItems(
+        contractWith({
+          products: [
+            productLine(
+              {
+                volumeTiers: [{ minSeats: 10, maxSeats: 50, pricePerSeat: 80 }],
+              },
+              { unitPrice: 60 },
+            ),
+          ],
+        }),
+        null,
+        periodStart,
+      );
+
+      // The tier is still computed, but only to compare — billing uses the
+      // negotiated price, and a cheaper negotiated price reports no divergence.
+      expect(result.subtotal.toString()).toBe('600');
+      expect(result.tierDivergences).toHaveLength(0);
+    });
+
+    it('skips a usage_based product but still bills the rest', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+
+      const result = await service.computeLineItems(
+        contractWith({
+          products: [
+            productLine({ name: 'Metered API', chargeType: 'usage_based' }),
+            productLine({ name: 'Platform' }),
+          ],
+        }),
+        null,
+        periodStart,
+      );
+
+      expect(result.lineItems.map((l: any) => l.description)).toEqual([
+        'Platform',
+      ]);
+      expect(result.subtotal.toString()).toBe('1000');
+    });
+  });
+
+  describe('tier divergence signal (negotiated price wins, but surface it)', () => {
+    const periodStart = new Date('2026-01-01');
+
+    const contractWithTiered = (cpOverrides: Record<string, any>) => ({
+      id: 'contract-1',
+      accountId: 'account-1',
+      status: 'active',
+      startDate: new Date('2026-01-01'),
+      billingFrequency: 'monthly',
+      contractValue: new Decimal(12000),
+      seatCount: null,
+      seatPrice: null,
+      account: {
+        billingCountry: 'DE',
+        billingState: null,
+        currency: 'EUR',
+        paymentTermsDays: 30,
+      },
+      products: [
+        {
+          quantity: 10,
+          discount: null,
+          ...cpOverrides,
+          product: {
+            name: 'Enterprise Volume',
+            basePrice: new Decimal(100),
+            chargeType: 'recurring',
+            setupFee: null,
+            trialPeriodDays: null,
+            volumeTiers: [{ minSeats: 10, maxSeats: 50, pricePerSeat: 80 }],
+          },
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      mockSeatCalculator.calculateSeatPricing.mockReturnValue({
+        seatCount: 10,
+        pricePerSeat: new Decimal(80),
+        subtotal: new Decimal(800),
+      });
+    });
+
+    it('still bills the negotiated price but reports the cheaper tier', async () => {
+      const result = await service.computeLineItems(
+        contractWithTiered({ unitPrice: 100 }),
+        null,
+        periodStart,
+      );
+
+      // Billing is unchanged: the negotiated price wins.
+      expect(result.subtotal.toString()).toBe('1000');
+      expect(result.tierDivergences).toHaveLength(1);
+      expect(result.tierDivergences[0]).toMatchObject({
+        productName: 'Enterprise Volume',
+        negotiatedUnitPrice: '100.00',
+        tierUnitPrice: '80.00',
+        negotiatedAmount: '1000.00',
+        tierAmount: '800.00',
+      });
+    });
+
+    it('reports nothing when the negotiated price already beats the tier', async () => {
+      const result = await service.computeLineItems(
+        contractWithTiered({ unitPrice: 60 }),
+        null,
+        periodStart,
+      );
+
+      expect(result.subtotal.toString()).toBe('600');
+      expect(result.tierDivergences).toHaveLength(0);
+    });
+
+    it('reports nothing when the contract has no negotiated price', async () => {
+      const result = await service.computeLineItems(
+        contractWithTiered({ unitPrice: null }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tierDivergences).toHaveLength(0);
+    });
+
+    it('records the divergence in the invoice audit metadata', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithTiered({ unitPrice: 100 }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            create: jest.fn().mockResolvedValue({
+              id: 'invoice-1',
+              invoiceNumber: 'INV-2026-000001',
+              total: new Decimal(1000),
+            }),
+          },
+          invoiceItem: { createMany: jest.fn() },
+        }),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-1' });
+
+      const entry = mockAuditLogService.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.tierDivergences).toHaveLength(1);
+    });
+
+    it('surfaces the divergence in dry-run output', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractWithTiered({ unitPrice: 100 }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+
+      const preview = await service.previewInvoice({
+        contractId: 'contract-1',
+      });
+
+      expect(preview.tierDivergences).toHaveLength(1);
+      expect(preview.tierDivergences?.[0].tierUnitPrice).toBe('80.00');
+    });
+  });
+
+  describe('tax status — zero-rated vs unrated (P0-6 follow-up)', () => {
+    const periodStart = new Date('2026-01-01');
+
+    const contractFor = (account: Record<string, any>) => ({
+      id: 'contract-1',
+      accountId: 'account-1',
+      status: 'active',
+      startDate: new Date('2026-01-01'),
+      billingFrequency: 'monthly',
+      contractValue: new Decimal(12000),
+      seatCount: null,
+      seatPrice: null,
+      account: { currency: 'EUR', paymentTermsDays: 30, ...account },
+      products: [
+        {
+          quantity: 10,
+          unitPrice: null,
+          discount: null,
+          product: {
+            name: 'Care Platform',
+            basePrice: new Decimal(100),
+            chargeType: 'recurring',
+            setupFee: null,
+            trialPeriodDays: null,
+            volumeTiers: null,
+          },
+        },
+      ],
+    });
+
+    it('treats a configured 0% rate as rated, not a problem', async () => {
+      // Legitimate zero-rated supply (e.g. Finnish healthcare VAT exemption).
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'FI',
+        taxType: 'vat',
+        rate: new Decimal('0'),
+        name: 'Healthcare exemption',
+      });
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: 'FI' }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tax.toString()).toBe('0');
+      expect(result.taxStatus).toBe('zero_rated');
+    });
+
+    it('flags a zero that comes from no configured rate', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: 'DE' }),
+        null,
+        periodStart,
+      );
+
+      expect(result.tax.toString()).toBe('0');
+      expect(result.taxStatus).toBe('unrated_no_rate');
+    });
+
+    it('flags an account with no jurisdiction at all', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: null, billingState: null }),
+        null,
+        periodStart,
+      );
+
+      expect(result.taxStatus).toBe('unrated_no_jurisdiction');
+      expect(mockTaxRates.findApplicableRate).not.toHaveBeenCalled();
+    });
+
+    it('reports a normal rate as rated', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'DE',
+        taxType: 'vat',
+        rate: new Decimal('0.19'),
+        name: 'German VAT',
+      });
+
+      const result = await service.computeLineItems(
+        contractFor({ billingCountry: 'DE' }),
+        null,
+        periodStart,
+      );
+
+      expect(result.taxStatus).toBe('rated');
+      expect(result.tax.toString()).toBe('190');
+    });
+
+    it('carries an unrated flag into audit metadata and dry-run output', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue(null);
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractFor({ billingCountry: 'DE' }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            create: jest.fn().mockResolvedValue({
+              id: 'invoice-1',
+              invoiceNumber: 'INV-2026-000001',
+              total: new Decimal(1000),
+            }),
+          },
+          invoiceItem: { createMany: jest.fn() },
+        }),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-1' });
+      const entry = mockAuditLogService.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.taxStatus).toBe('unrated_no_rate');
+
+      const preview = await service.previewInvoice({
+        contractId: 'contract-1',
+      });
+      expect(preview.taxStatus).toBe('unrated_no_rate');
+    });
+
+    it('does not flag a configured zero rate in audit metadata', async () => {
+      mockTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'FI',
+        taxType: 'vat',
+        rate: new Decimal('0'),
+        name: 'Healthcare exemption',
+      });
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        contractFor({ billingCountry: 'FI' }),
+      );
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            create: jest.fn().mockResolvedValue({
+              id: 'invoice-2',
+              invoiceNumber: 'INV-2026-000002',
+              total: new Decimal(1000),
+            }),
+          },
+          invoiceItem: { createMany: jest.fn() },
+        }),
+      );
+
+      await service.generateInvoiceFromContract({ contractId: 'contract-1' });
+      const entry = mockAuditLogService.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.taxStatus).toBe('zero_rated');
     });
   });
 });

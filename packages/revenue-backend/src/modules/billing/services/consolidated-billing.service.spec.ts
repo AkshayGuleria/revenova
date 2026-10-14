@@ -3,9 +3,11 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConsolidatedBillingService } from './consolidated-billing.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
+import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 const mockConsolidatedAuditLog = { log: jest.fn() };
+const mockConsolidatedTaxRates = { findApplicableRate: jest.fn() };
 
 describe('ConsolidatedBillingService', () => {
   let service: ConsolidatedBillingService;
@@ -41,6 +43,10 @@ describe('ConsolidatedBillingService', () => {
         {
           provide: AuditLogService,
           useValue: mockConsolidatedAuditLog,
+        },
+        {
+          provide: TaxRatesService,
+          useValue: mockConsolidatedTaxRates,
         },
       ],
     }).compile();
@@ -871,6 +877,151 @@ describe('ConsolidatedBillingService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('consolidated tax (P0-6)', () => {
+    it('applies the parent jurisdiction rate instead of hardcoding zero', async () => {
+      mockConsolidatedTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'DE',
+        taxType: 'vat',
+        rate: new Decimal('0.19'),
+        name: 'German VAT',
+      });
+
+      jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce({
+        id: 'parent-id',
+        accountName: 'Parent',
+        currency: 'EUR',
+        creditHold: false,
+        paymentTermsDays: 30,
+        billingCountry: 'DE',
+        billingState: null,
+      } as any);
+      jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
+      jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce([
+        {
+          id: 'contract-1',
+          accountId: 'parent-id',
+          status: 'active',
+          contractValue: new Decimal(12000),
+          billingFrequency: 'annual',
+          seatCount: 10,
+          seatPrice: new Decimal(100),
+          account: { id: 'parent-id', accountName: 'Parent' },
+          products: [],
+        },
+      ] as any);
+      jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
+
+      let capturedData: any;
+      mockPrismaService.$transaction.mockImplementation(async (callback) =>
+        callback({
+          invoice: {
+            create: jest.fn(async (args: any) => {
+              capturedData = args.data;
+              return {
+                id: 'invoice-id',
+                invoiceNumber: 'INV-1',
+                total: args.data.total,
+              };
+            }),
+          },
+          invoiceItem: {
+            createMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+        }),
+      );
+
+      await service.generateConsolidatedInvoice({
+        parentAccountId: 'parent-id',
+        periodStart: new Date('2026-01-01'),
+        periodEnd: new Date('2026-01-31'),
+        includeChildren: false,
+      });
+
+      expect(mockConsolidatedTaxRates.findApplicableRate).toHaveBeenCalledWith(
+        'DE',
+        expect.any(Date),
+      );
+      expect(capturedData.tax.toString()).not.toBe('0');
+    });
+  });
+
+  describe('consolidated tax status (P0-6 follow-up)', () => {
+    const setup = (account: Record<string, any>) => {
+      jest.spyOn(prisma.account, 'findUnique').mockResolvedValueOnce({
+        id: 'parent-id',
+        accountName: 'Parent',
+        currency: 'EUR',
+        creditHold: false,
+        paymentTermsDays: 30,
+        ...account,
+      } as any);
+      jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
+      jest.spyOn(prisma.contract, 'findMany').mockResolvedValueOnce([
+        {
+          id: 'contract-1',
+          accountId: 'parent-id',
+          status: 'active',
+          contractValue: new Decimal(12000),
+          billingFrequency: 'annual',
+          seatCount: 10,
+          seatPrice: new Decimal(100),
+          account: { id: 'parent-id', accountName: 'Parent' },
+          products: [],
+        },
+      ] as any);
+      jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
+      mockPrismaService.$transaction.mockImplementation(async (callback) =>
+        callback({
+          invoice: {
+            create: jest.fn(async (args: any) => ({
+              id: 'invoice-id',
+              invoiceNumber: 'INV-1',
+              total: args.data.total,
+            })),
+          },
+          invoiceItem: {
+            createMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+        }),
+      );
+    };
+
+    it('flags a consolidated invoice billed with no configured rate', async () => {
+      mockConsolidatedTaxRates.findApplicableRate.mockResolvedValue(null);
+      setup({ billingCountry: 'DE', billingState: null });
+
+      await service.generateConsolidatedInvoice({
+        parentAccountId: 'parent-id',
+        periodStart: new Date('2026-01-01'),
+        periodEnd: new Date('2026-01-31'),
+        includeChildren: false,
+      });
+
+      const entry = mockConsolidatedAuditLog.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.taxStatus).toBe('unrated_no_rate');
+    });
+
+    it('does not flag a configured 0% rate', async () => {
+      mockConsolidatedTaxRates.findApplicableRate.mockResolvedValue({
+        jurisdiction: 'FI',
+        taxType: 'vat',
+        rate: new Decimal('0'),
+        name: 'Healthcare exemption',
+      });
+      setup({ billingCountry: 'FI', billingState: null });
+
+      await service.generateConsolidatedInvoice({
+        parentAccountId: 'parent-id',
+        periodStart: new Date('2026-01-01'),
+        periodEnd: new Date('2026-01-31'),
+        includeChildren: false,
+      });
+
+      const entry = mockConsolidatedAuditLog.log.mock.calls.at(-1)[0];
+      expect(entry.metadata.taxStatus).toBe('zero_rated');
     });
   });
 });

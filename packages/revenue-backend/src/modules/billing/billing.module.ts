@@ -9,12 +9,14 @@ import { ContractBillingProcessor } from './processors/contract-billing.processo
 import { ConsolidatedBillingProcessor } from './processors/consolidated-billing.processor';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { TaxRatesModule } from '../tax-rates/tax-rates.module';
 import { QUEUE_NAMES } from '../../common/queues';
 
 @Module({
   imports: [
     PrismaModule,
     AuditLogModule,
+    TaxRatesModule,
     // Register billing queues
     BullModule.registerQueue({
       name: QUEUE_NAMES.CONTRACT_BILLING,
