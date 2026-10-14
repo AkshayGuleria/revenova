@@ -15,6 +15,7 @@ import { BillingEngineService } from './billing-engine.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
+import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /** Serialize line items for stable snapshots (Decimal → string). */
@@ -82,6 +83,11 @@ describe('BillingEngineService — snapshots', () => {
           },
         },
         { provide: AuditLogService, useValue: { log: jest.fn() } },
+        {
+          provide: TaxRatesService,
+          // snapshots cover amount maths, not tax lookup
+          useValue: { findApplicableRate: jest.fn().mockResolvedValue(null) },
+        },
       ],
     }).compile();
 

@@ -3936,6 +3936,186 @@
         ]
       }
     },
+    "/api/tax-rates": {
+      "post": {
+        "operationId": "TaxRatesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaxRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create tax rate for a jurisdiction",
+        "tags": [
+          "Tax Rates"
+        ]
+      },
+      "get": {
+        "operationId": "TaxRatesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List tax rates with filtering and pagination",
+        "tags": [
+          "Tax Rates"
+        ]
+      }
+    },
+    "/api/tax-rates/calculate": {
+      "get": {
+        "operationId": "TaxRatesController_calculate",
+        "parameters": [
+          {
+            "name": "amount",
+            "required": true,
+            "in": "query",
+            "description": "Pre-tax amount",
+            "schema": {
+              "example": 10000,
+              "type": "number"
+            }
+          },
+          {
+            "name": "jurisdiction",
+            "required": true,
+            "in": "query",
+            "description": "Jurisdiction code",
+            "schema": {
+              "example": "EU-DE",
+              "type": "string"
+            }
+          },
+          {
+            "name": "taxType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "VAT",
+              "type": "string",
+              "enum": [
+                "VAT",
+                "GST",
+                "SALES_TAX",
+                "WHT"
+              ]
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "Look up rate effective on this date (defaults to today)",
+            "schema": {
+              "example": "2026-05-30",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Calculate tax for an amount and jurisdiction",
+        "tags": [
+          "Tax Rates"
+        ]
+      }
+    },
+    "/api/tax-rates/{id}": {
+      "get": {
+        "operationId": "TaxRatesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get tax rate by ID",
+        "tags": [
+          "Tax Rates"
+        ]
+      },
+      "patch": {
+        "operationId": "TaxRatesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaxRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update tax rate",
+        "tags": [
+          "Tax Rates"
+        ]
+      },
+      "delete": {
+        "operationId": "TaxRatesController_deactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Deactivate tax rate (soft delete)",
+        "tags": [
+          "Tax Rates"
+        ]
+      }
+    },
     "/api/invoice-groups": {
       "post": {
         "description": "Create an organizational grouping (department, cost center, location, custom) for splitting invoices. Groups are unique per account + groupType + code combination.",
@@ -4355,186 +4535,6 @@
         "summary": "Reject purchase order",
         "tags": [
           "Purchase Orders"
-        ]
-      }
-    },
-    "/api/tax-rates": {
-      "post": {
-        "operationId": "TaxRatesController_create",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTaxRateDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Create tax rate for a jurisdiction",
-        "tags": [
-          "Tax Rates"
-        ]
-      },
-      "get": {
-        "operationId": "TaxRatesController_findAll",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "List tax rates with filtering and pagination",
-        "tags": [
-          "Tax Rates"
-        ]
-      }
-    },
-    "/api/tax-rates/calculate": {
-      "get": {
-        "operationId": "TaxRatesController_calculate",
-        "parameters": [
-          {
-            "name": "amount",
-            "required": true,
-            "in": "query",
-            "description": "Pre-tax amount",
-            "schema": {
-              "example": 10000,
-              "type": "number"
-            }
-          },
-          {
-            "name": "jurisdiction",
-            "required": true,
-            "in": "query",
-            "description": "Jurisdiction code",
-            "schema": {
-              "example": "EU-DE",
-              "type": "string"
-            }
-          },
-          {
-            "name": "taxType",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": "VAT",
-              "type": "string",
-              "enum": [
-                "VAT",
-                "GST",
-                "SALES_TAX",
-                "WHT"
-              ]
-            }
-          },
-          {
-            "name": "date",
-            "required": false,
-            "in": "query",
-            "description": "Look up rate effective on this date (defaults to today)",
-            "schema": {
-              "example": "2026-05-30",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Calculate tax for an amount and jurisdiction",
-        "tags": [
-          "Tax Rates"
-        ]
-      }
-    },
-    "/api/tax-rates/{id}": {
-      "get": {
-        "operationId": "TaxRatesController_findOne",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get tax rate by ID",
-        "tags": [
-          "Tax Rates"
-        ]
-      },
-      "patch": {
-        "operationId": "TaxRatesController_update",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateTaxRateDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Update tax rate",
-        "tags": [
-          "Tax Rates"
-        ]
-      },
-      "delete": {
-        "operationId": "TaxRatesController_deactivate",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Deactivate tax rate (soft delete)",
-        "tags": [
-          "Tax Rates"
         ]
       }
     },
@@ -6518,6 +6518,85 @@
         "type": "object",
         "properties": {}
       },
+      "CreateTaxRateDto": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "example": "EU-DE",
+            "description": "Jurisdiction code, e.g. US-CA, EU-DE, UK, AU. Used to look up applicable rates at invoice time."
+          },
+          "taxType": {
+            "type": "string",
+            "enum": [
+              "VAT",
+              "GST",
+              "SALES_TAX",
+              "WHT"
+            ],
+            "example": "VAT",
+            "description": "Tax type: VAT (Europe), GST (Australia/Canada), SALES_TAX (US states), WHT (withholding tax)"
+          },
+          "rate": {
+            "type": "number",
+            "example": 0.19,
+            "description": "Rate as a decimal between 0 and 1. Example: 0.19 = 19%, 0.0 = tax-exempt."
+          },
+          "name": {
+            "type": "string",
+            "example": "German VAT Standard Rate"
+          },
+          "description": {
+            "type": "string",
+            "example": "Standard VAT rate for goods and services in Germany"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "example": "2026-01-01",
+            "description": "ISO date string — the first day this rate is effective."
+          },
+          "effectiveTo": {
+            "type": "string",
+            "example": "2026-12-31",
+            "description": "ISO date string — last day this rate is effective. Omit for open-ended rates."
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "taxType",
+          "rate",
+          "name",
+          "effectiveFrom"
+        ]
+      },
+      "UpdateTaxRateDto": {
+        "type": "object",
+        "properties": {
+          "rate": {
+            "type": "number",
+            "example": 0.19,
+            "description": "Rate as a decimal between 0 and 1. Example: 0.19 = 19%, 0.0 = tax-exempt."
+          },
+          "name": {
+            "type": "string",
+            "example": "German VAT Standard Rate"
+          },
+          "description": {
+            "type": "string",
+            "example": "Standard VAT rate for goods and services in Germany"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "example": "2026-01-01",
+            "description": "ISO date string — the first day this rate is effective."
+          },
+          "effectiveTo": {
+            "type": "string",
+            "example": "2026-12-31",
+            "description": "ISO date string — last day this rate is effective. Omit for open-ended rates."
+          }
+        }
+      },
       "CreateInvoiceGroupDto": {
         "type": "object",
         "properties": {
@@ -6686,85 +6765,6 @@
         "required": [
           "rejectionReason"
         ]
-      },
-      "CreateTaxRateDto": {
-        "type": "object",
-        "properties": {
-          "jurisdiction": {
-            "type": "string",
-            "example": "EU-DE",
-            "description": "Jurisdiction code, e.g. US-CA, EU-DE, UK, AU. Used to look up applicable rates at invoice time."
-          },
-          "taxType": {
-            "type": "string",
-            "enum": [
-              "VAT",
-              "GST",
-              "SALES_TAX",
-              "WHT"
-            ],
-            "example": "VAT",
-            "description": "Tax type: VAT (Europe), GST (Australia/Canada), SALES_TAX (US states), WHT (withholding tax)"
-          },
-          "rate": {
-            "type": "number",
-            "example": 0.19,
-            "description": "Rate as a decimal between 0 and 1. Example: 0.19 = 19%, 0.0 = tax-exempt."
-          },
-          "name": {
-            "type": "string",
-            "example": "German VAT Standard Rate"
-          },
-          "description": {
-            "type": "string",
-            "example": "Standard VAT rate for goods and services in Germany"
-          },
-          "effectiveFrom": {
-            "type": "string",
-            "example": "2026-01-01",
-            "description": "ISO date string — the first day this rate is effective."
-          },
-          "effectiveTo": {
-            "type": "string",
-            "example": "2026-12-31",
-            "description": "ISO date string — last day this rate is effective. Omit for open-ended rates."
-          }
-        },
-        "required": [
-          "jurisdiction",
-          "taxType",
-          "rate",
-          "name",
-          "effectiveFrom"
-        ]
-      },
-      "UpdateTaxRateDto": {
-        "type": "object",
-        "properties": {
-          "rate": {
-            "type": "number",
-            "example": 0.19,
-            "description": "Rate as a decimal between 0 and 1. Example: 0.19 = 19%, 0.0 = tax-exempt."
-          },
-          "name": {
-            "type": "string",
-            "example": "German VAT Standard Rate"
-          },
-          "description": {
-            "type": "string",
-            "example": "Standard VAT rate for goods and services in Germany"
-          },
-          "effectiveFrom": {
-            "type": "string",
-            "example": "2026-01-01",
-            "description": "ISO date string — the first day this rate is effective."
-          },
-          "effectiveTo": {
-            "type": "string",
-            "example": "2026-12-31",
-            "description": "ISO date string — last day this rate is effective. Omit for open-ended rates."
-          }
-        }
       },
       "CreateExchangeRateDto": {
         "type": "object",

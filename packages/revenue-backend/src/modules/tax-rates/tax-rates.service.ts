@@ -101,6 +101,35 @@ export class TaxRatesService {
     return buildSingleResponse(updated);
   }
 
+  /**
+   * The active rate for a jurisdiction at a point in time, or null.
+   *
+   * Billing needs the row, not a computed amount: it does Decimal math and
+   * must not fail an invoice when no rate is configured. calculateTax() throws
+   * and uses float math, so it is unsuitable for the billing path.
+   */
+  async findApplicableRate(
+    jurisdiction: string,
+    asOf: Date,
+    taxType?: string,
+  ): Promise<{
+    jurisdiction: string;
+    taxType: string;
+    rate: unknown;
+    name: string;
+  } | null> {
+    return this.prisma.taxRate.findFirst({
+      where: {
+        jurisdiction,
+        active: true,
+        ...(taxType && { taxType }),
+        effectiveFrom: { lte: asOf },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: asOf } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+  }
+
   async calculateTax(dto: CalculateTaxDto): Promise<ApiResponse<any>> {
     const { amount, jurisdiction, taxType, date } = dto;
     const asOfDate = date ? new Date(date) : new Date();

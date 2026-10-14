@@ -3,10 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
+import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ConsolidatedDryRunResult } from '../interfaces/dry-run.interface';
 
@@ -26,9 +28,12 @@ export interface ConsolidatedInvoiceResult {
 
 @Injectable()
 export class ConsolidatedBillingService {
+  private readonly logger = new Logger(ConsolidatedBillingService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
+    private readonly taxRates: TaxRatesService,
   ) {}
 
   /**
@@ -167,7 +172,7 @@ export class ConsolidatedBillingService {
     }
 
     // Calculate tax and totals
-    const tax = this.calculateTax(subtotal, parentAccount);
+    const tax = await this.calculateTax(subtotal, parentAccount);
     const discount = new Decimal(0); // TODO: Apply consolidated discounts
     const total = subtotal.add(tax).sub(discount);
 
@@ -364,7 +369,7 @@ export class ConsolidatedBillingService {
       );
     }
 
-    const tax = this.calculateTax(subtotal, parentAccount);
+    const tax = await this.calculateTax(subtotal, parentAccount);
     const discount = new Decimal(0);
     const total = subtotal.add(tax).sub(discount);
 
@@ -511,10 +516,41 @@ export class ConsolidatedBillingService {
    * Calculate tax based on account configuration
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private calculateTax(subtotal: Decimal, account: any): Decimal {
-    // TODO: Implement tax calculation based on jurisdiction
-    // For now, return 0
-    return new Decimal(0);
+  /**
+   * Tax for a consolidated invoice, from the parent account's jurisdiction.
+   *
+   * Same defaults as BillingEngineService.resolveTax: billingState first, then
+   * billingCountry; rate is a fraction; applied to the subtotal; a missing
+   * rate yields 0 tax and a warning rather than a failed invoice.
+   */
+  private async calculateTax(
+    subtotal: Decimal,
+    parentAccount: {
+      billingState?: string | null;
+      billingCountry?: string | null;
+    },
+  ): Promise<Decimal> {
+    const jurisdiction =
+      parentAccount?.billingState || parentAccount?.billingCountry;
+    if (!jurisdiction) {
+      this.logger.warn(
+        'No billing state or country on parent account — consolidated invoice billed with 0 tax',
+      );
+      return new Decimal(0);
+    }
+
+    const taxRate = await this.taxRates.findApplicableRate(
+      jurisdiction,
+      new Date(),
+    );
+    if (!taxRate) {
+      this.logger.warn(
+        `No active tax rate for jurisdiction ${jurisdiction} — consolidated invoice billed with 0 tax`,
+      );
+      return new Decimal(0);
+    }
+
+    return subtotal.mul(new Decimal(taxRate.rate as any));
   }
 
   /**

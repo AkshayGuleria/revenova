@@ -3,10 +3,12 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
+import { TaxRatesService } from '../../tax-rates/tax-rates.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InvoiceDryRunResult } from '../interfaces/dry-run.interface';
@@ -35,10 +37,13 @@ export interface BillableProduct {
 
 @Injectable()
 export class BillingEngineService {
+  private readonly logger = new Logger(BillingEngineService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly seatCalculator: SeatCalculatorService,
     private readonly auditLog: AuditLogService,
+    private readonly taxRates: TaxRatesService,
   ) {}
 
   /**
@@ -403,15 +408,40 @@ export class BillingEngineService {
     if (contract.products && contract.products.length > 0) {
       // Contract products attached — bill from them
       for (const cp of contract.products) {
-        const unitPrice =
-          cp.unitPrice != null
-            ? new Decimal(cp.unitPrice)
-            : new Decimal(cp.product.basePrice);
+        // Gate per product, not per invoice: one usage_based product must not
+        // suppress the whole invoice (ADR-004 defers usage_based to Phase 6).
+        if (
+          !this.shouldBillProduct(cp.product, contract.startDate, periodStart)
+        ) {
+          continue;
+        }
+
         const discountRate =
           cp.discount != null ? new Decimal(cp.discount) : new Decimal(0);
-        const amount = unitPrice
-          .mul(cp.quantity)
-          .mul(new Decimal(1).sub(discountRate));
+
+        let unitPrice: Decimal;
+        let amount: Decimal;
+
+        const tiers = cp.product.volumeTiers;
+        if (cp.unitPrice == null && tiers) {
+          // Catalog volume tiers apply only when the contract has NOT
+          // negotiated its own unit price — a negotiated price wins.
+          const tiered = this.seatCalculator.calculateSeatPricing(
+            cp.quantity,
+            new Decimal(cp.product.basePrice),
+            tiers,
+          );
+          unitPrice = tiered.pricePerSeat;
+          amount = tiered.subtotal.mul(new Decimal(1).sub(discountRate));
+        } else {
+          unitPrice =
+            cp.unitPrice != null
+              ? new Decimal(cp.unitPrice)
+              : new Decimal(cp.product.basePrice);
+          amount = unitPrice
+            .mul(cp.quantity)
+            .mul(new Decimal(1).sub(discountRate));
+        }
 
         lineItems.push({
           description: cp.product.name,
@@ -421,6 +451,22 @@ export class BillingEngineService {
         });
 
         subtotal = subtotal.add(amount);
+
+        // Setup fee is per product and charged on the first period only
+        const productSetupFee = this.getSetupFee(
+          cp.product,
+          contract.startDate,
+          periodStart,
+        );
+        if (productSetupFee.greaterThan(0)) {
+          lineItems.push({
+            description: `Setup Fee (one-time) — ${cp.product.name}`,
+            quantity: new Decimal(1),
+            unitPrice: productSetupFee,
+            amount: productSetupFee,
+          });
+          subtotal = subtotal.add(productSetupFee);
+        }
       }
     } else if (contract.seatCount && contract.seatPrice) {
       // No products attached — fall back to seat-based billing
@@ -467,11 +513,44 @@ export class BillingEngineService {
       subtotal = subtotal.add(setupFee);
     }
 
-    const tax = new Decimal(0);
     const discount = new Decimal(0);
+    const tax = await this.resolveTax(contract.account, subtotal, periodStart);
     const total = subtotal.add(tax).sub(discount);
 
     return { lineItems, subtotal, tax, discount, total };
+  }
+
+  /**
+   * Tax for an invoice, from the account's jurisdiction.
+   *
+   * Defaults chosen here (flagged for review):
+   *  - jurisdiction = account.billingState when set, else account.billingCountry
+   *  - rate is a fraction, matching TaxRate.rate as used by TaxRatesService
+   *  - applied to the subtotal (per-line discounts are already deducted)
+   *  - no configured rate → 0 tax and a warning, never a failed invoice
+   */
+  private async resolveTax(
+    account: { billingState?: string | null; billingCountry?: string | null },
+    subtotal: Decimal,
+    asOf: Date,
+  ): Promise<Decimal> {
+    const jurisdiction = account?.billingState || account?.billingCountry;
+    if (!jurisdiction) {
+      this.logger.warn(
+        'No billing state or country on account — billing invoice with 0 tax',
+      );
+      return new Decimal(0);
+    }
+
+    const taxRate = await this.taxRates.findApplicableRate(jurisdiction, asOf);
+    if (!taxRate) {
+      this.logger.warn(
+        `No active tax rate for jurisdiction ${jurisdiction} — billing invoice with 0 tax`,
+      );
+      return new Decimal(0);
+    }
+
+    return subtotal.mul(new Decimal(taxRate.rate as any));
   }
 
   private calculatePeriodAmount(
