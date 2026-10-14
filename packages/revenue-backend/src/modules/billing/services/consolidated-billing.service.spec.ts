@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConsolidatedBillingService } from './consolidated-billing.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditLogService } from '../../audit-log/audit-log.service';
 import { Decimal } from '@prisma/client/runtime/library';
+
+const mockConsolidatedAuditLog = { log: jest.fn() };
 
 describe('ConsolidatedBillingService', () => {
   let service: ConsolidatedBillingService;
@@ -34,6 +37,10 @@ describe('ConsolidatedBillingService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockConsolidatedAuditLog,
         },
       ],
     }).compile();
@@ -160,6 +167,89 @@ describe('ConsolidatedBillingService', () => {
           }),
         }),
       );
+    });
+
+    it('audits the generated invoice with a subsidiary count matching the response', async () => {
+      const parentAccount = {
+        id: 'parent-id',
+        accountName: 'Parent',
+        currency: 'EUR',
+        creditHold: false,
+        paymentTermsDays: 30,
+      };
+      const subsidiaries = [
+        {
+          id: 'sub-1',
+          accountName: 'Subsidiary 1',
+          parentAccountId: 'parent-id',
+        },
+        {
+          id: 'sub-2',
+          accountName: 'Subsidiary 2',
+          parentAccountId: 'parent-id',
+        },
+      ];
+      const contracts = [
+        {
+          id: 'contract-1',
+          accountId: 'parent-id',
+          status: 'active',
+          contractValue: new Decimal(120000),
+          billingFrequency: 'annual',
+          seatCount: 10,
+          seatPrice: new Decimal(1000),
+          account: { id: 'parent-id', accountName: 'Parent' },
+          products: [],
+        },
+      ];
+
+      jest
+        .spyOn(prisma.account, 'findUnique')
+        .mockResolvedValueOnce(parentAccount as any);
+      jest
+        .spyOn(prisma.account, 'findMany')
+        .mockResolvedValueOnce(subsidiaries as any);
+      jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
+      jest.spyOn(prisma.account, 'findMany').mockResolvedValueOnce([]);
+      jest
+        .spyOn(prisma.contract, 'findMany')
+        .mockResolvedValueOnce(contracts as any);
+      jest.spyOn(prisma.invoice, 'count').mockResolvedValueOnce(0);
+
+      mockPrismaService.$transaction.mockImplementation(async (callback) =>
+        callback({
+          invoice: {
+            create: jest.fn().mockResolvedValueOnce({
+              id: 'invoice-id',
+              invoiceNumber: 'INV-202601-00001',
+              total: new Decimal(10000),
+            }),
+          },
+          invoiceItem: {
+            createMany: jest.fn().mockResolvedValueOnce({ count: 1 }),
+          },
+        }),
+      );
+
+      const result = await service.generateConsolidatedInvoice({
+        parentAccountId: 'parent-id',
+        periodStart: new Date('2026-01-01'),
+        periodEnd: new Date('2026-01-31'),
+        includeChildren: true,
+      });
+
+      expect(mockConsolidatedAuditLog.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: 'invoice',
+          entityId: 'invoice-id',
+          action: 'created',
+        }),
+        expect.anything(),
+      );
+      const entry = mockConsolidatedAuditLog.log.mock.calls[0][0];
+      // The parent is not a subsidiary of itself.
+      expect(entry.metadata.subsidiaryCount).toBe(result.subsidiariesIncluded);
+      expect(entry.metadata.subsidiaryCount).toBe(2);
     });
 
     it('should throw NotFoundException if parent account not found', async () => {

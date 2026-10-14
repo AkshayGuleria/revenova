@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreatePaymentDto, ApplyPaymentDto } from './dto';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
@@ -36,7 +37,10 @@ const PAYMENT_FILTERABLE_FIELDS: readonly string[] = [
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) {}
 
   async create(dto: CreatePaymentDto): Promise<ApiResponse<any>> {
     const account = await this.prisma.account.findUnique({
@@ -95,6 +99,22 @@ export class PaymentsService {
           );
         }
 
+        await this.auditLog.log(
+          {
+            entityType: 'payment',
+            entityId: p.id,
+            action: 'created',
+            actorType: 'system',
+            metadata: {
+              paymentNumber: p.paymentNumber,
+              accountId: p.accountId,
+              invoiceId: p.invoiceId,
+              amount: String(p.amount),
+            },
+          },
+          tx,
+        );
+
         return p;
       });
 
@@ -133,6 +153,9 @@ export class PaymentsService {
 
     const total = new Prisma.Decimal(applied.total);
     let paid = new Prisma.Decimal(applied.paidAmount);
+    // Captured before the clamp below: the audit trail must report the balance
+    // the invoice actually had, not a value derived from the clamped one.
+    const balanceBefore = paid.minus(delta);
 
     if (delta > 0 && paid.greaterThan(total)) {
       const room = total.minus(paid).plus(delta);
@@ -163,6 +186,28 @@ export class PaymentsService {
     data.paidDate = status === 'paid' ? new Date() : null;
 
     await tx.invoice.update({ where: { id: invoiceId }, data });
+
+    // Logged with the transaction client, so the trail commits or rolls back
+    // with the balance change it describes.
+    await this.auditLog.log(
+      {
+        entityType: 'invoice',
+        entityId: invoiceId,
+        action: delta >= 0 ? 'payment_applied' : 'payment_reversed',
+        actorType: 'system',
+        changes: {
+          paidAmount: {
+            from: balanceBefore.toFixed(2),
+            to: paid.toFixed(2),
+          },
+          status: { from: applied.status, to: status },
+        },
+        // String, like every other audit amount — keeps metadata->>'amount'
+        // comparable across rows and avoids a lossy Decimal->Number hop.
+        metadata: { amount: String(Math.abs(delta)) },
+      },
+      tx,
+    );
   }
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
@@ -241,6 +286,18 @@ export class PaymentsService {
         Number(payment.amount),
       );
 
+      await this.auditLog.log(
+        {
+          entityType: 'payment',
+          entityId: id,
+          action: 'applied',
+          actorType: 'system',
+          changes: { invoiceId: { from: null, to: dto.invoiceId } },
+          metadata: { amount: String(payment.amount) },
+        },
+        tx,
+      );
+
       return tx.payment.update({
         where: { id },
         data: { invoiceId: dto.invoiceId, status: 'applied' },
@@ -269,6 +326,18 @@ export class PaymentsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the void with a conditional update before touching the balance.
+      // The status check above happens outside the transaction, so two
+      // concurrent voids would both pass it and each reverse the balance —
+      // and the zero-clamp in settleInvoiceBalance would hide the second.
+      const claimed = await tx.payment.updateMany({
+        where: { id, status: { not: 'voided' } },
+        data: { status: 'voided' },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException('Payment is already voided');
+      }
+
       // Reverse paidAmount on linked invoice
       if (payment.invoiceId) {
         await this.settleInvoiceBalance(
@@ -278,10 +347,19 @@ export class PaymentsService {
         );
       }
 
-      return tx.payment.update({
-        where: { id },
-        data: { status: 'voided' },
-      });
+      await this.auditLog.log(
+        {
+          entityType: 'payment',
+          entityId: id,
+          action: 'voided',
+          actorType: 'system',
+          changes: { status: { from: payment.status, to: 'voided' } },
+          metadata: { amount: String(payment.amount) },
+        },
+        tx,
+      );
+
+      return tx.payment.findUnique({ where: { id } });
     });
 
     return buildSingleResponse(result);

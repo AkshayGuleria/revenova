@@ -45,6 +45,8 @@ describe('InvoicesService', () => {
     ),
   };
 
+  const mockAuditLogService = { log: jest.fn() };
+
   const mockConfigService = {
     get: jest.fn().mockReturnValue('EUR'),
   };
@@ -63,7 +65,7 @@ describe('InvoicesService', () => {
         },
         {
           provide: AuditLogService,
-          useValue: { log: jest.fn() },
+          useValue: mockAuditLogService,
         },
       ],
     }).compile();
@@ -630,6 +632,60 @@ describe('InvoicesService', () => {
       );
       await expect(service.findOne('invalid-id')).rejects.toThrow(
         'Invoice with ID invalid-id not found',
+      );
+    });
+  });
+
+  describe('audit trail', () => {
+    it('writes the create entry through the transaction client', async () => {
+      const dto = {
+        invoiceNumber: 'INV-AUDIT-1',
+        accountId: 'account-id-123',
+        contractId: 'contract-id-123',
+        issueDate: '2024-01-01',
+        dueDate: '2024-01-31',
+      };
+      mockPrismaService.account.findUnique.mockResolvedValue({
+        id: 'account-id-123',
+      });
+      mockPrismaService.contract.findUnique.mockResolvedValue(
+        mockContractWithProducts,
+      );
+      mockPrismaService.invoice.create.mockResolvedValue({
+        id: 'invoice-audit-1',
+        invoiceNumber: 'INV-AUDIT-1',
+        accountId: 'account-id-123',
+      });
+
+      await service.create(dto as any);
+
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: 'invoice',
+          entityId: 'invoice-audit-1',
+          action: 'created',
+        }),
+        mockPrismaService,
+      );
+    });
+
+    it('writes the update entry through the transaction client', async () => {
+      mockPrismaService.invoice.findUnique.mockResolvedValue({
+        id: 'invoice-id-123',
+        invoiceNumber: 'INV-2024-0001',
+        status: 'draft',
+      });
+      mockPrismaService.invoice.update.mockResolvedValue({
+        id: 'invoice-id-123',
+        invoiceNumber: 'INV-2024-0001',
+        status: 'sent',
+      });
+
+      await service.update('invoice-id-123', { status: 'sent' } as any);
+
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ entityType: 'invoice' }),
+        mockPrismaService,
       );
     });
   });

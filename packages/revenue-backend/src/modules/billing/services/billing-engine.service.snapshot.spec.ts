@@ -14,6 +14,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BillingEngineService } from './billing-engine.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditLogService } from '../../audit-log/audit-log.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /** Serialize line items for stable snapshots (Decimal → string). */
@@ -80,6 +81,7 @@ describe('BillingEngineService — snapshots', () => {
             $transaction: jest.fn(),
           },
         },
+        { provide: AuditLogService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 

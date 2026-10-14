@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditLogService } from '../../audit-log/audit-log.service';
 import { SeatCalculatorService } from './seat-calculator.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InvoiceDryRunResult } from '../interfaces/dry-run.interface';
@@ -36,6 +37,7 @@ export class BillingEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly seatCalculator: SeatCalculatorService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   /**
@@ -127,6 +129,24 @@ export class BillingEngineService {
             amount: item.amount,
           })),
         });
+
+        // Inside the transaction: the trail cannot survive a rolled-back invoice.
+        await this.auditLog.log(
+          {
+            entityType: 'invoice',
+            entityId: newInvoice.id,
+            action: 'created',
+            actorType: 'system',
+            metadata: {
+              invoiceNumber: newInvoice.invoiceNumber,
+              accountId: contract.accountId,
+              contractId: contract.id,
+              source: 'contract-billing',
+              total: String(amounts.total),
+            },
+          },
+          tx,
+        );
 
         return newInvoice;
       });
