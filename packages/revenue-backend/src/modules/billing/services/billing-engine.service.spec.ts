@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import {
   BillingEngineService,
   BillableProduct,
@@ -152,6 +153,18 @@ describe('BillingEngineService', () => {
         }),
         tx,
       );
+    });
+
+    it('refuses to bill an account on credit hold (P0-8)', async () => {
+      mockPrismaService.contract.findUnique.mockResolvedValue({
+        ...mockContract,
+        account: { ...mockContract.account, creditHold: true },
+      });
+
+      await expect(
+        service.generateInvoiceFromContract({ contractId: 'contract-123' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
     it('should generate invoice with seat-based pricing', async () => {
