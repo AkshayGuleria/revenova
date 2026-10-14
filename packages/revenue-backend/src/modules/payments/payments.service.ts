@@ -153,6 +153,9 @@ export class PaymentsService {
 
     const total = new Prisma.Decimal(applied.total);
     let paid = new Prisma.Decimal(applied.paidAmount);
+    // Captured before the clamp below: the audit trail must report the balance
+    // the invoice actually had, not a value derived from the clamped one.
+    const balanceBefore = paid.minus(delta);
 
     if (delta > 0 && paid.greaterThan(total)) {
       const room = total.minus(paid).plus(delta);
@@ -194,12 +197,14 @@ export class PaymentsService {
         actorType: 'system',
         changes: {
           paidAmount: {
-            from: paid.minus(delta).toFixed(2),
+            from: balanceBefore.toFixed(2),
             to: paid.toFixed(2),
           },
           status: { from: applied.status, to: status },
         },
-        metadata: { amount: Math.abs(delta) },
+        // String, like every other audit amount — keeps metadata->>'amount'
+        // comparable across rows and avoids a lossy Decimal->Number hop.
+        metadata: { amount: String(Math.abs(delta)) },
       },
       tx,
     );
@@ -321,6 +326,18 @@ export class PaymentsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the void with a conditional update before touching the balance.
+      // The status check above happens outside the transaction, so two
+      // concurrent voids would both pass it and each reverse the balance —
+      // and the zero-clamp in settleInvoiceBalance would hide the second.
+      const claimed = await tx.payment.updateMany({
+        where: { id, status: { not: 'voided' } },
+        data: { status: 'voided' },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException('Payment is already voided');
+      }
+
       // Reverse paidAmount on linked invoice
       if (payment.invoiceId) {
         await this.settleInvoiceBalance(
@@ -342,10 +359,7 @@ export class PaymentsService {
         tx,
       );
 
-      return tx.payment.update({
-        where: { id },
-        data: { status: 'voided' },
-      });
+      return tx.payment.findUnique({ where: { id } });
     });
 
     return buildSingleResponse(result);

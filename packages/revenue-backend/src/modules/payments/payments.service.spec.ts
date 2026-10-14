@@ -406,6 +406,10 @@ describe('PaymentsService', () => {
             status: 'paid',
           }),
           payment: {
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            findUnique: jest
+              .fn()
+              .mockResolvedValue({ id: 'pay-1', status: 'voided' }),
             update: jest
               .fn()
               .mockResolvedValue({ id: 'pay-1', status: 'voided' }),
@@ -430,6 +434,10 @@ describe('PaymentsService', () => {
         const txMock = {
           invoice: { findUnique: jest.fn(), update: jest.fn() },
           payment: {
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            findUnique: jest
+              .fn()
+              .mockResolvedValue({ id: 'pay-1', status: 'voided' }),
             update: jest
               .fn()
               .mockResolvedValue({ id: 'pay-1', status: 'voided' }),
@@ -485,6 +493,8 @@ describe('PaymentsService', () => {
           }),
         },
         payment: {
+          updateMany: jest.fn(async () => ({ count: 1 })),
+          findUnique: jest.fn(async () => ({ id: 'pay-1', status: 'voided' })),
           create: jest.fn(async ({ data }: any) => ({
             id: 'pay-new',
             ...data,
@@ -636,6 +646,8 @@ describe('PaymentsService', () => {
     const statefulTx = (invoice: Record<string, any>) => ({
       invoice: statefulInvoice(invoice),
       payment: {
+        updateMany: jest.fn(async () => ({ count: 1 })),
+        findUnique: jest.fn(async () => ({ id: 'pay-1', status: 'voided' })),
         create: jest.fn(async ({ data }: any) => ({ id: 'pay-new', ...data })),
         update: jest.fn(async () => ({ id: 'pay-1', invoiceId: 'inv-1' })),
       },
@@ -727,6 +739,70 @@ describe('PaymentsService', () => {
         expect.objectContaining({ entityType: 'payment', action: 'voided' }),
         expect.anything(),
       );
+    });
+  });
+
+  describe('void — audit accuracy and concurrency (review findings 1, 2)', () => {
+    const txFor = (invoice: Record<string, any>) => ({
+      invoice: statefulInvoice(invoice),
+      payment: {
+        updateMany: jest.fn(async () => ({ count: 1 })),
+        update: jest.fn(async () => ({ id: 'pay-1', status: 'voided' })),
+        findUnique: jest.fn(async () => ({ id: 'pay-1', status: 'voided' })),
+      },
+    });
+
+    it('records the balance that actually existed, not the clamped one', async () => {
+      // Voiding 5000 against a 2000 balance clamps to 0. The audit row must say
+      // 2000 -> 0, not 5000 -> 0, which is a balance the invoice never had.
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: 'inv-1',
+        amount: 5000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      const tx = txFor({
+        total: 10000,
+        paidAmount: 2000,
+        status: 'partially_paid',
+      });
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.void('pay-1');
+
+      const invoiceEntry = mockAuditLogService.log.mock.calls
+        .map((c: any[]) => c[0])
+        .find((e: any) => e.action === 'payment_reversed');
+      expect(invoiceEntry.changes.paidAmount).toEqual({
+        from: '2000.00',
+        to: '0.00',
+      });
+    });
+
+    it('refuses a second concurrent void instead of reversing the balance twice', async () => {
+      mockPrismaService.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        invoiceId: 'inv-1',
+        amount: 1000,
+        accountId: 'acc-1',
+        status: 'applied',
+      });
+      const tx = txFor({
+        total: 5000,
+        paidAmount: 1000,
+        status: 'partially_paid',
+      });
+      // Another request voided it between our read and the transaction.
+      tx.payment.updateMany = jest.fn(async () => ({ count: 0 }));
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await expect(service.void('pay-1')).rejects.toThrow(BadRequestException);
+      expect(tx.invoice.update).not.toHaveBeenCalled();
     });
   });
 });

@@ -228,7 +228,7 @@ export class ConsolidatedBillingService {
               invoiceNumber: newInvoice.invoiceNumber,
               accountId: parentAccountId,
               source: 'consolidated-billing',
-              subsidiaryCount: accountIds.length,
+              subsidiaryCount: accountIds.length - 1, // accountIds[0] is the parent
               total: String(total),
             },
           },
