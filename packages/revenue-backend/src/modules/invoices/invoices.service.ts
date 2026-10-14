@@ -44,11 +44,12 @@ export class InvoicesService {
       dueDate,
       periodStart,
       periodEnd,
-      paidDate,
       tax,
       discount,
       ...data
     } = createInvoiceDto;
+
+    this.assertStatusIsNotPaymentDerived(createInvoiceDto.status);
 
     data.currency =
       data.currency ??
@@ -154,7 +155,6 @@ export class InvoicesService {
             dueDate: due,
             periodStart: periodStart ? new Date(periodStart) : undefined,
             periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-            paidDate: paidDate ? new Date(paidDate) : undefined,
             subtotal,
             tax: taxAmount,
             discount: discountAmount,
@@ -501,12 +501,28 @@ export class InvoicesService {
     return result;
   }
 
+  /**
+   * `paid`/`partially_paid` are derived from recorded payments. Accepting them
+   * here would let a caller settle an invoice with no payment behind it.
+   */
+  private assertStatusIsNotPaymentDerived(status?: string): void {
+    const paymentDerived = ['paid', 'partially_paid'];
+    if (status && paymentDerived.includes(status)) {
+      throw new BadRequestException(
+        `Invoice status "${status}" is set by recording a payment, not by writing the invoice directly. ` +
+          `Use POST /api/payments and POST /api/payments/:id/apply.`,
+      );
+    }
+  }
+
   async update(
     id: string,
     updateInvoiceDto: UpdateInvoiceDto,
   ): Promise<ApiResponse<any>> {
     // Check if invoice exists — also capture current state for audit diff
     const existing = await this.getInvoiceById(id);
+
+    this.assertStatusIsNotPaymentDerived(updateInvoiceDto.status);
 
     const {
       accountId,
@@ -515,7 +531,6 @@ export class InvoicesService {
       dueDate,
       periodStart,
       periodEnd,
-      paidDate,
       ...data
     } = updateInvoiceDto;
 
@@ -580,7 +595,6 @@ export class InvoicesService {
       if (dueDate) updateData.dueDate = new Date(dueDate);
       if (periodStart) updateData.periodStart = new Date(periodStart);
       if (periodEnd) updateData.periodEnd = new Date(periodEnd);
-      if (paidDate) updateData.paidDate = new Date(paidDate);
 
       const invoice = await this.prisma.invoice.update({
         where: { id },

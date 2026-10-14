@@ -5434,16 +5434,6 @@
             "description": "Tax ID / VAT number",
             "example": "US123456789"
           },
-          "creditLimit": {
-            "type": "number",
-            "description": "Credit limit amount",
-            "example": 100000
-          },
-          "creditHold": {
-            "type": "boolean",
-            "description": "Whether account is on credit hold",
-            "default": false
-          },
           "metadata": {
             "type": "object",
             "description": "Additional metadata as JSON",
@@ -5558,16 +5548,6 @@
             "type": "string",
             "description": "Tax ID / VAT number",
             "example": "US123456789"
-          },
-          "creditLimit": {
-            "type": "number",
-            "description": "Credit limit amount",
-            "example": 100000
-          },
-          "creditHold": {
-            "type": "boolean",
-            "description": "Whether account is on credit hold",
-            "default": false
           },
           "metadata": {
             "type": "object",
@@ -6218,17 +6198,6 @@
             ],
             "default": "draft"
           },
-          "paidAmount": {
-            "type": "number",
-            "description": "Paid amount",
-            "example": 0,
-            "default": 0
-          },
-          "paidDate": {
-            "type": "string",
-            "description": "Date when invoice was paid",
-            "example": "2024-01-15"
-          },
           "billingType": {
             "type": "string",
             "description": "Billing type",
@@ -6331,18 +6300,6 @@
             "description": "Billing period end date",
             "example": "2024-01-31"
           },
-          "tax": {
-            "type": "number",
-            "description": "Tax amount (invoice-level adjustment)",
-            "example": 800,
-            "default": 0
-          },
-          "discount": {
-            "type": "number",
-            "description": "Discount amount (invoice-level adjustment)",
-            "example": 500,
-            "default": 0
-          },
           "currency": {
             "type": "string",
             "description": "Currency code",
@@ -6361,17 +6318,6 @@
               "void"
             ],
             "default": "draft"
-          },
-          "paidAmount": {
-            "type": "number",
-            "description": "Paid amount",
-            "example": 0,
-            "default": 0
-          },
-          "paidDate": {
-            "type": "string",
-            "description": "Date when invoice was paid",
-            "example": "2024-01-15"
           },
           "billingType": {
             "type": "string",
