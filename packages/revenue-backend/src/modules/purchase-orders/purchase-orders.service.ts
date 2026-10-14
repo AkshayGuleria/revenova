@@ -22,6 +22,29 @@ import {
   filtersToPrismaWhere,
 } from '../../common/utils/query-parser';
 
+/**
+ * Columns a client may filter on via ?field[op]=value.
+ * Excludes free-text `notes`/`rejectionReason` and the `metadata` JSON blob.
+ */
+const PURCHASE_ORDER_FILTERABLE_FIELDS: readonly string[] = [
+  'id',
+  'poNumber',
+  'accountId',
+  'contractId',
+  'description',
+  'amount',
+  'currency',
+  'issueDate',
+  'expiryDate',
+  'status',
+  'approvedById',
+  'approvedAt',
+  'rejectedById',
+  'rejectedAt',
+  'createdAt',
+  'updatedAt',
+];
+
 @Injectable()
 export class PurchaseOrdersService {
   constructor(private prisma: PrismaService) {}
@@ -76,7 +99,7 @@ export class PurchaseOrdersService {
 
   async findAll(query: Record<string, any>): Promise<ApiResponse<any>> {
     const { offset, limit } = parsePaginationParams(query);
-    const filters = parseQueryFilters(query);
+    const filters = parseQueryFilters(query, PURCHASE_ORDER_FILTERABLE_FIELDS);
     const where = filtersToPrismaWhere(filters);
 
     const [data, total] = await Promise.all([

@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 // Prisma type imports for query building
 import { QueryOperator, QueryFilter, PaginationParams } from '../interfaces';
 
@@ -76,7 +77,10 @@ export function parsePaginationParams(
 /**
  * Parse all query filters from query string
  */
-export function parseQueryFilters(query: Record<string, any>): QueryFilter[] {
+export function parseQueryFilters(
+  query: Record<string, any>,
+  allowedFields?: readonly string[],
+): QueryFilter[] {
   const filters: QueryFilter[] = [];
 
   for (const [key, value] of Object.entries(query)) {
@@ -87,6 +91,15 @@ export function parseQueryFilters(query: Record<string, any>): QueryFilter[] {
     if (!parsed) continue;
 
     const { field, operator } = parsed;
+
+    // A model may restrict which columns are filterable. Without this, any
+    // column is reachable through the where clause — including ones excluded
+    // from `select`, whose values can then be probed through the result count.
+    if (allowedFields && !allowedFields.includes(field)) {
+      throw new BadRequestException(
+        `Filtering on "${field}" is not supported. Filterable fields: ${allowedFields.join(', ')}.`,
+      );
+    }
 
     // Handle IN/NIN operators (comma-separated values)
     if (operator === 'in' || operator === 'nin') {
@@ -218,12 +231,15 @@ export function filtersToPrismaWhere(filters: QueryFilter[]): any {
  * Complete query parser - parses pagination and filters
  * Returns Prisma-ready pagination and where clause
  */
-export function parseQuery(query: Record<string, any>): {
+export function parseQuery(
+  query: Record<string, any>,
+  allowedFields?: readonly string[],
+): {
   pagination: PaginationParams;
   where: any;
 } {
   const pagination = parsePaginationParams(query);
-  const filters = parseQueryFilters(query);
+  const filters = parseQueryFilters(query, allowedFields);
   const where = filtersToPrismaWhere(filters);
 
   return { pagination, where };
