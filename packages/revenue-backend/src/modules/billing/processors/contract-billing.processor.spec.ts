@@ -154,7 +154,7 @@ describe('ContractBillingProcessor', () => {
       expect(mockBillingEngine.findContractsDueForBilling).toHaveBeenCalledWith(
         'monthly',
         new Date('2026-01-01'),
-        { skip: 0, take: 100 },
+        { afterId: undefined, take: 100 },
       );
       expect(result).toMatchObject({
         processedCount: 0,
@@ -182,7 +182,7 @@ describe('ContractBillingProcessor', () => {
       expect(mockBillingEngine.findContractsDueForBilling).toHaveBeenCalledWith(
         'quarterly',
         new Date('2026-04-01'),
-        { skip: 0, take: 100 },
+        { afterId: undefined, take: 100 },
       );
       expect(result.message).toContain('quarterly');
     });
@@ -206,7 +206,7 @@ describe('ContractBillingProcessor', () => {
       expect(mockBillingEngine.findContractsDueForBilling).toHaveBeenCalledWith(
         'annual',
         new Date('2026-01-01'),
-        { skip: 0, take: 100 },
+        { afterId: undefined, take: 100 },
       );
       expect(result.message).toContain('annual');
     });
@@ -275,8 +275,8 @@ describe('ContractBillingProcessor', () => {
 
     it('bills every contract that is due and reports the counts', async () => {
       mockBillingEngine.findContractsDueForBilling.mockImplementation(
-        async (_freq: string, _asOf: Date, { skip }: any) =>
-          skip === 0 ? [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }] : [],
+        async (_freq: string, _asOf: Date, { afterId }: any) =>
+          !afterId ? [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }] : [],
       );
       mockBillingEngine.generateInvoiceFromContract.mockResolvedValue({
         invoiceId: 'inv',
@@ -295,11 +295,51 @@ describe('ContractBillingProcessor', () => {
       });
     });
 
+    it('passes billingDate to the engine so the period is not "today"', async () => {
+      mockBillingEngine.findContractsDueForBilling.mockImplementation(
+        async (_f: string, _a: Date, { afterId }: any) =>
+          !afterId ? [{ id: 'c-1' }] : [],
+      );
+      mockBillingEngine.generateInvoiceFromContract.mockResolvedValue({
+        invoiceId: 'inv',
+        total: new Decimal(1),
+      });
+
+      await processor.process(batchJob);
+
+      expect(
+        mockBillingEngine.generateInvoiceFromContract,
+      ).toHaveBeenCalledWith({
+        contractId: 'c-1',
+        billingDate: new Date('2026-02-01'),
+      });
+    });
+
+    it('pages by id cursor so billed contracts leaving the set are not skipped', async () => {
+      const page1 = Array.from({ length: 100 }, (_, i) => ({ id: `a-${i}` }));
+      mockBillingEngine.findContractsDueForBilling
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce([{ id: 'b-0' }]);
+      mockBillingEngine.generateInvoiceFromContract.mockResolvedValue({
+        invoiceId: 'inv',
+        total: new Decimal(1),
+      });
+
+      await processor.process(batchJob);
+
+      expect(
+        mockBillingEngine.findContractsDueForBilling,
+      ).toHaveBeenNthCalledWith(2, 'monthly', new Date('2026-02-01'), {
+        afterId: 'a-99',
+        take: 100,
+      });
+    });
+
     it('counts an already-billed period as skipped, not failed', async () => {
       const { ConflictException } = jest.requireActual('@nestjs/common');
       mockBillingEngine.findContractsDueForBilling.mockImplementation(
-        async (_freq: string, _asOf: Date, { skip }: any) =>
-          skip === 0 ? [{ id: 'c-1' }, { id: 'c-2' }] : [],
+        async (_freq: string, _asOf: Date, { afterId }: any) =>
+          !afterId ? [{ id: 'c-1' }, { id: 'c-2' }] : [],
       );
       mockBillingEngine.generateInvoiceFromContract
         .mockResolvedValueOnce({ invoiceId: 'inv-1', total: new Decimal(100) })
@@ -316,8 +356,8 @@ describe('ContractBillingProcessor', () => {
 
     it('keeps going after a failure instead of abandoning the run', async () => {
       mockBillingEngine.findContractsDueForBilling.mockImplementation(
-        async (_freq: string, _asOf: Date, { skip }: any) =>
-          skip === 0 ? [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }] : [],
+        async (_freq: string, _asOf: Date, { afterId }: any) =>
+          !afterId ? [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }] : [],
       );
       mockBillingEngine.generateInvoiceFromContract
         .mockRejectedValueOnce(new Error('boom'))

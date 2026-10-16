@@ -5,6 +5,7 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
@@ -21,7 +22,15 @@ export interface GenerateInvoiceParams {
   contractId: string;
   periodStart?: Date;
   periodEnd?: Date;
+  /**
+   * Run date of a scheduled billing batch. When no explicit period is given the
+   * period is the contract-aligned one containing this date, so a retry or
+   * rerun on another day resolves to the same period (and the dedup index).
+   */
+  billingDate?: Date;
 }
+
+const SETUP_FEE_PREFIX = 'Setup Fee (one-time)';
 
 export interface InvoiceGenerationResult {
   invoiceId: string;
@@ -55,15 +64,22 @@ export class BillingEngineService {
    * matches the run. Accounts on credit hold are excluded in the query — they
    * would be rejected per-contract anyway.
    *
-   * Paginated so a batch run never loads the whole table into memory.
+   * Paginated by id cursor (not offset): billed contracts leave the result
+   * set, so an offset would skip unbilled ones. Never loads the whole table.
    */
   async findContractsDueForBilling(
     billingFrequency: string,
     asOf: Date,
-    pagination: { skip: number; take: number },
+    pagination: { afterId?: string; take: number },
   ): Promise<{ id: string }[]> {
     return this.prisma.contract.findMany({
       where: {
+        ...(pagination.afterId && { id: { gt: pagination.afterId } }),
+        // Already invoiced for the period containing `asOf`: nothing to do.
+        // Uses the same period columns as idx_invoices_contract_period.
+        invoices: {
+          none: { periodStart: { lte: asOf }, periodEnd: { gt: asOf } },
+        },
         status: 'active',
         billingFrequency,
         startDate: { lte: asOf },
@@ -72,7 +88,6 @@ export class BillingEngineService {
       },
       select: { id: true },
       orderBy: { id: 'asc' },
-      skip: pagination.skip,
       take: pagination.take,
     });
   }
@@ -83,7 +98,7 @@ export class BillingEngineService {
   async generateInvoiceFromContract(
     params: GenerateInvoiceParams,
   ): Promise<InvoiceGenerationResult> {
-    const { contractId, periodStart, periodEnd } = params;
+    const { contractId, periodStart, periodEnd, billingDate } = params;
 
     const contract = await this.prisma.contract.findUnique({
       where: { id: contractId },
@@ -115,6 +130,7 @@ export class BillingEngineService {
       contract,
       periodStart,
       periodEnd,
+      billingDate,
     );
 
     // Phase 4: product will be resolved from ContractLineItem.
@@ -131,7 +147,7 @@ export class BillingEngineService {
       );
     }
 
-    const amounts = await this.computeLineItems(
+    let amounts = await this.computeLineItems(
       contract,
       product,
       billingPeriod.start,
@@ -148,6 +164,22 @@ export class BillingEngineService {
     let invoice: Awaited<ReturnType<typeof this.prisma.invoice.create>>;
     try {
       invoice = await this.prisma.$transaction(async (tx) => {
+        // Setup fee is exactly-once per contract: decide against prior
+        // invoices inside this transaction, under a contract row lock so two
+        // concurrent invoices for different periods cannot both charge it.
+        if (this.hasSetupFeeLine(amounts.lineItems)) {
+          await tx.$queryRaw`SELECT id FROM contracts WHERE id = ${contract.id} FOR UPDATE`;
+          const charged = await this.findChargedSetupFees(tx, contract.id);
+          if (charged.size > 0) {
+            amounts = await this.computeLineItems(
+              contract,
+              product,
+              billingPeriod.start,
+              charged,
+            );
+          }
+        }
+
         const newInvoice = await tx.invoice.create({
           data: {
             invoiceNumber,
@@ -227,7 +259,7 @@ export class BillingEngineService {
   async previewInvoice(
     params: GenerateInvoiceParams,
   ): Promise<InvoiceDryRunResult> {
-    const { contractId, periodStart, periodEnd } = params;
+    const { contractId, periodStart, periodEnd, billingDate } = params;
 
     const contract = await this.prisma.contract.findUnique({
       where: { id: contractId },
@@ -249,6 +281,7 @@ export class BillingEngineService {
       contract,
       periodStart,
       periodEnd,
+      billingDate,
     );
 
     const product: BillableProduct | null = null;
@@ -266,6 +299,7 @@ export class BillingEngineService {
       contract,
       product,
       billingPeriod.start,
+      await this.findChargedSetupFees(this.prisma, contract.id),
     );
 
     const projectedInvoiceNumber = await this.generateInvoiceNumber();
@@ -338,18 +372,36 @@ export class BillingEngineService {
   }
 
   /**
-   * Return the setup fee if this is the first billing period, 0 otherwise.
+   * The product's setup fee. Whether it is still owed is NOT decided here:
+   * exactly-once is enforced against prior invoices (see
+   * findChargedSetupFees), because a calendar-month check misses a contract
+   * first billed in a later month and double-charges within the start month.
    */
-  getSetupFee(
-    product: BillableProduct | null,
-    contractStartDate: Date,
-    periodStart: Date,
-  ): Decimal {
+  getSetupFee(product: BillableProduct | null): Decimal {
     if (!product || !product.setupFee) return new Decimal(0);
-    if (this.isFirstBillingPeriod(contractStartDate, periodStart)) {
-      return product.setupFee;
-    }
-    return new Decimal(0);
+    return product.setupFee;
+  }
+
+  /**
+   * Descriptions of setup-fee lines already billed on a non-void invoice of
+   * this contract. Pass the transaction client to read inside the tx.
+   */
+  private async findChargedSetupFees(
+    client: Pick<Prisma.TransactionClient, 'invoiceItem'>,
+    contractId: string,
+  ): Promise<Set<string>> {
+    const rows = await client.invoiceItem.findMany({
+      where: {
+        description: { startsWith: SETUP_FEE_PREFIX },
+        invoice: { contractId, status: { notIn: ['void', 'cancelled'] } },
+      },
+      select: { description: true },
+    });
+    return new Set(rows.map((r) => r.description));
+  }
+
+  private hasSetupFeeLine(lineItems: { description: string }[]): boolean {
+    return lineItems.some((i) => i.description.startsWith(SETUP_FEE_PREFIX));
   }
 
   /**
@@ -371,9 +423,14 @@ export class BillingEngineService {
     contract: any,
     periodStart?: Date,
     periodEnd?: Date,
+    billingDate?: Date,
   ): { start: Date; end: Date } {
     if (periodStart && periodEnd) {
       return { start: periodStart, end: periodEnd };
+    }
+
+    if (!periodStart && billingDate) {
+      return this.alignPeriodToBillingDate(contract, billingDate);
     }
 
     const now = new Date();
@@ -401,10 +458,53 @@ export class BillingEngineService {
     return { start, end };
   }
 
+  /**
+   * The billing period containing `billingDate`, on boundaries anchored at the
+   * contract start and stepped by the billing frequency (UTC, month-end
+   * clamped). Deterministic per (contract, period), whatever day it runs.
+   */
+  private alignPeriodToBillingDate(
+    contract: { startDate: Date; billingFrequency: string },
+    billingDate: Date,
+  ): { start: Date; end: Date } {
+    const step =
+      contract.billingFrequency === 'quarterly'
+        ? 3
+        : contract.billingFrequency === 'annual'
+          ? 12
+          : 1;
+    const anchor = contract.startDate;
+    const target = Date.UTC(
+      billingDate.getUTCFullYear(),
+      billingDate.getUTCMonth(),
+      billingDate.getUTCDate(),
+    );
+    const monthsApart =
+      (billingDate.getUTCFullYear() - anchor.getUTCFullYear()) * 12 +
+      (billingDate.getUTCMonth() - anchor.getUTCMonth());
+    let k = Math.max(0, Math.floor(monthsApart / step));
+    if (k > 0 && this.addMonthsUtc(anchor, k * step).getTime() > target) k--;
+    return {
+      start: this.addMonthsUtc(anchor, k * step),
+      end: this.addMonthsUtc(anchor, (k + 1) * step),
+    };
+  }
+
+  private addMonthsUtc(anchor: Date, months: number): Date {
+    const total = anchor.getUTCMonth() + months;
+    const year = anchor.getUTCFullYear() + Math.floor(total / 12);
+    const month = ((total % 12) + 12) % 12;
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    return new Date(
+      Date.UTC(year, month, Math.min(anchor.getUTCDate(), lastDay)),
+    );
+  }
+
   async computeLineItems(
     contract: any,
     product: BillableProduct | null,
     periodStart: Date,
+    chargedSetupFees: ReadonlySet<string> = new Set(),
   ) {
     const lineItems: Array<{
       description: string;
@@ -489,15 +589,14 @@ export class BillingEngineService {
 
         subtotal = subtotal.add(amount);
 
-        // Setup fee is per product and charged on the first period only
-        const productSetupFee = this.getSetupFee(
-          cp.product,
-          contract.startDate,
-          periodStart,
-        );
+        // Setup fee is per product and charged once per contract
+        const setupDescription = `${SETUP_FEE_PREFIX} — ${cp.product.name}`;
+        const productSetupFee = chargedSetupFees.has(setupDescription)
+          ? new Decimal(0)
+          : this.getSetupFee(cp.product);
         if (productSetupFee.greaterThan(0)) {
           lineItems.push({
-            description: `Setup Fee (one-time) — ${cp.product.name}`,
+            description: setupDescription,
             quantity: new Decimal(1),
             unitPrice: productSetupFee,
             amount: productSetupFee,
@@ -539,10 +638,12 @@ export class BillingEngineService {
     }
 
     // Setup fee on first invoice (Phase 3.5)
-    const setupFee = this.getSetupFee(product, contract.startDate, periodStart);
+    const setupFee = chargedSetupFees.has(SETUP_FEE_PREFIX)
+      ? new Decimal(0)
+      : this.getSetupFee(product);
     if (setupFee.greaterThan(0)) {
       lineItems.push({
-        description: 'Setup Fee (one-time)',
+        description: SETUP_FEE_PREFIX,
         quantity: new Decimal(1),
         unitPrice: setupFee,
         amount: setupFee,

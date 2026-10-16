@@ -95,7 +95,7 @@ export class PaymentsService {
           await this.settleInvoiceBalance(
             tx,
             dto.invoiceId,
-            Number(dto.amount),
+            new Prisma.Decimal(dto.amount),
           );
         }
 
@@ -141,14 +141,15 @@ export class PaymentsService {
   private async settleInvoiceBalance(
     tx: Prisma.TransactionClient,
     invoiceId: string,
-    delta: number,
+    delta: Prisma.Decimal,
   ): Promise<void> {
+    const isCredit = !delta.isNegative();
+    const magnitude = delta.abs();
     const applied = await tx.invoice.update({
       where: { id: invoiceId },
-      data:
-        delta >= 0
-          ? { paidAmount: { increment: delta } }
-          : { paidAmount: { decrement: Math.abs(delta) } },
+      data: isCredit
+        ? { paidAmount: { increment: magnitude } }
+        : { paidAmount: { decrement: magnitude } },
     });
 
     const total = new Prisma.Decimal(applied.total);
@@ -156,8 +157,9 @@ export class PaymentsService {
     // Captured before the clamp below: the audit trail must report the balance
     // the invoice actually had, not a value derived from the clamped one.
     const balanceBefore = paid.minus(delta);
+    const isPositive = delta.greaterThan(0);
 
-    if (delta > 0 && paid.greaterThan(total)) {
+    if (isPositive && paid.greaterThan(total)) {
       const room = total.minus(paid).plus(delta);
       throw new BadRequestException(
         `Payment exceeds the invoice balance. Outstanding: ${room.toFixed(2)} ${applied.currency ?? ''}`.trim() +
@@ -193,7 +195,7 @@ export class PaymentsService {
       {
         entityType: 'invoice',
         entityId: invoiceId,
-        action: delta >= 0 ? 'payment_applied' : 'payment_reversed',
+        action: isCredit ? 'payment_applied' : 'payment_reversed',
         actorType: 'system',
         changes: {
           paidAmount: {
@@ -204,7 +206,7 @@ export class PaymentsService {
         },
         // String, like every other audit amount — keeps metadata->>'amount'
         // comparable across rows and avoids a lossy Decimal->Number hop.
-        metadata: { amount: String(Math.abs(delta)) },
+        metadata: { amount: magnitude.toString() },
       },
       tx,
     );
@@ -278,12 +280,24 @@ export class PaymentsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // The reads above only validate ownership; the balance itself moves
-      // atomically here, so a concurrent payment cannot be lost.
+      // The reads above only validate ownership. Claim the payment with a
+      // conditional update before touching the balance: two concurrent applies
+      // would otherwise both pass the outside-the-tx checks and each add the
+      // amount to the invoice.
+      const claimed = await tx.payment.updateMany({
+        where: { id, invoiceId: null, status: { not: 'voided' } },
+        data: { invoiceId: dto.invoiceId, status: 'applied' },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          `Payment ${id} was already applied or voided by another request`,
+        );
+      }
+
       await this.settleInvoiceBalance(
         tx,
         dto.invoiceId,
-        Number(payment.amount),
+        new Prisma.Decimal(payment.amount),
       );
 
       await this.auditLog.log(
@@ -298,9 +312,8 @@ export class PaymentsService {
         tx,
       );
 
-      return tx.payment.update({
+      return tx.payment.findUnique({
         where: { id },
-        data: { invoiceId: dto.invoiceId, status: 'applied' },
         include: {
           invoice: {
             select: {
@@ -343,7 +356,7 @@ export class PaymentsService {
         await this.settleInvoiceBalance(
           tx,
           payment.invoiceId,
-          -Number(payment.amount),
+          new Prisma.Decimal(payment.amount).negated(),
         );
       }
 

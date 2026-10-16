@@ -22,6 +22,7 @@ describe('BillingEngineService', () => {
   const mockPrismaService = {
     contract: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
     invoice: {
       create: jest.fn(),
@@ -29,6 +30,7 @@ describe('BillingEngineService', () => {
     },
     invoiceItem: {
       createMany: jest.fn(),
+      findMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -72,6 +74,11 @@ describe('BillingEngineService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    mockPrismaService.invoiceItem.findMany.mockReset();
+    mockPrismaService.invoiceItem.findMany.mockResolvedValue([]);
   });
 
   it('should be defined', () => {
@@ -386,7 +393,9 @@ describe('BillingEngineService', () => {
               capturedLineItems = data.data;
               return Promise.resolve();
             }),
+            findMany: jest.fn().mockResolvedValue([]),
           },
+          $queryRaw: jest.fn().mockResolvedValue([]),
         });
       });
 
@@ -425,7 +434,9 @@ describe('BillingEngineService', () => {
               capturedLineItems = data.data;
               return Promise.resolve();
             }),
+            findMany: jest.fn().mockResolvedValue([]),
           },
+          $queryRaw: jest.fn().mockResolvedValue([]),
         });
       });
 
@@ -465,7 +476,9 @@ describe('BillingEngineService', () => {
               capturedLineItems = data.data;
               return Promise.resolve();
             }),
+            findMany: jest.fn().mockResolvedValue([]),
           },
+          $queryRaw: jest.fn().mockResolvedValue([]),
         });
       });
 
@@ -505,7 +518,9 @@ describe('BillingEngineService', () => {
               capturedLineItems = data.data;
               return Promise.resolve();
             }),
+            findMany: jest.fn().mockResolvedValue([]),
           },
+          $queryRaw: jest.fn().mockResolvedValue([]),
         });
       });
 
@@ -667,14 +682,8 @@ describe('BillingEngineService', () => {
   });
 
   describe('getSetupFee', () => {
-    const contractStart = new Date('2026-01-01');
-
     it('should return 0 when product is null', () => {
-      const fee = service.getSetupFee(
-        null,
-        contractStart,
-        new Date('2026-01-01'),
-      );
+      const fee = service.getSetupFee(null);
       expect(fee.toString()).toBe('0');
     });
 
@@ -684,11 +693,7 @@ describe('BillingEngineService', () => {
         setupFee: null,
         trialPeriodDays: null,
       };
-      const fee = service.getSetupFee(
-        product,
-        contractStart,
-        new Date('2026-01-01'),
-      );
+      const fee = service.getSetupFee(product);
       expect(fee.toString()).toBe('0');
     });
 
@@ -698,26 +703,19 @@ describe('BillingEngineService', () => {
         setupFee: new Decimal(500),
         trialPeriodDays: null,
       };
-      const fee = service.getSetupFee(
-        product,
-        contractStart,
-        new Date('2026-01-15'),
-      );
+      const fee = service.getSetupFee(product);
       expect(fee.toString()).toBe('500');
     });
 
-    it('should return 0 for setup fee on subsequent periods', () => {
+    it('is not gated on calendar month (exactly-once is enforced against prior invoices)', () => {
       const product: BillableProduct = {
         chargeType: 'recurring',
         setupFee: new Decimal(500),
         trialPeriodDays: null,
       };
-      const fee = service.getSetupFee(
-        product,
-        contractStart,
-        new Date('2026-02-01'),
-      );
-      expect(fee.toString()).toBe('0');
+      // 31 Jan start first billed in Feb must still carry the fee
+      const fee = service.getSetupFee(product);
+      expect(fee.toString()).toBe('500');
     });
   });
 
@@ -765,7 +763,9 @@ describe('BillingEngineService', () => {
               capturedLineItems = data.data;
               return Promise.resolve();
             }),
+            findMany: jest.fn().mockResolvedValue([]),
           },
+          $queryRaw: jest.fn().mockResolvedValue([]),
         });
       });
 
@@ -789,6 +789,190 @@ describe('BillingEngineService', () => {
       await expect(
         service.generateInvoiceFromContract({ contractId: 'contract-123' }),
       ).rejects.toThrow('Product billing skipped for period');
+    });
+  });
+
+  describe('setup fee exactly-once (review finding 2)', () => {
+    const contract = {
+      id: 'contract-123',
+      accountId: 'account-123',
+      startDate: new Date('2026-01-31'),
+      endDate: new Date('2026-12-31'),
+      contractValue: new Decimal(1200),
+      billingFrequency: 'monthly',
+      seatCount: null,
+      seatPrice: null,
+      status: 'active',
+      products: [
+        {
+          product: {
+            name: 'Platform',
+            basePrice: new Decimal(100),
+            chargeType: 'recurring',
+            setupFee: new Decimal(500),
+            trialPeriodDays: null,
+            volumeTiers: null,
+          },
+          quantity: 1,
+          unitPrice: null,
+          discount: null,
+        },
+      ],
+      account: {
+        id: 'account-123',
+        currency: 'USD',
+        paymentTermsDays: 30,
+        creditHold: false,
+      },
+    };
+
+    const run = async (priorSetup: { description: string }[]) => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(contract);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      const findMany = jest.fn().mockResolvedValue(priorSetup);
+      const createMany = jest.fn();
+      const tx = {
+        invoice: {
+          create: jest.fn().mockResolvedValue({
+            id: 'inv',
+            invoiceNumber: 'INV-1',
+            total: new Decimal(0),
+          }),
+        },
+        invoiceItem: { createMany, findMany },
+        $queryRaw: jest.fn().mockResolvedValue([]),
+      };
+      mockPrismaService.$transaction.mockImplementation(async (cb) => cb(tx));
+      await service.generateInvoiceFromContract({
+        contractId: 'contract-123',
+        periodStart: new Date('2026-02-01'),
+        periodEnd: new Date('2026-03-01'),
+      });
+      return { tx, items: createMany.mock.calls[0][0].data as any[] };
+    };
+
+    it('charges the fee on a first invoice outside the start month', async () => {
+      const { items } = await run([]);
+      expect(items.map((i) => i.description)).toContain(
+        'Setup Fee (one-time) — Platform',
+      );
+    });
+
+    it('omits the fee when a prior non-void invoice already carried it', async () => {
+      const { tx, items } = await run([
+        { description: 'Setup Fee (one-time) — Platform' },
+      ]);
+      expect(items.map((i) => i.description)).toEqual(['Platform']);
+      expect(tx.invoice.create.mock.calls[0][0].data.subtotal.toString()).toBe(
+        '100',
+      );
+      expect(tx.invoiceItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            invoice: expect.objectContaining({
+              contractId: 'contract-123',
+              status: { notIn: ['void', 'cancelled'] },
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('period derived from billingDate (review finding 1)', () => {
+    const contract = {
+      id: 'contract-123',
+      accountId: 'account-123',
+      startDate: new Date('2026-01-15T00:00:00Z'),
+      endDate: new Date('2027-12-31T00:00:00Z'),
+      contractValue: new Decimal(1200),
+      billingFrequency: 'monthly',
+      seatCount: null,
+      seatPrice: null,
+      status: 'active',
+      products: [],
+      account: {
+        id: 'account-123',
+        currency: 'USD',
+        paymentTermsDays: 30,
+        creditHold: false,
+      },
+    };
+
+    const periodFor = async (c: any, billingDate: string) => {
+      mockPrismaService.contract.findUnique.mockResolvedValue(c);
+      mockPrismaService.invoice.count.mockResolvedValue(0);
+      const create = jest
+        .fn()
+        .mockResolvedValue({ id: 'i', invoiceNumber: 'n', total: 0 });
+      mockPrismaService.$transaction.mockImplementation(async (cb) =>
+        cb({ invoice: { create }, invoiceItem: { createMany: jest.fn() } }),
+      );
+      await service.generateInvoiceFromContract({
+        contractId: c.id,
+        billingDate: new Date(billingDate),
+      });
+      const d = create.mock.calls[0][0].data;
+      return [
+        d.periodStart.toISOString().slice(0, 10),
+        d.periodEnd.toISOString().slice(0, 10),
+      ];
+    };
+
+    it('aligns monthly to the contract boundary regardless of run day', async () => {
+      expect(await periodFor(contract, '2026-03-15')).toEqual([
+        '2026-03-15',
+        '2026-04-15',
+      ]);
+      expect(await periodFor(contract, '2026-04-02')).toEqual([
+        '2026-03-15',
+        '2026-04-15',
+      ]);
+    });
+
+    it('aligns quarterly and annual', async () => {
+      expect(
+        await periodFor(
+          { ...contract, billingFrequency: 'quarterly' },
+          '2026-09-01',
+        ),
+      ).toEqual(['2026-07-15', '2026-10-15']);
+      expect(
+        await periodFor(
+          { ...contract, billingFrequency: 'annual' },
+          '2027-02-01',
+        ),
+      ).toEqual(['2027-01-15', '2028-01-15']);
+    });
+
+    it('clamps month-end anchors instead of overflowing', async () => {
+      const c = { ...contract, startDate: new Date('2026-01-31T00:00:00Z') };
+      expect(await periodFor(c, '2026-02-10')).toEqual([
+        '2026-01-31',
+        '2026-02-28',
+      ]);
+      expect(await periodFor(c, '2026-03-05')).toEqual([
+        '2026-02-28',
+        '2026-03-31',
+      ]);
+    });
+  });
+
+  describe('findContractsDueForBilling (review finding 1)', () => {
+    it('excludes contracts already invoiced for the period and pages by cursor', async () => {
+      mockPrismaService.contract.findMany.mockResolvedValue([{ id: 'c-2' }]);
+      const asOf = new Date('2026-02-10');
+      await service.findContractsDueForBilling('monthly', asOf, {
+        afterId: 'c-1',
+        take: 100,
+      });
+      const args = mockPrismaService.contract.findMany.mock.calls[0][0];
+      expect(args.where.invoices).toEqual({
+        none: { periodStart: { lte: asOf }, periodEnd: { gt: asOf } },
+      });
+      expect(args.where.id).toEqual({ gt: 'c-1' });
+      expect(args.skip).toBeUndefined();
+      expect(args.take).toBe(100);
     });
   });
 
@@ -1071,7 +1255,9 @@ describe('BillingEngineService', () => {
               capturedLineItems = data.data;
               return Promise.resolve();
             }),
+            findMany: jest.fn().mockResolvedValue([]),
           },
+          $queryRaw: jest.fn().mockResolvedValue([]),
         });
       });
 
@@ -1178,7 +1364,7 @@ describe('BillingEngineService', () => {
       expect(result.total.toString()).toBe('1000');
     });
 
-    it('charges each product setup fee on the first period only', async () => {
+    it('charges each product setup fee until a prior invoice carried it', async () => {
       mockTaxRates.findApplicableRate.mockResolvedValue(null);
       const contract = contractWith({
         products: [productLine({ setupFee: new Decimal(500) })],
@@ -1194,6 +1380,7 @@ describe('BillingEngineService', () => {
         contract,
         null,
         new Date('2026-05-01'),
+        new Set(['Setup Fee (one-time) — Seats']),
       );
       expect(
         later.lineItems.some((l: any) => /setup fee/i.test(l.description)),

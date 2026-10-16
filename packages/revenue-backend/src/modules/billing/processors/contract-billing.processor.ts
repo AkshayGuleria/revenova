@@ -98,7 +98,7 @@ export class ContractBillingProcessor extends WorkerHost {
 
     const PAGE_SIZE = 100;
     const asOf = new Date(billingDate);
-    let skip = 0;
+    let afterId: string | undefined;
     let processedCount = 0;
     let skippedCount = 0;
     let failedCount = 0;
@@ -107,7 +107,7 @@ export class ContractBillingProcessor extends WorkerHost {
       const contracts = await this.billingEngine.findContractsDueForBilling(
         billingPeriod,
         asOf,
-        { skip, take: PAGE_SIZE },
+        { afterId, take: PAGE_SIZE },
       );
       if (contracts.length === 0) break;
 
@@ -115,6 +115,7 @@ export class ContractBillingProcessor extends WorkerHost {
         try {
           await this.billingEngine.generateInvoiceFromContract({
             contractId: contract.id,
+            billingDate: asOf,
           });
           processedCount++;
         } catch (error) {
@@ -135,7 +136,7 @@ export class ContractBillingProcessor extends WorkerHost {
       }
 
       if (contracts.length < PAGE_SIZE) break;
-      skip += PAGE_SIZE;
+      afterId = contracts[contracts.length - 1].id;
     }
 
     return {

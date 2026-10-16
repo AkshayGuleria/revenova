@@ -371,12 +371,13 @@ describe('BillingEngineService — snapshots', () => {
           startDate: BASE_DATE,
         });
 
-        // periodStart is next month → not first period
+        // Setup fee already billed on a prior invoice → not charged again
         const nextMonth = new Date('2024-02-01T00:00:00.000Z');
         const result = await service.computeLineItems(
           contract,
           product,
           nextMonth,
+          new Set(['Setup Fee (one-time)']),
         );
         expect(await serializeAmounts(result)).toMatchSnapshot();
       });
@@ -476,7 +477,7 @@ describe('BillingEngineService — snapshots', () => {
 
   describe('getSetupFee', () => {
     it('no product → $0 setup fee', () => {
-      const result = service.getSetupFee(null, BASE_DATE, BASE_DATE);
+      const result = service.getSetupFee(null);
       expect(result.toString()).toMatchSnapshot();
     });
 
@@ -486,7 +487,7 @@ describe('BillingEngineService — snapshots', () => {
         setupFee: null,
         trialPeriodDays: null,
       };
-      const result = service.getSetupFee(product, BASE_DATE, BASE_DATE);
+      const result = service.getSetupFee(product);
       expect(result.toString()).toMatchSnapshot();
     });
 
@@ -496,18 +497,7 @@ describe('BillingEngineService — snapshots', () => {
         setupFee: new Decimal('2500.00'),
         trialPeriodDays: null,
       };
-      const result = service.getSetupFee(product, BASE_DATE, BASE_DATE);
-      expect(result.toString()).toMatchSnapshot();
-    });
-
-    it('product with $2500 setup fee — subsequent period → $0', () => {
-      const product = {
-        chargeType: 'recurring',
-        setupFee: new Decimal('2500.00'),
-        trialPeriodDays: null,
-      };
-      const nextMonth = new Date('2024-02-01T00:00:00.000Z');
-      const result = service.getSetupFee(product, BASE_DATE, nextMonth);
+      const result = service.getSetupFee(product);
       expect(result.toString()).toMatchSnapshot();
     });
   });

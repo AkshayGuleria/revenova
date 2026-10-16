@@ -266,8 +266,6 @@ exports[`BillingEngineService — snapshots getSetupFee no product → $0 setup 
 
 exports[`BillingEngineService — snapshots getSetupFee product with $2500 setup fee — first period 1`] = `"2500"`;
 
-exports[`BillingEngineService — snapshots getSetupFee product with $2500 setup fee — subsequent period → $0 1`] = `"0"`;
-
 exports[`BillingEngineService — snapshots getSetupFee product with no setupFee → $0 1`] = `"0"`;
 
 exports[`BillingEngineService — snapshots isFirstBillingPeriod different year, same month → false 1`] = `false`;

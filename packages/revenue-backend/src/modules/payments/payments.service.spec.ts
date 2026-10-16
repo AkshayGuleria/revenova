@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { Prisma } from '@prisma/client';
 import {
   NotFoundException,
   ConflictException,
@@ -307,7 +308,8 @@ describe('PaymentsService', () => {
             status: 'sent',
           }),
           payment: {
-            update: jest
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            findUnique: jest
               .fn()
               .mockResolvedValue({ id: 'pay-1', invoiceId: 'inv-1' }),
           },
@@ -535,7 +537,7 @@ describe('PaymentsService', () => {
       expect(tx.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            paidAmount: { increment: 5000 },
+            paidAmount: { increment: new Prisma.Decimal(5000) },
           }),
         }),
       );
@@ -605,7 +607,9 @@ describe('PaymentsService', () => {
 
       expect(tx.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ paidAmount: { increment: 10000 } }),
+          data: expect.objectContaining({
+            paidAmount: { increment: new Prisma.Decimal(10000) },
+          }),
         }),
       );
       expect(tx.state.status).toBe('paid');
@@ -634,7 +638,9 @@ describe('PaymentsService', () => {
 
       expect(tx.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ paidAmount: { decrement: 5000 } }),
+          data: expect.objectContaining({
+            paidAmount: { decrement: new Prisma.Decimal(5000) },
+          }),
         }),
       );
       expect(tx.state.paidAmount).toBe(0);
@@ -803,6 +809,78 @@ describe('PaymentsService', () => {
 
       await expect(service.void('pay-1')).rejects.toThrow(BadRequestException);
       expect(tx.invoice.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('apply — claim and decimal handling (review findings 3, 4)', () => {
+    const unlinked = {
+      id: 'pay-1',
+      invoiceId: null,
+      amount: new Prisma.Decimal('0.10'),
+      accountId: 'acc-1',
+      status: 'applied',
+    };
+    const invoiceRow = {
+      id: 'inv-1',
+      accountId: 'acc-1',
+      total: 1000,
+      paidAmount: 0,
+      status: 'sent',
+    };
+    const txFor = (count: number) => ({
+      invoice: statefulInvoice(invoiceRow),
+      payment: {
+        updateMany: jest.fn(async () => ({ count })),
+        findUnique: jest.fn(async () => ({ id: 'pay-1', invoiceId: 'inv-1' })),
+        update: jest.fn(),
+      },
+    });
+
+    beforeEach(() => {
+      mockPrismaService.payment.findUnique.mockResolvedValue(unlinked);
+      mockPrismaService.invoice.findUnique.mockResolvedValue(invoiceRow);
+    });
+
+    it('claims the payment atomically before touching the balance', async () => {
+      const tx = txFor(1);
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.applyToInvoice('pay-1', { invoiceId: 'inv-1' });
+
+      expect(tx.payment.updateMany).toHaveBeenCalledWith({
+        where: { id: 'pay-1', invoiceId: null, status: { not: 'voided' } },
+        data: { invoiceId: 'inv-1', status: 'applied' },
+      });
+      expect(tx.payment.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a concurrent second apply without moving the balance', async () => {
+      const tx = txFor(0);
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await expect(
+        service.applyToInvoice('pay-1', { invoiceId: 'inv-1' }),
+      ).rejects.toThrow(ConflictException);
+      expect(tx.invoice.update).not.toHaveBeenCalled();
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
+    });
+
+    it('moves the balance with a Decimal delta, not a float', async () => {
+      const tx = txFor(1);
+      mockPrismaService.$transaction.mockImplementation(async (fn: any) =>
+        fn(tx),
+      );
+
+      await service.applyToInvoice('pay-1', { invoiceId: 'inv-1' });
+
+      const inc = (tx.invoice.update.mock.calls[0] as any[])[0].data.paidAmount
+        .increment;
+      expect(Prisma.Decimal.isDecimal(inc)).toBe(true);
+      expect(inc.toString()).toBe('0.1');
     });
   });
 });
